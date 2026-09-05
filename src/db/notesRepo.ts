@@ -41,6 +41,48 @@ function uniqueIds(ids: number[] | undefined): number[] {
   return [...new Set(ids ?? [])];
 }
 
+function replaceLinks(
+  db: SqlDb,
+  table: "note_people" | "note_initiatives",
+  idColumn: "person_id" | "initiative_id",
+  noteId: number,
+  linkedIds: number[],
+): void {
+  db.exec("BEGIN");
+  try {
+    db.prepare(`DELETE FROM ${table} WHERE note_id = ?`).run(noteId);
+    const insert = db.prepare(
+      `INSERT INTO ${table} (note_id, ${idColumn}) VALUES (?, ?)`,
+    );
+    for (const linkedId of uniqueIds(linkedIds)) {
+      insert.run(noteId, linkedId);
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function listLinkedActiveNotes(
+  db: SqlDb,
+  table: "note_people" | "note_initiatives",
+  idColumn: "person_id" | "initiative_id",
+  linkedId: number,
+): Note[] {
+  const rows = db
+    .prepare(
+      `SELECT notes.id, notes.body, notes.created_at, notes.updated_at, notes.deleted_at
+       FROM notes
+       JOIN ${table} ON ${table}.note_id = notes.id
+       WHERE ${table}.${idColumn} = ? AND notes.deleted_at IS NULL
+       ORDER BY notes.created_at DESC, notes.id DESC`,
+    )
+    .all(linkedId) as NoteRow[];
+
+  return rows.map((row) => mapNote(db, row));
+}
+
 function getTags(db: SqlDb, noteId: number): string[] {
   return (
     db
@@ -174,6 +216,44 @@ export function listActiveNotes(db: SqlDb): Note[] {
 
 export function listDeletedNotes(db: SqlDb): Note[] {
   return listNotes(db, true);
+}
+
+export function linkNoteToPeople(
+  db: SqlDb,
+  noteId: number,
+  personIds: number[],
+): void {
+  replaceLinks(db, "note_people", "person_id", noteId, personIds);
+}
+
+export function linkNoteToInitiatives(
+  db: SqlDb,
+  noteId: number,
+  initiativeIds: number[],
+): void {
+  replaceLinks(
+    db,
+    "note_initiatives",
+    "initiative_id",
+    noteId,
+    initiativeIds,
+  );
+}
+
+export function listNotesForPerson(db: SqlDb, personId: number): Note[] {
+  return listLinkedActiveNotes(db, "note_people", "person_id", personId);
+}
+
+export function listNotesForInitiative(
+  db: SqlDb,
+  initiativeId: number,
+): Note[] {
+  return listLinkedActiveNotes(
+    db,
+    "note_initiatives",
+    "initiative_id",
+    initiativeId,
+  );
 }
 
 export function softDeleteNote(
