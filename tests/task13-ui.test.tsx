@@ -583,6 +583,12 @@ describe("Task 13 people and initiatives UI", () => {
           listNotesForInitiative: vi.fn().mockResolvedValue(notes),
           updateInitiative: vi.fn(),
           updateNote: vi.fn(),
+          softDeleteNote: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}

@@ -185,6 +185,12 @@ describe("initiative detail editing", () => {
           listNotesForInitiative,
           updateInitiative,
           updateNote: vi.fn(),
+          softDeleteNote: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -230,6 +236,12 @@ describe("initiative detail editing", () => {
           listNotesForInitiative: vi.fn().mockResolvedValue([]),
           updateInitiative: vi.fn(),
           updateNote: vi.fn(),
+          softDeleteNote: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -288,6 +300,12 @@ describe("initiative detail editing", () => {
           listNotesForInitiative,
           updateInitiative: vi.fn(),
           updateNote: vi.fn(),
+          softDeleteNote: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}

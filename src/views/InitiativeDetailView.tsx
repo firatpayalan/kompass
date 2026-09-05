@@ -5,10 +5,12 @@ import ReminderForm, {
 } from "../components/ReminderForm";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import type { PersonLabelColor } from "../lib/personLabels";
 import type {
   Initiative,
   InitiativeStatus,
   Note,
+  NoteTag,
   ReminderPeriod,
 } from "../lib/types";
 
@@ -20,6 +22,11 @@ type InitiativeDetailDb = Pick<
   | "updateInitiative"
   | "updateNote"
   | "softDeleteNote"
+  | "addTagToNote"
+  | "linkTagToNote"
+  | "listNoteTags"
+  | "updateNoteTag"
+  | "deleteNoteTag"
 >;
 
 type InitiativeDetailViewProps = {
@@ -45,6 +52,7 @@ export default function InitiativeDetailView({
 }: InitiativeDetailViewProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [noteTagCatalog, setNoteTagCatalog] = useState<NoteTag[]>([]);
   const [current, setCurrent] = useState(initiative);
   const [status, setStatus] = useState<InitiativeStatus>(initiative.status);
   const [blockerSummary, setBlockerSummary] = useState(
@@ -67,10 +75,14 @@ export default function InitiativeDetailView({
   useEffect(() => {
     let active = true;
     setLoading(true);
-    db.listNotesForInitiative(initiative.id)
-      .then((loaded) => {
+    Promise.all([
+      db.listNotesForInitiative(initiative.id),
+      db.listNoteTags(),
+    ])
+      .then(([loaded, catalog]) => {
         if (active) {
           setNotes(loaded);
+          setNoteTagCatalog(catalog);
         }
       })
       .catch(() => {
@@ -90,7 +102,12 @@ export default function InitiativeDetailView({
 
   const reloadNotes = async () => {
     try {
-      setNotes(await db.listNotesForInitiative(initiative.id));
+      const [loaded, catalog] = await Promise.all([
+        db.listNotesForInitiative(initiative.id),
+        db.listNoteTags(),
+      ]);
+      setNotes(loaded);
+      setNoteTagCatalog(catalog);
     } catch {
       onToast("Bağlı notlar yüklenemedi");
     }
@@ -227,6 +244,34 @@ export default function InitiativeDetailView({
     }
   };
 
+  const noteTagHandlers = {
+    tagCatalog: noteTagCatalog,
+    onAddTag: async (
+      noteId: number,
+      name: string,
+      color: PersonLabelColor,
+    ) => {
+      await db.addTagToNote(noteId, { name, color });
+      await reloadNotes();
+    },
+    onLinkTag: async (noteId: number, tagId: number) => {
+      await db.linkTagToNote(noteId, tagId);
+      await reloadNotes();
+    },
+    onUpdateTag: async (
+      id: number,
+      patch: { name?: string; color?: PersonLabelColor },
+    ) => {
+      await db.updateNoteTag(id, patch);
+      await reloadNotes();
+    },
+    onDeleteTag: async (id: number) => {
+      await db.deleteNoteTag(id);
+      await reloadNotes();
+    },
+    onToast,
+  };
+
   return (
     <section className="detail-view">
       <button className="back-button" onClick={onBack} type="button">
@@ -295,8 +340,8 @@ export default function InitiativeDetailView({
         loading={loading}
         notes={notes}
         onArchiveNote={archiveNote}
-        onToast={onToast}
         onUpdateNote={updateNote}
+        {...noteTagHandlers}
       />
       <form
         className="topic-note-form"
