@@ -1,11 +1,16 @@
 import type { Note } from "../lib/types";
 import NoteEditor from "./NoteEditor";
+import type { ReminderDraft } from "./ReminderForm";
 
 type NoteListProps = {
   notes: Note[];
   editingNoteId: number | null;
   onEdit: (id: number | null) => void;
-  onSave: (id: number, body: string) => Promise<void>;
+  onSave: (
+    id: number,
+    body: string,
+    reminder: ReminderDraft | null,
+  ) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 };
 
@@ -29,7 +34,7 @@ export default function NoteList({
             note={note}
             onCancel={() => onEdit(null)}
             onEdit={() => onEdit(note.id)}
-            onSave={(body) => onSave(note.id, body)}
+            onSave={(body, reminder) => onSave(note.id, body, reminder)}
           />
           {note.tags.length > 0 ? (
             <div className="note-list__tags">

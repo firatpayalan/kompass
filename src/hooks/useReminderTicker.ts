@@ -20,18 +20,31 @@ type UseReminderTickerOptions = {
   now?: () => Date;
 };
 
+export type ReminderTicker = {
+  completeReminder: (reminder: BugunReminder) => Promise<void>;
+  loadFailed: boolean;
+  loading: boolean;
+  permissionDenied: boolean;
+  refresh: () => Promise<void>;
+  reminders: BugunReminder[];
+};
+
 const currentTime = () => new Date();
+
+/** Recurring reminders may notify again once they advance to a new dueAt. */
+const notificationKey = (reminder: BugunReminder) =>
+  `${reminder.id}@${reminder.dueAt}`;
 
 export function useReminderTicker({
   db,
   notify = notifyReminder,
   now = currentTime,
-}: UseReminderTickerOptions) {
+}: UseReminderTickerOptions): ReminderTicker {
   const [reminders, setReminders] = useState<BugunReminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const notifiedIds = useRef(new Set<number>());
+  const notifiedIds = useRef(new Set<string>());
   const notificationsDisabled = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -45,14 +58,15 @@ export function useReminderTicker({
         if (notificationsDisabled.current) {
           break;
         }
+        const key = notificationKey(reminder);
         if (
           new Date(reminder.dueAt).getTime() > current.getTime() ||
-          notifiedIds.current.has(reminder.id)
+          notifiedIds.current.has(key)
         ) {
           continue;
         }
 
-        notifiedIds.current.add(reminder.id);
+        notifiedIds.current.add(key);
         try {
           const granted = await notify("Hatırlatma", reminder.title);
           if (!granted) {

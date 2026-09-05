@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import NoteList from "../components/NoteList";
+import type { ReminderDraft } from "../components/ReminderForm";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Note } from "../lib/types";
 
 type NotesDb = Pick<
   AppDb,
-  "listActiveNotes" | "softDeleteNote" | "updateNote"
+  "createReminder" | "listActiveNotes" | "softDeleteNote" | "updateNote"
 >;
 
 type NotesViewProps = {
@@ -40,17 +41,46 @@ export default function NotesView({
     void loadNotes();
   }, [loadNotes, refreshKey]);
 
-  const saveNote = async (id: number, body: string) => {
+  const saveNote = async (
+    id: number,
+    body: string,
+    reminder: ReminderDraft | null,
+  ) => {
     if (!body.trim()) {
       onToast("Not boş olamaz");
       return;
     }
+    if (reminder && !reminder.dueAt) {
+      onToast("Hatırlatma zamanı gerekli");
+      return;
+    }
+
     try {
       await db.updateNote(id, body);
-      setEditingNoteId(null);
-      await loadNotes();
     } catch {
       onToast("Not güncellenemedi");
+      return;
+    }
+
+    let reminderFailed = false;
+    if (reminder) {
+      try {
+        await db.createReminder({
+          targetType: "note",
+          targetId: id,
+          dueAt: new Date(reminder.dueAt).toISOString(),
+          period: reminder.period,
+          nowIso: new Date().toISOString(),
+        });
+      } catch {
+        reminderFailed = true;
+      }
+    }
+
+    setEditingNoteId(null);
+    await loadNotes();
+    if (reminderFailed) {
+      onToast("Not kaydedildi, hatırlatma eklenemedi");
     }
   };
 

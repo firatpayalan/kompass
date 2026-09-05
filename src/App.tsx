@@ -8,6 +8,10 @@ import QuickNoteModal from "./components/QuickNoteModal";
 import Toast from "./components/Toast";
 import { getDb, type AppDb } from "./db/appDb";
 import { useAppShortcuts } from "./hooks/useAppShortcuts";
+import {
+  useReminderTicker,
+  type ReminderNotifier,
+} from "./hooks/useReminderTicker";
 import { createDraftStore } from "./lib/drafts";
 import type { Initiative, Person } from "./lib/types";
 import BugunView from "./views/BugunView";
@@ -21,9 +25,11 @@ import TrashView from "./views/TrashView";
 
 type AppProps = {
   db?: AppDb;
+  notify?: ReminderNotifier;
+  now?: () => Date;
 };
 
-export default function App({ db }: AppProps = {}) {
+export default function App({ db, notify, now }: AppProps = {}) {
   const appDb = db ?? getDb();
   const [activeView, setActiveView] = useState<View>("bugun");
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -35,6 +41,8 @@ export default function App({ db }: AppProps = {}) {
   const [selectedInitiative, setSelectedInitiative] =
     useState<Initiative | null>(null);
   const [draftStore] = useState(createDraftStore);
+  // App-scoped so reminders keep firing on every view, not just Bugün.
+  const reminderTicker = useReminderTicker({ db: appDb, notify, now });
 
   const changeView = useCallback((view: SidebarView) => {
     setActiveView(view);
@@ -78,7 +86,7 @@ export default function App({ db }: AppProps = {}) {
   const renderView = () => {
     switch (activeView) {
       case "bugun":
-        return <BugunView db={appDb} />;
+        return <BugunView db={appDb} ticker={reminderTicker} />;
       case "notlar":
         return (
           <NotesView

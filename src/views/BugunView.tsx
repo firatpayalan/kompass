@@ -1,30 +1,17 @@
 import { useEffect, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
-import {
-  type ReminderNotifier,
-  useReminderTicker,
-} from "../hooks/useReminderTicker";
+import type { ReminderTicker } from "../hooks/useReminderTicker";
 import type { Note } from "../lib/types";
 
-type BugunDb = Pick<
-  AppDb,
-  | "advanceOrCompleteReminder"
-  | "listActiveNotes"
-  | "listDueRemindersForBugun"
->;
+type BugunDb = Pick<AppDb, "listActiveNotes">;
 
 type BugunViewProps = {
   db?: BugunDb;
-  notify?: ReminderNotifier;
-  now?: () => Date;
+  ticker: ReminderTicker;
 };
 
-export default function BugunView({
-  db = getDb(),
-  notify,
-  now,
-}: BugunViewProps) {
+export default function BugunView({ db = getDb(), ticker }: BugunViewProps) {
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const {
@@ -33,7 +20,7 @@ export default function BugunView({
     loading: remindersLoading,
     permissionDenied,
     reminders,
-  } = useReminderTicker({ db, notify, now });
+  } = ticker;
 
   useEffect(() => {
     let active = true;

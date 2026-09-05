@@ -224,22 +224,11 @@ body {
   margin-bottom: 1.25rem;
 }
 
-.detail-view dl div,
 .linked-note-list li {
   padding: 1rem;
   border: 1px solid #dbe2ea;
   border-radius: 0.75rem;
   background: #ffffff;
-}
-
-.detail-view dt {
-  color: #64748b;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.detail-view dd {
-  margin: 0.35rem 0 0;
 }
 
 .linked-note-list p {

@@ -81,9 +81,21 @@ export default function QuickNoteModal({
     }
 
     setSaving(true);
+    let note;
     try {
-      const note = await db.createNote({ body, personIds, initiativeIds });
-      if (reminderEnabled) {
+      note = await db.createNote({ body, personIds, initiativeIds });
+    } catch {
+      draftStore.saveDraft(body);
+      onToast("Kayıt başarısız; taslak korundu");
+      setSaving(false);
+      return;
+    }
+
+    // The note is already persisted, so a failed reminder must not resurrect
+    // the body as a draft and invite a duplicate note.
+    let reminderFailed = false;
+    if (reminderEnabled) {
+      try {
         await db.createReminder({
           targetType: "note",
           targetId: note.id,
@@ -91,16 +103,18 @@ export default function QuickNoteModal({
           period,
           nowIso: new Date().toISOString(),
         });
+      } catch {
+        reminderFailed = true;
       }
-      draftStore.clearDraft();
-      onSaved();
-      onClose();
-    } catch {
-      draftStore.saveDraft(body);
-      onToast("Kayıt başarısız; taslak korundu");
-    } finally {
-      setSaving(false);
     }
+
+    draftStore.clearDraft();
+    setSaving(false);
+    if (reminderFailed) {
+      onToast("Not kaydedildi, hatırlatma eklenemedi");
+    }
+    onSaved();
+    onClose();
   };
 
   return (

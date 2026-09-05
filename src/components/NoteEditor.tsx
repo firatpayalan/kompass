@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import type { Note } from "../lib/types";
+import type { Note, ReminderPeriod } from "../lib/types";
+import ReminderForm, { type ReminderDraft } from "./ReminderForm";
 
 type NoteEditorProps = {
   note: Note;
   editing: boolean;
   onEdit: () => void;
-  onSave: (body: string) => Promise<void>;
+  onSave: (body: string, reminder: ReminderDraft | null) => Promise<void>;
   onCancel: () => void;
 };
 
@@ -18,6 +19,9 @@ export default function NoteEditor({
 }: NoteEditorProps) {
   const [body, setBody] = useState(note.body);
   const [saving, setSaving] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [dueAt, setDueAt] = useState("");
+  const [period, setPeriod] = useState<ReminderPeriod>("once");
 
   useEffect(() => setBody(note.body), [note.body]);
 
@@ -32,7 +36,7 @@ export default function NoteEditor({
   const save = async () => {
     setSaving(true);
     try {
-      await onSave(body);
+      await onSave(body, reminderEnabled ? { dueAt, period } : null);
     } finally {
       setSaving(false);
     }
@@ -49,6 +53,14 @@ export default function NoteEditor({
           value={body}
         />
       </label>
+      <ReminderForm
+        dueAt={dueAt}
+        enabled={reminderEnabled}
+        onDueAtChange={setDueAt}
+        onEnabledChange={setReminderEnabled}
+        onPeriodChange={setPeriod}
+        period={period}
+      />
       <div className="note-editor__actions">
         <button onClick={onCancel} type="button">
           Vazgeç

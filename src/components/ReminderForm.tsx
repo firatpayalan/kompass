@@ -1,5 +1,10 @@
 import type { ReminderPeriod } from "../lib/types";
 
+export type ReminderDraft = {
+  dueAt: string;
+  period: ReminderPeriod;
+};
+
 type ReminderFormProps = {
   enabled: boolean;
   dueAt: string;

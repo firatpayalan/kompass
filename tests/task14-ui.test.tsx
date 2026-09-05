@@ -10,6 +10,10 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppDb } from "../src/db/appDb";
+import {
+  useReminderTicker,
+  type ReminderNotifier,
+} from "../src/hooks/useReminderTicker";
 import type { Note, Reminder } from "../src/lib/types";
 import BugunView from "../src/views/BugunView";
 
@@ -56,6 +60,21 @@ function createDb(
   };
 }
 
+type BugunHarnessProps = {
+  db: Pick<
+    AppDb,
+    "advanceOrCompleteReminder" | "listActiveNotes" | "listDueRemindersForBugun"
+  >;
+  notify?: ReminderNotifier;
+  now?: () => Date;
+};
+
+/** Mirrors App, which owns the ticker and hands it to BugunView. */
+function BugunHarness({ db, notify, now }: BugunHarnessProps) {
+  const ticker = useReminderTicker({ db, notify, now });
+  return <BugunView db={db} ticker={ticker} />;
+}
+
 describe("Task 14 Bugün view", () => {
   it("shows today's reminders and only the ten most recent active notes", async () => {
     const notes = Array.from({ length: 12 }, (_, index) => note(12 - index));
@@ -65,7 +84,7 @@ describe("Task 14 Bugün view", () => {
     });
 
     render(
-      <BugunView
+      <BugunHarness
         db={db}
         now={() => new Date("2026-09-05T12:00:00.000Z")}
         notify={vi.fn().mockResolvedValue(true)}
@@ -92,7 +111,7 @@ describe("Task 14 Bugün view", () => {
     const current = new Date("2026-09-05T12:00:00.000Z");
 
     render(
-      <BugunView
+      <BugunHarness
         db={db}
         now={() => current}
         notify={vi.fn().mockResolvedValue(true)}
@@ -118,7 +137,7 @@ describe("Task 14 Bugün view", () => {
     const db = createDb({ listDueRemindersForBugun });
 
     render(
-      <BugunView
+      <BugunHarness
         db={db}
         now={() => new Date("2026-09-05T12:00:00.000Z")}
         notify={vi.fn().mockResolvedValue(true)}
@@ -147,7 +166,7 @@ describe("Task 14 Bugün view", () => {
     });
 
     render(
-      <BugunView
+      <BugunHarness
         db={db}
         now={() => new Date("2026-09-05T12:00:00.000Z")}
         notify={notify}
@@ -178,7 +197,7 @@ describe("Task 14 Bugün view", () => {
     });
 
     render(
-      <BugunView
+      <BugunHarness
         db={db}
         now={() => new Date("2026-09-05T12:00:00.000Z")}
         notify={notify}

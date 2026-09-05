@@ -176,7 +176,7 @@ describe("Task 12 notes UI", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Değişiklikleri kaydet" }));
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith("Yeni"));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith("Yeni", null));
   });
 
   it("soft-deletes a note from the active list", async () => {

@@ -178,14 +178,23 @@ describe("Task 13 people and initiatives UI", () => {
   it("shows initiative status, blocker, and linked notes", async () => {
     render(
       <InitiativeDetailView
-        db={{ listNotesForInitiative: vi.fn().mockResolvedValue(notes) }}
+        db={{
+          createReminder: vi.fn(),
+          listNotesForInitiative: vi.fn().mockResolvedValue(notes),
+          updateInitiative: vi.fn(),
+        }}
         initiative={initiative}
         onBack={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("Aktif")).toBeTruthy();
-    expect(screen.getByText("Bütçe onayı")).toBeTruthy();
+    expect(screen.getByText("Aktif", { selector: "span" })).toBeTruthy();
+    expect(
+      (screen.getByLabelText("Durum") as HTMLSelectElement).value,
+    ).toBe("aktif");
+    expect(
+      (screen.getByLabelText("Engel özeti") as HTMLTextAreaElement).value,
+    ).toBe("Bütçe onayı");
     expect(
       await screen.findByRole("list", { name: "Bağlı notlar" }),
     ).toBeTruthy();
