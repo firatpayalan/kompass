@@ -294,7 +294,7 @@ describe("Task 13 people and initiatives UI", () => {
 
   it("shows person topics with nested notes", async () => {
     render(
-      <PersonDetailView
+      
         db={{
           createNote: vi.fn(),
           createTopic: vi.fn(),
@@ -399,7 +399,7 @@ describe("Task 13 people and initiatives UI", () => {
     const onToast = vi.fn();
 
     render(
-      <PersonDetailView
+      
         db={{
           createNote,
           createTopic,
@@ -410,6 +410,11 @@ describe("Task 13 people and initiatives UI", () => {
           createPersonLabel: vi.fn(),
           updatePersonLabel: vi.fn(),
           deletePersonLabel: vi.fn(),
+                    addTagToTopic: vi.fn(),
+          linkTagToTopic: vi.fn(),
+          listTopicTags: vi.fn().mockResolvedValue([]),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
           listTopicsWithNotesForPerson,
         }}
         onBack={vi.fn()}
@@ -487,7 +492,7 @@ describe("Task 13 people and initiatives UI", () => {
       });
 
     render(
-      <PersonDetailView
+      
         db={{
           createNote: vi.fn(),
           createTopic: vi.fn(),
