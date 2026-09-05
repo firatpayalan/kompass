@@ -60,6 +60,8 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     createReminder: vi.fn(),
     createTopic: vi.fn(),
           addTagToTopic: vi.fn(),
+          linkTagToTopic: vi.fn(),
+          listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
     updateTopic: vi.fn(),

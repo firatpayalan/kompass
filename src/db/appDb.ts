@@ -69,6 +69,8 @@ import {
 import {
   addTagToTopic,
   deleteTopicTag,
+  linkTagToTopic,
+  listTopicTags,
   updateTopicTag,
   type AddTopicTagInput,
   type UpdateTopicTagPatch,
@@ -110,6 +112,8 @@ export type AppDb = {
     untopicNotes: Note[];
   }>;
   addTagToTopic(topicId: number, input: AddTopicTagInput): Promise<TopicTag>;
+  linkTagToTopic(topicId: number, tagId: number): Promise<TopicTag>;
+  listTopicTags(): Promise<TopicTag[]>;
   updateTopicTag(id: number, patch: UpdateTopicTagPatch): Promise<TopicTag>;
   deleteTopicTag(id: number): Promise<void>;
 
@@ -165,6 +169,8 @@ export function createAppDb(db: AsyncDb): AppDb {
     listTopicsWithNotesForPerson: (personId) =>
       listTopicsWithNotesForPerson(db, personId),
     addTagToTopic: (topicId, input) => addTagToTopic(db, topicId, input),
+    linkTagToTopic: (topicId, tagId) => linkTagToTopic(db, topicId, tagId),
+    listTopicTags: () => listTopicTags(db),
     updateTopicTag: (id, patch) => updateTopicTag(db, id, patch),
     deleteTopicTag: (id) => deleteTopicTag(db, id),
 

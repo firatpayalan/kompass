@@ -1041,6 +1041,22 @@ button:disabled {
   padding: 0.4rem 0.7rem;
 }
 
+.topic-tags-editor__suggestions {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.topic-tags-editor__suggestions-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5a6b7d;
+}
+
+.topic-tags-editor__suggestions .person-label-chip {
+  opacity: 0.85;
+  border-style: dashed;
+}
+
 .person-label-swatch input {
   position: absolute;
   inset: 0;

@@ -6,7 +6,7 @@ import TopicTagsEditor from "../components/TopicTagsEditor";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { TopicWithNotes } from "../db/topicsRepo";
-import type { Note, Person, PersonLabel } from "../lib/types";
+import type { Note, Person, PersonLabel, TopicTag } from "../lib/types";
 import type { PersonLabelColor } from "../lib/personLabels";
 
 type PersonDetailDb = Pick<
@@ -22,6 +22,8 @@ type PersonDetailDb = Pick<
   | "updatePersonLabel"
   | "deletePersonLabel"
   | "addTagToTopic"
+  | "linkTagToTopic"
+  | "listTopicTags"
   | "updateTopicTag"
   | "deleteTopicTag"
 >;
@@ -57,6 +59,7 @@ export default function PersonDetailView({
   const [renameDraft, setRenameDraft] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [labels, setLabels] = useState<PersonLabel[]>([]);
+  const [topicTagCatalog, setTopicTagCatalog] = useState<TopicTag[]>([]);
   const [labelId, setLabelId] = useState<number | null>(
     person.label?.id ?? null,
   );
@@ -64,9 +67,13 @@ export default function PersonDetailView({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await db.listTopicsWithNotesForPerson(person.id);
+      const [result, catalog] = await Promise.all([
+        db.listTopicsWithNotesForPerson(person.id),
+        db.listTopicTags(),
+      ]);
       setTopics(result.topics);
       setUntopicNotes(result.untopicNotes);
+      setTopicTagCatalog(catalog);
     } catch {
       onToast("Konular yüklenemedi");
     } finally {
@@ -348,6 +355,8 @@ export default function PersonDetailView({
                   </div>
                 )}
                 <TopicTagsEditor
+                  catalog={topicTagCatalog}
+                  colorInputName={`topic-tag-color-${topic.id}`}
                   onAdd={async (tagName, tagColor) => {
                     await db.addTagToTopic(topic.id, {
                       name: tagName,
@@ -357,6 +366,10 @@ export default function PersonDetailView({
                   }}
                   onDelete={async (tagId) => {
                     await db.deleteTopicTag(tagId);
+                    await load();
+                  }}
+                  onLinkExisting={async (tagId) => {
+                    await db.linkTagToTopic(topic.id, tagId);
                     await load();
                   }}
                   onToast={onToast}

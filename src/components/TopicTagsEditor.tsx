@@ -7,7 +7,10 @@ import {
 
 type TopicTagsEditorProps = {
   tags: TopicTag[];
+  catalog?: TopicTag[];
+  colorInputName?: string;
   onAdd: (name: string, color: PersonLabelColor) => Promise<void>;
+  onLinkExisting?: (tagId: number) => Promise<void>;
   onUpdate: (
     id: number,
     patch: { name?: string; color?: PersonLabelColor },
@@ -23,7 +26,10 @@ type MenuState =
 
 export default function TopicTagsEditor({
   tags = [],
+  catalog = [],
+  colorInputName = "topic-tag-color",
   onAdd,
+  onLinkExisting,
   onUpdate,
   onDelete,
   onToast,
@@ -35,6 +41,14 @@ export default function TopicTagsEditor({
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+
+  const assignedIds = new Set(tags.map((tag) => tag.id));
+  const query = name.trim().toLocaleLowerCase("tr");
+  const suggestions = catalog.filter((tag) => {
+    if (assignedIds.has(tag.id)) return false;
+    if (!query) return true;
+    return tag.name.toLocaleLowerCase("tr").includes(query);
+  });
 
   useEffect(() => {
     if (!menu) return;
@@ -61,7 +75,30 @@ export default function TopicTagsEditor({
     }
     setSaving(true);
     try {
-      await onAdd(name.trim(), color);
+      const existing = catalog.find(
+        (tag) =>
+          tag.name.localeCompare(name.trim(), "tr", {
+            sensitivity: "base",
+          }) === 0,
+      );
+      if (existing && onLinkExisting && !assignedIds.has(existing.id)) {
+        await onLinkExisting(existing.id);
+      } else {
+        await onAdd(name.trim(), color);
+      }
+      setName("");
+    } catch (error) {
+      onToast(error instanceof Error ? error.message : "Etiket eklenemedi");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const linkSuggestion = async (tagId: number) => {
+    if (!onLinkExisting) return;
+    setSaving(true);
+    try {
+      await onLinkExisting(tagId);
       setName("");
     } catch (error) {
       onToast(error instanceof Error ? error.message : "Etiket eklenemedi");
@@ -162,7 +199,7 @@ export default function TopicTagsEditor({
             >
               <input
                 checked={color === token}
-                name="topic-tag-color"
+                name={colorInputName}
                 onChange={() => setColor(token)}
                 type="radio"
                 value={token}
@@ -175,6 +212,29 @@ export default function TopicTagsEditor({
           {saving ? "…" : "Ekle"}
         </button>
       </form>
+
+      {suggestions.length > 0 ? (
+        <div className="topic-tags-editor__suggestions">
+          <span className="topic-tags-editor__suggestions-label">
+            Mevcut etiketler
+          </span>
+          <div className="topic-tags-editor__chips">
+            {suggestions.map((tag) => (
+              <button
+                className={`person-label-chip person-label--${tag.color}`}
+                disabled={saving || !onLinkExisting}
+                key={tag.id}
+                onClick={() => {
+                  void linkSuggestion(tag.id);
+                }}
+                type="button"
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {menu ? (
         <div

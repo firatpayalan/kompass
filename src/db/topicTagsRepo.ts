@@ -65,6 +65,31 @@ export async function listTagsForTopic(
   return rows.map(mapTag);
 }
 
+export async function listTopicTags(db: AsyncDb): Promise<TopicTag[]> {
+  const rows = await db.select<TagRow>(
+    `SELECT id, name, color, created_at
+     FROM topic_tags
+     ORDER BY name COLLATE NOCASE, id`,
+  );
+  return rows.map(mapTag);
+}
+
+export async function linkTagToTopic(
+  db: AsyncDb,
+  topicId: number,
+  tagId: number,
+): Promise<TopicTag> {
+  const tag = await getTopicTag(db, tagId);
+  if (!tag) {
+    throw new Error("Etiket bulunamadı");
+  }
+  await db.execute(
+    `INSERT OR IGNORE INTO topic_tag_links (topic_id, tag_id) VALUES (?, ?)`,
+    [topicId, tagId],
+  );
+  return tag;
+}
+
 export async function getTopicTag(
   db: AsyncDb,
   id: number,
