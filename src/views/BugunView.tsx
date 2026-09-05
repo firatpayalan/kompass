@@ -3,6 +3,7 @@ import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { ReminderTicker } from "../hooks/useReminderTicker";
 import type { Note } from "../lib/types";
+import NoteTimestamps from "../components/NoteTimestamps";
 
 type BugunDb = Pick<AppDb, "listActiveNotes">;
 
@@ -94,9 +95,7 @@ export default function BugunView({ db = getDb(), ticker }: BugunViewProps) {
             {recentNotes.map((note) => (
               <li key={note.id}>
                 <p>{note.body}</p>
-                <time dateTime={note.createdAt}>
-                  {new Date(note.createdAt).toLocaleString("tr-TR")}
-                </time>
+                <NoteTimestamps note={note} />
               </li>
             ))}
           </ul>

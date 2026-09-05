@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Initiative, Note, Person } from "../lib/types";
+import NoteTimestamps from "../components/NoteTimestamps";
 
 type InboxDb = Pick<
   AppDb,
@@ -203,9 +204,7 @@ export default function InboxView({
                     </div>
                   ) : null}
                   <div className="note-list__meta">
-                    <time dateTime={note.createdAt}>
-                      {new Date(note.createdAt).toLocaleString("tr-TR")}
-                    </time>
+                    <NoteTimestamps note={note} />
                     <button
                       onClick={() => startOrganize(note)}
                       type="button"

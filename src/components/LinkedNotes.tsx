@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Note } from "../lib/types";
+import NoteTimestamps from "./NoteTimestamps";
 
 type LinkedNotesProps = {
   loading: boolean;
@@ -75,9 +76,7 @@ export default function LinkedNotes({
             <>
               <p>{note.body}</p>
               <div className="linked-note-meta">
-                <time dateTime={note.createdAt}>
-                  {new Date(note.createdAt).toLocaleString("tr-TR")}
-                </time>
+                <NoteTimestamps note={note} />
                 {onUpdateNote ? (
                   <button
                     onClick={() => startEdit(note)}

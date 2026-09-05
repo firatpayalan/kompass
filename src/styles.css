@@ -248,6 +248,18 @@ body {
   justify-content: space-between;
 }
 
+.note-timestamps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  color: #5a6b7d;
+}
+
+.note-timestamps__edited {
+  color: #3d5270;
+}
+
 .linked-note-meta button,
 .linked-note-edit__actions button,
 .topic-rename-form__actions button {

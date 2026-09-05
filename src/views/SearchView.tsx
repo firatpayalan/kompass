@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Note } from "../lib/types";
+import NoteTimestamps from "../components/NoteTimestamps";
 
 type SearchDb = Pick<AppDb, "searchNotes">;
 
@@ -91,9 +92,7 @@ export default function SearchView({
                   ))}
                 </div>
               ) : null}
-              <time dateTime={note.createdAt}>
-                {new Date(note.createdAt).toLocaleString("tr-TR")}
-              </time>
+              <NoteTimestamps note={note} />
             </li>
           ))}
         </ul>

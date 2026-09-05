@@ -1,5 +1,6 @@
 import type { Note } from "../lib/types";
 import NoteEditor from "./NoteEditor";
+import NoteTimestamps from "./NoteTimestamps";
 import type { ReminderDraft } from "./ReminderForm";
 
 type NoteListProps = {
@@ -44,9 +45,7 @@ export default function NoteList({
             </div>
           ) : null}
           <div className="note-list__meta">
-            <time dateTime={note.createdAt}>
-              {new Date(note.createdAt).toLocaleString("tr-TR")}
-            </time>
+            <NoteTimestamps note={note} />
             <button onClick={() => onDelete(note.id)} type="button">
               Sil
             </button>

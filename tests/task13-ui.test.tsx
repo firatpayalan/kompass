@@ -321,6 +321,7 @@ describe("Task 13 people and initiatives UI", () => {
     const updateNote = vi.fn().mockResolvedValue({
       ...notes[0],
       body: "güncellenmiş not",
+      updatedAt: "2026-09-05T12:00:00.000Z",
     });
     const listTopicsWithNotesForPerson = vi
       .fn()
@@ -337,7 +338,14 @@ describe("Task 13 people and initiatives UI", () => {
           {
             ...topicWithNotes,
             title: "Yeni konu",
-            notes: [{ ...notes[0], body: "güncellenmiş not" }, notes[1]],
+            notes: [
+              {
+                ...notes[0],
+                body: "güncellenmiş not",
+                updatedAt: "2026-09-05T12:00:00.000Z",
+              },
+              notes[1],
+            ],
           },
         ],
         untopicNotes: [],
@@ -379,6 +387,7 @@ describe("Task 13 people and initiatives UI", () => {
     await waitFor(() => {
       expect(updateNote).toHaveBeenCalledWith(11, "güncellenmiş not");
       expect(screen.getByText("güncellenmiş not")).toBeTruthy();
+      expect(screen.getByText(/Düzenlendi:/)).toBeTruthy();
     });
   });
 
