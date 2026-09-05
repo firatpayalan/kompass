@@ -25,12 +25,34 @@ export function openTestDb(): Database.Database {
 export function openTestAsyncDb(): TestAsyncDb {
   const db = openTestDb();
 
-  return {
+  const transactionDb: AsyncDb = {
     async execute(sql, bindValues = []) {
       db.prepare(sql).run(...bindValues);
     },
     async select<T>(sql: string, bindValues: unknown[] = []) {
       return db.prepare(sql).all(...bindValues) as T[];
+    },
+    async withTransaction<T>(
+      fn: (tx: AsyncDb) => Promise<T>,
+    ): Promise<T> {
+      return fn(transactionDb);
+    },
+  };
+
+  return {
+    ...transactionDb,
+    async withTransaction<T>(
+      fn: (tx: AsyncDb) => Promise<T>,
+    ): Promise<T> {
+      db.exec("BEGIN");
+      try {
+        const result = await fn(transactionDb);
+        db.exec("COMMIT");
+        return result;
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
     },
     close() {
       db.close();

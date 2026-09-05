@@ -2,11 +2,6 @@ import { parseHashtags } from "../lib/tags";
 import type { Note } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
 
-// Writes are not wrapped in BEGIN/COMMIT: the Tauri SQL plugin runs every
-// statement through a connection pool, so a transaction opened by one call can
-// be committed on a different connection. Multi-statement writes below are
-// ordered so a partial failure leaves recoverable data instead of a broken note.
-
 export type NoteRow = {
   id: number;
   body: string;
@@ -67,13 +62,15 @@ async function replaceLinks(
   noteId: number,
   linkedIds: number[],
 ): Promise<void> {
-  await db.execute(`DELETE FROM ${table} WHERE note_id = ?`, [noteId]);
-  for (const linkedId of uniqueIds(linkedIds)) {
-    await db.execute(
-      `INSERT INTO ${table} (note_id, ${idColumn}) VALUES (?, ?)`,
-      [noteId, linkedId],
-    );
-  }
+  await db.withTransaction(async (tx) => {
+    await tx.execute(`DELETE FROM ${table} WHERE note_id = ?`, [noteId]);
+    for (const linkedId of uniqueIds(linkedIds)) {
+      await tx.execute(
+        `INSERT INTO ${table} (note_id, ${idColumn}) VALUES (?, ?)`,
+        [noteId, linkedId],
+      );
+    }
+  });
 }
 
 async function listLinkedActiveNotes(
@@ -175,39 +172,43 @@ export async function createNote(
   }
 
   const nowIso = input.nowIso ?? new Date().toISOString();
-  const [inserted] = await db.select<IdRow>(
-    `INSERT INTO notes (body, created_at, updated_at, deleted_at)
-     VALUES (?, ?, ?, NULL)
-     RETURNING id`,
-    [input.body, nowIso, nowIso],
-  );
-  const noteId = inserted.id;
+  const noteId = await db.withTransaction(async (tx) => {
+    const [inserted] = await tx.select<IdRow>(
+      `INSERT INTO notes (body, created_at, updated_at, deleted_at)
+       VALUES (?, ?, ?, NULL)
+       RETURNING id`,
+      [input.body, nowIso, nowIso],
+    );
+    const insertedNoteId = inserted.id;
 
-  for (const tag of parseHashtags(input.body)) {
-    await db.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", [tag]);
-    const [tagRow] = await db.select<IdRow>(
-      "SELECT id FROM tags WHERE name = ?",
-      [tag],
-    );
-    await db.execute(
-      "INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)",
-      [noteId, tagRow.id],
-    );
-  }
+    for (const tag of parseHashtags(input.body)) {
+      await tx.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", [tag]);
+      const [tagRow] = await tx.select<IdRow>(
+        "SELECT id FROM tags WHERE name = ?",
+        [tag],
+      );
+      await tx.execute(
+        "INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)",
+        [insertedNoteId, tagRow.id],
+      );
+    }
 
-  for (const personId of uniqueIds(input.personIds)) {
-    await db.execute(
-      "INSERT INTO note_people (note_id, person_id) VALUES (?, ?)",
-      [noteId, personId],
-    );
-  }
+    for (const personId of uniqueIds(input.personIds)) {
+      await tx.execute(
+        "INSERT INTO note_people (note_id, person_id) VALUES (?, ?)",
+        [insertedNoteId, personId],
+      );
+    }
 
-  for (const initiativeId of uniqueIds(input.initiativeIds)) {
-    await db.execute(
-      "INSERT INTO note_initiatives (note_id, initiative_id) VALUES (?, ?)",
-      [noteId, initiativeId],
-    );
-  }
+    for (const initiativeId of uniqueIds(input.initiativeIds)) {
+      await tx.execute(
+        "INSERT INTO note_initiatives (note_id, initiative_id) VALUES (?, ?)",
+        [insertedNoteId, initiativeId],
+      );
+    }
+
+    return insertedNoteId;
+  });
 
   return (await getNote(db, noteId)) as Note;
 }

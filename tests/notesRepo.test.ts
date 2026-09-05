@@ -55,6 +55,22 @@ describe("notesRepo", () => {
     db.close();
   });
 
+  it("rolls back the note when linking a person fails", async () => {
+    const db = openTestAsyncDb();
+
+    await expect(
+      createNote(db, {
+        body: "Rollback #geçici",
+        personIds: [404],
+        nowIso: "2026-09-05T10:00:00.000Z",
+      }),
+    ).rejects.toThrow();
+
+    expect(await db.select("SELECT id FROM notes")).toEqual([]);
+    expect(await db.select("SELECT id FROM tags")).toEqual([]);
+    db.close();
+  });
+
   it("returns null for a missing note", async () => {
     const db = openTestAsyncDb();
 

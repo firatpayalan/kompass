@@ -67,18 +67,20 @@ export async function createInitiative(
   db: AsyncDb,
   input: CreateInitiativeInput,
 ): Promise<Initiative> {
-  if (await findInitiativeByName(db, input.name)) {
-    throw new Error("Bu isimde kayıt var");
-  }
+  return db.withTransaction(async (tx) => {
+    if (await findInitiativeByName(tx, input.name)) {
+      throw new Error("Bu isimde kayıt var");
+    }
 
-  const [row] = await db.select<InitiativeRow>(
-    `INSERT INTO initiatives (name, status, blocker_summary, created_at)
-     VALUES (?, ?, ?, ?)
-     RETURNING ${INITIATIVE_COLUMNS}`,
-    [input.name, input.status, input.blockerSummary ?? null, input.nowIso],
-  );
+    const [row] = await tx.select<InitiativeRow>(
+      `INSERT INTO initiatives (name, status, blocker_summary, created_at)
+       VALUES (?, ?, ?, ?)
+       RETURNING ${INITIATIVE_COLUMNS}`,
+      [input.name, input.status, input.blockerSummary ?? null, input.nowIso],
+    );
 
-  return mapInitiative(row);
+    return mapInitiative(row);
+  });
 }
 
 export async function listInitiatives(db: AsyncDb): Promise<Initiative[]> {
@@ -96,43 +98,47 @@ export async function updateInitiative(
   id: number,
   patch: UpdateInitiativePatch,
 ): Promise<Initiative> {
-  const current = await getInitiative(db, id);
-  if (!current) {
-    throw new Error("Kayıt bulunamadı");
-  }
+  return db.withTransaction(async (tx) => {
+    const current = await getInitiative(tx, id);
+    if (!current) {
+      throw new Error("Kayıt bulunamadı");
+    }
 
-  const name = patch.name ?? current.name;
-  const duplicate = await findInitiativeByName(db, name);
-  if (duplicate && duplicate.id !== id) {
-    throw new Error("Bu isimde kayıt var");
-  }
+    const name = patch.name ?? current.name;
+    const duplicate = await findInitiativeByName(tx, name);
+    if (duplicate && duplicate.id !== id) {
+      throw new Error("Bu isimde kayıt var");
+    }
 
-  const [row] = await db.select<InitiativeRow>(
-    `UPDATE initiatives
-     SET name = ?, status = ?, blocker_summary = ?
-     WHERE id = ?
-     RETURNING ${INITIATIVE_COLUMNS}`,
-    [
-      name,
-      patch.status ?? current.status,
-      patch.blockerSummary === undefined
-        ? current.blockerSummary
-        : patch.blockerSummary,
-      id,
-    ],
-  );
+    const [row] = await tx.select<InitiativeRow>(
+      `UPDATE initiatives
+       SET name = ?, status = ?, blocker_summary = ?
+       WHERE id = ?
+       RETURNING ${INITIATIVE_COLUMNS}`,
+      [
+        name,
+        patch.status ?? current.status,
+        patch.blockerSummary === undefined
+          ? current.blockerSummary
+          : patch.blockerSummary,
+        id,
+      ],
+    );
 
-  return mapInitiative(row);
+    return mapInitiative(row);
+  });
 }
 
 export async function deleteInitiative(
   db: AsyncDb,
   id: number,
 ): Promise<void> {
-  await db.execute("DELETE FROM note_initiatives WHERE initiative_id = ?", [
-    id,
-  ]);
-  await db.execute("DELETE FROM initiatives WHERE id = ?", [id]);
+  await db.withTransaction(async (tx) => {
+    await tx.execute("DELETE FROM note_initiatives WHERE initiative_id = ?", [
+      id,
+    ]);
+    await tx.execute("DELETE FROM initiatives WHERE id = ?", [id]);
+  });
 }
 
 export { linkNoteToInitiatives, listNotesForInitiative };

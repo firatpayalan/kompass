@@ -1,6 +1,7 @@
 export interface AsyncDb {
   execute(sql: string, bindValues?: unknown[]): Promise<void>;
   select<T>(sql: string, bindValues?: unknown[]): Promise<T[]>;
+  withTransaction<T>(fn: (tx: AsyncDb) => Promise<T>): Promise<T>;
 }
 
 /**
