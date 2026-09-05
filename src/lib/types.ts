@@ -8,6 +8,7 @@ export interface Person {
   name: string;
   roleOrNotes: string | null;
   createdAt: string;
+  sortOrder: number;
 }
 
 export interface Initiative {

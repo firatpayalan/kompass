@@ -422,6 +422,51 @@ body {
   list-style: none;
 }
 
+.entity-list__row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem;
+  align-items: stretch;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.entity-list__row--dragging {
+  opacity: 0.65;
+}
+
+.entity-list__handle {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid #e8eef4;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: grab;
+}
+
+.entity-list__handle:active {
+  cursor: grabbing;
+}
+
+.entity-list__open,
+.entity-list button.entity-list__open {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 1rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
 .entity-list button {
   display: grid;
   gap: 0.45rem;

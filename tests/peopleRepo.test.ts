@@ -8,6 +8,7 @@ import {
   linkNoteToPeople,
   listNotesForPerson,
   listPeople,
+  reorderPeople,
 } from "../src/db/peopleRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
@@ -27,10 +28,42 @@ describe("peopleRepo", () => {
       name: "Ayşe",
       roleOrNotes: "Satış lideri",
       createdAt: nowIso,
+      sortOrder: -1,
     });
     expect(await listPeople(db)).toEqual([person]);
     expect(await findPersonByName(db, "ayşe")).toEqual(person);
     expect(await findPersonByName(db, "Kimse")).toBeNull();
+    db.close();
+  });
+
+  it("puts newly created people at the top of the list", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-05T10:00:00.000Z";
+
+    const first = await createPerson(db, { name: "Ayşe", nowIso });
+    const second = await createPerson(db, { name: "Can", nowIso });
+
+    expect(await listPeople(db)).toEqual([
+      expect.objectContaining({ id: second.id, name: "Can" }),
+      expect.objectContaining({ id: first.id, name: "Ayşe" }),
+    ]);
+    db.close();
+  });
+
+  it("reorders people by the given id sequence", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-05T10:00:00.000Z";
+    const a = await createPerson(db, { name: "Ayşe", nowIso });
+    const b = await createPerson(db, { name: "Can", nowIso });
+    const c = await createPerson(db, { name: "Deniz", nowIso });
+
+    await reorderPeople(db, [a.id, c.id, b.id]);
+
+    expect((await listPeople(db)).map((person) => person.name)).toEqual([
+      "Ayşe",
+      "Deniz",
+      "Can",
+    ]);
     db.close();
   });
 

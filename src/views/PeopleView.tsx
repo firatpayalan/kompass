@@ -4,7 +4,7 @@ import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Person } from "../lib/types";
 
-type PeopleDb = Pick<AppDb, "createPerson" | "listPeople">;
+type PeopleDb = Pick<AppDb, "createPerson" | "listPeople" | "reorderPeople">;
 
 type PeopleViewProps = {
   db?: PeopleDb;
@@ -18,6 +18,21 @@ function namesMatch(left: string, right: string): boolean {
   return left.localeCompare(right, "tr", { sensitivity: "base" }) === 0;
 }
 
+function movePerson(
+  people: Person[],
+  fromId: number,
+  toId: number,
+): Person[] {
+  if (fromId === toId) return people;
+  const fromIndex = people.findIndex((person) => person.id === fromId);
+  const toIndex = people.findIndex((person) => person.id === toId);
+  if (fromIndex < 0 || toIndex < 0) return people;
+  const next = [...people];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+}
+
 export default function PeopleView({
   db = getDb(),
   onSelectPerson = ignore,
@@ -25,6 +40,7 @@ export default function PeopleView({
 }: PeopleViewProps) {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dragId, setDragId] = useState<number | null>(null);
 
   const loadPeople = useCallback(async () => {
     try {
@@ -46,6 +62,17 @@ export default function PeopleView({
   const useExisting = async (name: string) => {
     const loaded = await loadPeople();
     return loaded.find((item) => namesMatch(item.name, name)) ?? null;
+  };
+
+  const applyOrder = async (next: Person[]) => {
+    const previous = people;
+    setPeople(next);
+    try {
+      await db.reorderPeople(next.map((person) => person.id));
+    } catch {
+      setPeople(previous);
+      onToast("Sıra kaydedilemedi");
+    }
   };
 
   return (
@@ -70,9 +97,46 @@ export default function PeopleView({
       ) : (
         <ul className="entity-list">
           {people.map((person) => (
-            <li key={person.id}>
+            <li
+              className={
+                dragId === person.id
+                  ? "entity-list__row entity-list__row--dragging"
+                  : "entity-list__row"
+              }
+              key={person.id}
+              onDragOver={(event) => {
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const fromId = Number(
+                  event.dataTransfer.getData("text/person-id") || dragId,
+                );
+                setDragId(null);
+                if (!Number.isFinite(fromId)) return;
+                void applyOrder(movePerson(people, fromId, person.id));
+              }}
+            >
+              <button
+                aria-label={`${person.name} sırasını değiştir`}
+                className="entity-list__handle"
+                draggable
+                onDragEnd={() => setDragId(null)}
+                onDragStart={(event) => {
+                  setDragId(person.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData(
+                    "text/person-id",
+                    String(person.id),
+                  );
+                }}
+                type="button"
+              >
+                ⠿
+              </button>
               <button
                 aria-label={person.name}
+                className="entity-list__open"
                 onClick={() => onSelectPerson(person)}
                 type="button"
               >

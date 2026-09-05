@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS people (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL COLLATE NOCASE,
   role_or_notes TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS initiatives (

@@ -36,6 +36,7 @@ import {
   linkNoteToPeople,
   listNotesForPerson,
   listPeople,
+  reorderPeople,
   type CreatePersonInput,
 } from "./peopleRepo";
 import {
@@ -70,6 +71,7 @@ export type AppDb = {
 
   createPerson(input: CreatePersonInput): Promise<Person>;
   listPeople(): Promise<Person[]>;
+  reorderPeople(orderedIds: number[]): Promise<void>;
   findPersonByName(name: string): Promise<Person | null>;
   deletePerson(id: number): Promise<void>;
   listNotesForPerson(personId: number): Promise<Note[]>;
@@ -118,6 +120,7 @@ export function createAppDb(db: AsyncDb): AppDb {
 
     createPerson: (input) => createPerson(db, input),
     listPeople: () => listPeople(db),
+    reorderPeople: (orderedIds) => reorderPeople(db, orderedIds),
     findPersonByName: (name) => findPersonByName(db, name),
     deletePerson: (id) => deletePerson(db, id),
     listNotesForPerson: (personId) => listNotesForPerson(db, personId),

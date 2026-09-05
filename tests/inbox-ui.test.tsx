@@ -19,6 +19,7 @@ const person: Person = {
   name: "Ayşe",
   roleOrNotes: null,
   createdAt: "2026-09-05T08:00:00.000Z",
+  sortOrder: 0,
 };
 
 const initiative: Initiative = {

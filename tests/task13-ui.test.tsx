@@ -24,6 +24,7 @@ const person: Person = {
   name: "Ayşe",
   roleOrNotes: "Ürün lideri",
   createdAt: "2026-09-05T08:00:00.000Z",
+  sortOrder: 0,
 };
 
 const initiative: Initiative = {
@@ -99,6 +100,7 @@ describe("Task 13 people and initiatives UI", () => {
         db={{
           createPerson: vi.fn(),
           listPeople: vi.fn().mockResolvedValue([person]),
+          reorderPeople: vi.fn(),
         }}
         onSelectPerson={onSelectPerson}
         onToast={vi.fn()}
@@ -108,6 +110,59 @@ describe("Task 13 people and initiatives UI", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Ayşe" }));
 
     expect(onSelectPerson).toHaveBeenCalledWith(person);
+  });
+
+  it("reorders people when a row is dropped onto another", async () => {
+    const baris: Person = {
+      id: 1,
+      name: "baris",
+      roleOrNotes: "software engineer 2",
+      createdAt: "2026-09-05T08:00:00.000Z",
+      sortOrder: 0,
+    };
+    const cartman: Person = {
+      id: 2,
+      name: "cartman",
+      roleOrNotes: null,
+      createdAt: "2026-09-05T08:00:00.000Z",
+      sortOrder: 1,
+    };
+    const reorderPeople = vi.fn().mockResolvedValue(undefined);
+    render(
+      <PeopleView
+        db={{
+          createPerson: vi.fn(),
+          listPeople: vi.fn().mockResolvedValue([baris, cartman]),
+          reorderPeople,
+        }}
+        onSelectPerson={vi.fn()}
+        onToast={vi.fn()}
+      />,
+    );
+
+    await screen.findByRole("button", { name: "baris" });
+    const handle = screen.getByRole("button", {
+      name: "baris sırasını değiştir",
+    });
+    const target = screen.getByRole("button", { name: "cartman" }).closest("li");
+    expect(target).toBeTruthy();
+
+    const dataTransfer = {
+      effectAllowed: "move",
+      setData: vi.fn(),
+      getData: vi.fn().mockReturnValue("1"),
+    };
+
+    fireEvent.dragStart(handle, { dataTransfer });
+    fireEvent.dragOver(target!);
+    fireEvent.drop(target!, { dataTransfer });
+
+    await waitFor(() => {
+      expect(reorderPeople).toHaveBeenCalledWith([2, 1]);
+    });
+    const rows = screen.getAllByRole("listitem");
+    expect(within(rows[0]).getByRole("button", { name: "cartman" })).toBeTruthy();
+    expect(within(rows[1]).getByRole("button", { name: "baris" })).toBeTruthy();
   });
 
   it("uses an existing person and shows a toast for a duplicate name", async () => {
@@ -120,6 +175,7 @@ describe("Task 13 people and initiatives UI", () => {
             .fn()
             .mockRejectedValue(new Error("Bu isimde kayıt var")),
           listPeople: vi.fn().mockResolvedValue([person]),
+          reorderPeople: vi.fn(),
         }}
         onSelectPerson={onSelectPerson}
         onToast={onToast}
