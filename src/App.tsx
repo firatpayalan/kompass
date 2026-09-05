@@ -3,6 +3,7 @@ import Sidebar, {
   type SidebarView,
   type View,
 } from "./components/Sidebar";
+import CommandPalette from "./components/CommandPalette";
 import QuickNoteModal from "./components/QuickNoteModal";
 import Toast from "./components/Toast";
 import { getDb, type AppDb } from "./db/appDb";
@@ -25,7 +26,9 @@ type AppProps = {
 export default function App({ db }: AppProps = {}) {
   const appDb = db ?? getDb();
   const [activeView, setActiveView] = useState<View>("bugun");
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
+  const [searchFocusRequestKey, setSearchFocusRequestKey] = useState(0);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
@@ -33,13 +36,34 @@ export default function App({ db }: AppProps = {}) {
     useState<Initiative | null>(null);
   const [draftStore] = useState(createDraftStore);
 
-  const changeView = (view: SidebarView) => {
+  const changeView = useCallback((view: SidebarView) => {
     setActiveView(view);
-  };
+  }, []);
 
-  const openQuickNote = useCallback(() => setQuickNoteOpen(true), []);
+  const openQuickNote = useCallback(() => {
+    setCommandPaletteOpen(false);
+    setQuickNoteOpen(true);
+  }, []);
+  const openCommandPalette = useCallback(() => {
+    setQuickNoteOpen(false);
+    setCommandPaletteOpen(true);
+  }, []);
+  const closeOverlays = useCallback(() => {
+    setCommandPaletteOpen(false);
+    setQuickNoteOpen(false);
+  }, []);
+  const openSearch = useCallback(() => {
+    setActiveView("arama");
+    setSearchFocusRequestKey((key) => key + 1);
+  }, []);
   const showToast = useCallback((message: string) => setToast(message), []);
-  useAppShortcuts({ onQuickNote: openQuickNote });
+  useAppShortcuts({
+    onClose: closeOverlays,
+    onCommandPalette: openCommandPalette,
+    onNavigate: changeView,
+    onQuickNote: openQuickNote,
+    onSearch: openSearch,
+  });
 
   const openPerson = (person: Person) => {
     setSelectedPerson(person);
@@ -58,6 +82,7 @@ export default function App({ db }: AppProps = {}) {
       case "notlar":
         return (
           <NotesView
+            db={appDb}
             onToast={showToast}
             refreshKey={notesRefreshKey}
           />
@@ -79,7 +104,12 @@ export default function App({ db }: AppProps = {}) {
           />
         );
       case "arama":
-        return <SearchView />;
+        return (
+          <SearchView
+            db={appDb}
+            focusRequestKey={searchFocusRequestKey}
+          />
+        );
       case "silinenler":
         return <TrashView />;
       case "kisi:":
@@ -126,6 +156,16 @@ export default function App({ db }: AppProps = {}) {
           onClose={() => setQuickNoteOpen(false)}
           onSaved={() => setNotesRefreshKey((key) => key + 1)}
           onToast={showToast}
+        />
+      ) : null}
+      {commandPaletteOpen ? (
+        <CommandPalette
+          db={appDb}
+          onClose={() => setCommandPaletteOpen(false)}
+          onNavigate={changeView}
+          onOpenInitiative={openInitiative}
+          onOpenPerson={openPerson}
+          onQuickNote={openQuickNote}
         />
       ) : null}
       <Toast message={toast} onDismiss={() => setToast(null)} />
