@@ -4,6 +4,7 @@ import {
   createNote,
   getNote,
   listActiveNotes,
+  updateNote,
 } from "../src/db/notesRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
@@ -75,6 +76,21 @@ describe("notesRepo", () => {
     const db = openTestAsyncDb();
 
     expect(await getNote(db, 404)).toBeNull();
+    db.close();
+  });
+
+  it("updates a note body and rebuilds its tags", async () => {
+    const db = openTestAsyncDb();
+    const note = await createNote(db, {
+      body: "İlk metin #eski",
+      nowIso: "2026-09-05T10:00:00.000Z",
+    });
+
+    const updated = await updateNote(db, note.id, "Yeni metin #yeni", "2026-09-05T11:00:00.000Z");
+
+    expect(updated.body).toBe("Yeni metin #yeni");
+    expect(updated.tags).toEqual(["yeni"]);
+    expect(updated.updatedAt).toBe("2026-09-05T11:00:00.000Z");
     db.close();
   });
 });

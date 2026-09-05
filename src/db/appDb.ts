@@ -24,6 +24,7 @@ import {
   permanentlyDeleteNote,
   restoreNote,
   softDeleteNote,
+  updateNote,
   type CreateNoteInput,
 } from "./notesRepo";
 import {
@@ -47,6 +48,7 @@ import { searchNotes, type SearchNotesOptions } from "./searchRepo";
 /** Every repo function from tasks 6–9, bound to one live connection. */
 export type AppDb = {
   createNote(input: CreateNoteInput): Promise<Note>;
+  updateNote(id: number, body: string): Promise<Note>;
   getNote(id: number): Promise<Note | null>;
   listActiveNotes(): Promise<Note[]>;
   listDeletedNotes(): Promise<Note[]>;
@@ -84,6 +86,7 @@ export type AppDb = {
 export function createAppDb(db: AsyncDb): AppDb {
   return {
     createNote: (input) => createNote(db, input),
+    updateNote: (id, body) => updateNote(db, id, body),
     getNote: (id) => getNote(db, id),
     listActiveNotes: () => listActiveNotes(db),
     listDeletedNotes: () => listDeletedNotes(db),

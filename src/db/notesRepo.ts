@@ -213,6 +213,42 @@ export async function createNote(
   return (await getNote(db, noteId)) as Note;
 }
 
+export async function updateNote(
+  db: AsyncDb,
+  id: number,
+  body: string,
+  nowIso = new Date().toISOString(),
+): Promise<Note> {
+  if (!body.trim()) {
+    throw new Error("Not boş olamaz");
+  }
+
+  await db.withTransaction(async (tx) => {
+    await tx.execute(
+      "UPDATE notes SET body = ?, updated_at = ? WHERE id = ?",
+      [body, nowIso, id],
+    );
+    await tx.execute("DELETE FROM note_tags WHERE note_id = ?", [id]);
+    for (const tag of parseHashtags(body)) {
+      await tx.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", [tag]);
+      const [tagRow] = await tx.select<IdRow>(
+        "SELECT id FROM tags WHERE name = ?",
+        [tag],
+      );
+      await tx.execute(
+        "INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)",
+        [id, tagRow.id],
+      );
+    }
+  });
+
+  const note = await getNote(db, id);
+  if (!note) {
+    throw new Error("Kayıt bulunamadı");
+  }
+  return note;
+}
+
 export async function getNote(db: AsyncDb, id: number): Promise<Note | null> {
   const rows = await db.select<NoteRow>(
     `SELECT id, body, created_at, updated_at, deleted_at
