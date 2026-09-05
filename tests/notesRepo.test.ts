@@ -4,6 +4,8 @@ import {
   createNote,
   getNote,
   listActiveNotes,
+  listInboxNotes,
+  linkNoteToPeople,
   updateNote,
 } from "../src/db/notesRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
@@ -91,6 +93,29 @@ describe("notesRepo", () => {
     expect(updated.body).toBe("Yeni metin #yeni");
     expect(updated.tags).toEqual(["yeni"]);
     expect(updated.updatedAt).toBe("2026-09-05T11:00:00.000Z");
+    db.close();
+  });
+
+  it("lists only unlinked notes in the inbox", async () => {
+    const db = openTestAsyncDb();
+    const [person] = await db.select<{ id: number }>(
+      `INSERT INTO people (name, role_or_notes, created_at)
+       VALUES ('Ayşe', NULL, '2026-09-05T09:00:00.000Z')
+       RETURNING id`,
+    );
+    const inbox = await createNote(db, {
+      body: "Hızlı not",
+      nowIso: "2026-09-05T10:00:00.000Z",
+    });
+    const linked = await createNote(db, {
+      body: "Bağlı not",
+      nowIso: "2026-09-05T10:05:00.000Z",
+    });
+    await linkNoteToPeople(db, linked.id, [person.id]);
+
+    const listed = await listInboxNotes(db);
+
+    expect(listed.map((note) => note.id)).toEqual([inbox.id]);
     db.close();
   });
 });

@@ -1,17 +1,10 @@
 import { useEffect, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import type { DraftStore } from "../lib/drafts";
-import type {
-  Initiative,
-  Person,
-  ReminderPeriod,
-} from "../lib/types";
+import type { ReminderPeriod } from "../lib/types";
 import ReminderForm from "./ReminderForm";
 
-type QuickNoteDb = Pick<
-  AppDb,
-  "createNote" | "createReminder" | "listPeople" | "listInitiatives"
->;
+type QuickNoteDb = Pick<AppDb, "createNote" | "createReminder">;
 
 type QuickNoteModalProps = {
   db: QuickNoteDb;
@@ -29,24 +22,10 @@ export default function QuickNoteModal({
   onToast,
 }: QuickNoteModalProps) {
   const [body, setBody] = useState(draftStore.getDraft() ?? "");
-  const [people, setPeople] = useState<Person[]>([]);
-  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
-  const [personIds, setPersonIds] = useState<number[]>([]);
-  const [initiativeIds, setInitiativeIds] = useState<number[]>([]);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [dueAt, setDueAt] = useState("");
   const [period, setPeriod] = useState<ReminderPeriod>("once");
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    Promise.all([db.listPeople(), db.listInitiatives()]).then(
-      ([nextPeople, nextInitiatives]) => {
-        setPeople(nextPeople);
-        setInitiatives(nextInitiatives);
-      },
-      () => onToast("Seçenekler yüklenemedi"),
-    );
-  }, [db, onToast]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -57,18 +36,6 @@ export default function QuickNoteModal({
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
-
-  const toggleId = (
-    id: number,
-    selectedIds: number[],
-    setSelectedIds: (ids: number[]) => void,
-  ) => {
-    setSelectedIds(
-      selectedIds.includes(id)
-        ? selectedIds.filter((selectedId) => selectedId !== id)
-        : [...selectedIds, id],
-    );
-  };
 
   const save = async () => {
     if (!body.trim()) {
@@ -83,7 +50,8 @@ export default function QuickNoteModal({
     setSaving(true);
     let note;
     try {
-      note = await db.createNote({ body, personIds, initiativeIds });
+      // Inbox capture: no person/initiative links — organize later in Gelen.
+      note = await db.createNote({ body, personIds: [], initiativeIds: [] });
     } catch {
       draftStore.saveDraft(body);
       onToast("Kayıt başarısız; taslak korundu");
@@ -91,8 +59,6 @@ export default function QuickNoteModal({
       return;
     }
 
-    // The note is already persisted, so a failed reminder must not resurrect
-    // the body as a draft and invite a duplicate note.
     let reminderFailed = false;
     if (reminderEnabled) {
       try {
@@ -112,6 +78,8 @@ export default function QuickNoteModal({
     setSaving(false);
     if (reminderFailed) {
       onToast("Not kaydedildi, hatırlatma eklenemedi");
+    } else {
+      onToast("Gelen kutusuna kaydedildi");
     }
     onSaved();
     onClose();
@@ -126,6 +94,9 @@ export default function QuickNoteModal({
             ×
           </button>
         </header>
+        <p className="quick-note-modal__hint">
+          Doğrudan Gelen’e kaydedilir. Toplantıdan sonra kişi veya işe taşıyın.
+        </p>
         <label>
           Not
           <textarea
@@ -136,43 +107,6 @@ export default function QuickNoteModal({
             value={body}
           />
         </label>
-
-        <div className="quick-note-modal__links">
-          <fieldset>
-            <legend>Kişiler</legend>
-            {people.length === 0 ? <span>Kişi yok</span> : null}
-            {people.map((person) => (
-              <label key={person.id}>
-                <input
-                  checked={personIds.includes(person.id)}
-                  onChange={() => toggleId(person.id, personIds, setPersonIds)}
-                  type="checkbox"
-                />
-                {person.name}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset>
-            <legend>İşler</legend>
-            {initiatives.length === 0 ? <span>İş yok</span> : null}
-            {initiatives.map((initiative) => (
-              <label key={initiative.id}>
-                <input
-                  checked={initiativeIds.includes(initiative.id)}
-                  onChange={() =>
-                    toggleId(
-                      initiative.id,
-                      initiativeIds,
-                      setInitiativeIds,
-                    )
-                  }
-                  type="checkbox"
-                />
-                {initiative.name}
-              </label>
-            ))}
-          </fieldset>
-        </div>
 
         <ReminderForm
           dueAt={dueAt}

@@ -21,6 +21,7 @@ import {
   getNote,
   listActiveNotes,
   listDeletedNotes,
+  listInboxNotes,
   permanentlyDeleteNote,
   restoreNote,
   softDeleteNote,
@@ -51,6 +52,7 @@ export type AppDb = {
   updateNote(id: number, body: string): Promise<Note>;
   getNote(id: number): Promise<Note | null>;
   listActiveNotes(): Promise<Note[]>;
+  listInboxNotes(): Promise<Note[]>;
   listDeletedNotes(): Promise<Note[]>;
   softDeleteNote(id: number, nowIso: string): Promise<void>;
   restoreNote(id: number): Promise<void>;
@@ -89,6 +91,7 @@ export function createAppDb(db: AsyncDb): AppDb {
     updateNote: (id, body) => updateNote(db, id, body),
     getNote: (id) => getNote(db, id),
     listActiveNotes: () => listActiveNotes(db),
+    listInboxNotes: () => listInboxNotes(db),
     listDeletedNotes: () => listDeletedNotes(db),
     softDeleteNote: (id, nowIso) => softDeleteNote(db, id, nowIso),
     restoreNote: (id) => restoreNote(db, id),

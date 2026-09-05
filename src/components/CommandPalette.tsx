@@ -22,6 +22,7 @@ type PaletteItem = {
 
 const viewCommands: Array<{ label: string; view: SidebarView }> = [
   { label: "Bugün", view: "bugun" },
+  { label: "Gelen", view: "gelen" },
   { label: "Notlar", view: "notlar" },
   { label: "Kişiler", view: "kisiler" },
   { label: "İşler", view: "isler" },

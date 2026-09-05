@@ -1,5 +1,6 @@
 export type View =
   | "bugun"
+  | "gelen"
   | "notlar"
   | "kisiler"
   | "isler"
@@ -17,6 +18,7 @@ interface SidebarProps {
 
 const navigationItems: Array<{ view: SidebarView; label: string }> = [
   { view: "bugun", label: "Bugün" },
+  { view: "gelen", label: "Gelen" },
   { view: "notlar", label: "Notlar" },
   { view: "kisiler", label: "Kişiler" },
   { view: "isler", label: "İşler" },

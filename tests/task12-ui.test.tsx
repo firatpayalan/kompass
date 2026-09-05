@@ -32,61 +32,38 @@ describe("Task 12 notes UI", () => {
     expect(onQuickNote).toHaveBeenCalledOnce();
   });
 
-  it("saves a note with selected links and an optional reminder", async () => {
+  it("saves a quick note into the inbox without person or initiative links", async () => {
     const createNote = vi.fn().mockResolvedValue({ id: 42 });
-    const createReminder = vi.fn().mockResolvedValue({});
     const onSaved = vi.fn();
+    const onToast = vi.fn();
     render(
       <QuickNoteModal
         db={{
           createNote,
-          createReminder,
-          listPeople: vi.fn().mockResolvedValue([
-            { id: 1, name: "Ayşe", roleOrNotes: null, createdAt: "" },
-          ]),
-          listInitiatives: vi.fn().mockResolvedValue([
-            {
-              id: 2,
-              name: "Lansman",
-              status: "aktif",
-              blockerSummary: null,
-              createdAt: "",
-            },
-          ]),
+          createReminder: vi.fn(),
         }}
         draftStore={createDraftStore()}
         onClose={vi.fn()}
         onSaved={onSaved}
-        onToast={vi.fn()}
+        onToast={onToast}
       />,
     );
 
     expect(document.activeElement).toBe(screen.getByLabelText("Not"));
+    expect(screen.queryByText("Kişiler")).toBeNull();
+    expect(screen.queryByText("İşler")).toBeNull();
     fireEvent.change(screen.getByLabelText("Not"), {
       target: { value: "Takip #aksiyon" },
-    });
-    await screen.findByLabelText("Ayşe");
-    fireEvent.click(screen.getByLabelText("Ayşe"));
-    fireEvent.click(screen.getByLabelText("Lansman"));
-    fireEvent.click(screen.getByLabelText("Hatırlatma ekle"));
-    fireEvent.change(screen.getByLabelText("Hatırlatma zamanı"), {
-      target: { value: "2026-09-06T09:30" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
     expect(createNote).toHaveBeenCalledWith({
       body: "Takip #aksiyon",
-      personIds: [1],
-      initiativeIds: [2],
+      personIds: [],
+      initiativeIds: [],
     });
-    expect(createReminder).toHaveBeenCalledWith(
-      expect.objectContaining({
-        targetType: "note",
-        targetId: 42,
-        period: "once",
-      }),
-    );
+    expect(onToast).toHaveBeenCalledWith("Gelen kutusuna kaydedildi");
   });
 
   it("keeps the draft and shows a Turkish toast when saving fails", async () => {
@@ -97,8 +74,6 @@ describe("Task 12 notes UI", () => {
         db={{
           createNote: vi.fn().mockRejectedValue(new Error("disk")),
           createReminder: vi.fn(),
-          listPeople: vi.fn().mockResolvedValue([]),
-          listInitiatives: vi.fn().mockResolvedValue([]),
         }}
         draftStore={draftStore}
         onClose={vi.fn()}
@@ -128,8 +103,6 @@ describe("Task 12 notes UI", () => {
         db={{
           createNote,
           createReminder: vi.fn(),
-          listPeople: vi.fn().mockResolvedValue([]),
-          listInitiatives: vi.fn().mockResolvedValue([]),
         }}
         draftStore={createDraftStore()}
         onClose={vi.fn()}

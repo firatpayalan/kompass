@@ -269,6 +269,24 @@ export function listDeletedNotes(db: AsyncDb): Promise<Note[]> {
   return listNotes(db, true);
 }
 
+/** Active notes with no person and no initiative links (quick-capture inbox). */
+export async function listInboxNotes(db: AsyncDb): Promise<Note[]> {
+  const rows = await db.select<NoteRow>(
+    `SELECT id, body, created_at, updated_at, deleted_at
+     FROM notes
+     WHERE deleted_at IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM note_people WHERE note_people.note_id = notes.id
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM note_initiatives WHERE note_initiatives.note_id = notes.id
+       )
+     ORDER BY created_at DESC, id DESC`,
+  );
+
+  return mapNoteRows(db, rows);
+}
+
 export function linkNoteToPeople(
   db: AsyncDb,
   noteId: number,

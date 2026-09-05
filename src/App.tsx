@@ -15,6 +15,7 @@ import {
 import { createDraftStore } from "./lib/drafts";
 import type { Initiative, Person } from "./lib/types";
 import BugunView from "./views/BugunView";
+import InboxView from "./views/InboxView";
 import InitiativeDetailView from "./views/InitiativeDetailView";
 import InitiativesView from "./views/InitiativesView";
 import NotesView from "./views/NotesView";
@@ -87,6 +88,14 @@ export default function App({ db, notify, now }: AppProps = {}) {
     switch (activeView) {
       case "bugun":
         return <BugunView db={appDb} ticker={reminderTicker} />;
+      case "gelen":
+        return (
+          <InboxView
+            db={appDb}
+            onToast={showToast}
+            refreshKey={notesRefreshKey}
+          />
+        );
       case "notlar":
         return (
           <NotesView

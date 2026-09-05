@@ -64,6 +64,7 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     linkNoteToInitiatives: vi.fn(),
     linkNoteToPeople: vi.fn(),
     listActiveNotes: vi.fn().mockResolvedValue([]),
+    listInboxNotes: vi.fn().mockResolvedValue([]),
     listDeletedNotes: vi.fn().mockResolvedValue([]),
     listDueRemindersForBugun: vi.fn().mockResolvedValue([]),
     listInitiatives: vi.fn().mockResolvedValue([]),
@@ -293,8 +294,6 @@ describe("quick note reminder failure", () => {
         db={{
           createNote: vi.fn().mockResolvedValue({ id: 42 }),
           createReminder: vi.fn().mockRejectedValue(new Error("disk")),
-          listPeople: vi.fn().mockResolvedValue([]),
-          listInitiatives: vi.fn().mockResolvedValue([]),
         }}
         draftStore={draftStore}
         onClose={onClose}

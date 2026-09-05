@@ -347,6 +347,29 @@ body {
   margin: 0;
 }
 
+.quick-note-modal__hint {
+  margin: 0;
+  color: #5b6472;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.view-subtitle {
+  margin: 0 0 1rem;
+  color: #5b6472;
+  font-size: 0.95rem;
+}
+
+.inbox-organize {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.note-editor__preview {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .command-palette {
   width: min(36rem, 100%);
   max-height: calc(100vh - 2rem);
