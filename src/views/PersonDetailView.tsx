@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import LinkedNotes from "../components/LinkedNotes";
 import PersonLabelBadge from "../components/PersonLabelBadge";
 import PersonLabelPicker from "../components/PersonLabelPicker";
+import type { ReminderDraft } from "../components/ReminderForm";
 import TopicTagsEditor from "../components/TopicTagsEditor";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
@@ -13,6 +14,7 @@ type PersonDetailDb = Pick<
   AppDb,
   | "createNote"
   | "createTopic"
+  | "createReminder"
   | "listTopicsWithNotesForPerson"
   | "updateNote"
   | "softDeleteNote"
@@ -210,18 +212,42 @@ export default function PersonDetailView({
     }
   };
 
-  const updateNote = async (noteId: number, body: string) => {
+  const updateNote = async (
+    noteId: number,
+    body: string,
+    reminder: ReminderDraft | null = null,
+  ) => {
     if (!body.trim()) {
       onToast("Not boş olamaz");
       throw new Error("Not boş olamaz");
     }
     try {
       await db.updateNote(noteId, body);
-      onToast("Not güncellendi");
-      await load();
     } catch {
       onToast("Not güncellenemedi");
       throw new Error("Not güncellenemedi");
+    }
+
+    let reminderFailed = false;
+    if (reminder) {
+      try {
+        await db.createReminder({
+          targetType: "note",
+          targetId: noteId,
+          dueAt: new Date(reminder.dueAt).toISOString(),
+          period: reminder.period,
+          nowIso: new Date().toISOString(),
+        });
+      } catch {
+        reminderFailed = true;
+      }
+    }
+
+    await load();
+    if (reminderFailed) {
+      onToast("Not kaydedildi, hatırlatma eklenemedi");
+    } else {
+      onToast("Not güncellendi");
     }
   };
 
@@ -502,6 +528,7 @@ export default function PersonDetailView({
         <>
           <h2>Konusuz notlar</h2>
           <LinkedNotes
+            {...noteTagHandlers}
             emptyLabel="Konusuz not yok."
             label="Konusuz notlar"
             loading={false}
@@ -518,7 +545,6 @@ export default function PersonDetailView({
                   }))
                 : undefined
             }
-            {...noteTagHandlers}
           />
         </>
       ) : null}

@@ -4,14 +4,20 @@ import type { PersonLabelColor } from "../lib/personLabels";
 import NoteArchiveShell from "./NoteArchiveShell";
 import NoteTagBadges from "./NoteTagBadges";
 import NoteTimestamps from "./NoteTimestamps";
+import ReminderForm, { type ReminderDraft } from "./ReminderForm";
 import TopicTagsEditor from "./TopicTagsEditor";
+import type { ReminderPeriod } from "../lib/types";
 
 type LinkedNotesProps = {
   loading: boolean;
   notes: Note[];
   label?: string;
   emptyLabel?: string;
-  onUpdateNote?: (noteId: number, body: string) => Promise<void>;
+  onUpdateNote?: (
+    noteId: number,
+    body: string,
+    reminder: ReminderDraft | null,
+  ) => Promise<void>;
   onArchiveNote?: (noteId: number) => Promise<void>;
   tagCatalog?: NoteTag[];
   onAddTag?: (
@@ -49,6 +55,9 @@ export default function LinkedNotes({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [dueAt, setDueAt] = useState("");
+  const [period, setPeriod] = useState<ReminderPeriod>("once");
   const [moveTopicByNote, setMoveTopicByNote] = useState<
     Record<number, string>
   >({});
@@ -69,14 +78,28 @@ export default function LinkedNotes({
   const startEdit = (note: Note) => {
     setEditingId(note.id);
     setDraft(note.body);
+    setReminderEnabled(false);
+    setDueAt("");
+    setPeriod("once");
   };
 
   const saveEdit = async () => {
     if (editingId === null || !onUpdateNote) return;
+    if (reminderEnabled && !dueAt) {
+      onToast("Hatırlatma zamanı gerekli");
+      return;
+    }
     setSaving(true);
     try {
-      await onUpdateNote(editingId, draft);
+      await onUpdateNote(
+        editingId,
+        draft,
+        reminderEnabled ? { dueAt, period } : null,
+      );
       setEditingId(null);
+      setReminderEnabled(false);
+      setDueAt("");
+      setPeriod("once");
     } finally {
       setSaving(false);
     }
@@ -111,9 +134,22 @@ export default function LinkedNotes({
                       value={draft}
                     />
                   </label>
+                  <ReminderForm
+                    dueAt={dueAt}
+                    enabled={reminderEnabled}
+                    onDueAtChange={setDueAt}
+                    onEnabledChange={setReminderEnabled}
+                    onPeriodChange={setPeriod}
+                    period={period}
+                  />
                   <div className="linked-note-edit__actions">
                     <button
-                      onClick={() => setEditingId(null)}
+                      onClick={() => {
+                        setEditingId(null);
+                        setReminderEnabled(false);
+                        setDueAt("");
+                        setPeriod("once");
+                      }}
                       type="button"
                     >
                       Vazgeç

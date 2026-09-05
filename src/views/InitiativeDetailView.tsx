@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import LinkedNotes from "../components/LinkedNotes";
-import ReminderForm from "../components/ReminderForm";
+import ReminderForm, {
+  type ReminderDraft,
+} from "../components/ReminderForm";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type {
@@ -176,18 +178,42 @@ export default function InitiativeDetailView({
     }
   };
 
-  const updateNote = async (noteId: number, body: string) => {
+  const updateNote = async (
+    noteId: number,
+    body: string,
+    reminder: ReminderDraft | null = null,
+  ) => {
     if (!body.trim()) {
       onToast("Not boş olamaz");
       throw new Error("Not boş olamaz");
     }
     try {
       await db.updateNote(noteId, body);
-      onToast("Not güncellendi");
-      await reloadNotes();
     } catch {
       onToast("Not güncellenemedi");
       throw new Error("Not güncellenemedi");
+    }
+
+    let reminderFailed = false;
+    if (reminder) {
+      try {
+        await db.createReminder({
+          targetType: "note",
+          targetId: noteId,
+          dueAt: new Date(reminder.dueAt).toISOString(),
+          period: reminder.period,
+          nowIso: new Date().toISOString(),
+        });
+      } catch {
+        reminderFailed = true;
+      }
+    }
+
+    await reloadNotes();
+    if (reminderFailed) {
+      onToast("Not kaydedildi, hatırlatma eklenemedi");
+    } else {
+      onToast("Not güncellendi");
     }
   };
 
@@ -269,6 +295,7 @@ export default function InitiativeDetailView({
         loading={loading}
         notes={notes}
         onArchiveNote={archiveNote}
+        onToast={onToast}
         onUpdateNote={updateNote}
       />
       <form
