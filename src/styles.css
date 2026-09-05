@@ -611,6 +611,21 @@ body {
   border-color: #e8d48a;
 }
 
+.linked-note-urgency {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5a4630;
+}
+
+.linked-note-list__item--overdue .linked-note-urgency {
+  color: #8b2e2e;
+}
+
+.linked-note-list__item--soon .linked-note-urgency {
+  color: #7a5c12;
+}
+
 .linked-note-list p {
   margin: 0 0 0.75rem;
   white-space: pre-wrap;

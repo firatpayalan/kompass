@@ -6,7 +6,7 @@ import NoteTagBadges from "./NoteTagBadges";
 import NoteTimestamps from "./NoteTimestamps";
 import ReminderForm, { type ReminderDraft } from "./ReminderForm";
 import TopicTagsEditor from "./TopicTagsEditor";
-import { reminderUrgency } from "../lib/reminderUrgency";
+import { reminderUrgency, reminderUrgencyLabel } from "../lib/reminderUrgency";
 import type { ReminderPeriod } from "../lib/types";
 
 type LinkedNotesProps = {
@@ -118,7 +118,12 @@ export default function LinkedNotes({
       {({ openArchiveMenu }) => (
         <ul aria-label={label} className="linked-note-list">
           {notes.map((note) => {
-            const urgency = reminderUrgency(note.nextReminderDueAt, now());
+            const current = now();
+            const urgency = reminderUrgency(note.nextReminderDueAt, current);
+            const urgencyLabel = reminderUrgencyLabel(
+              note.nextReminderDueAt,
+              current,
+            );
             const className = [
               "linked-note-list__item",
               urgency === "overdue" ? "linked-note-list__item--overdue" : null,
@@ -176,6 +181,9 @@ export default function LinkedNotes({
               ) : (
                 <>
                   <p>{note.body}</p>
+                  {urgencyLabel ? (
+                    <p className="linked-note-urgency">{urgencyLabel}</p>
+                  ) : null}
                   <div className="linked-note-meta">
                     <NoteTimestamps note={note} />
                     {onUpdateNote ? (
