@@ -214,7 +214,9 @@ describe("Task 13 people and initiatives UI", () => {
       />,
     );
 
-    expect(await screen.findByText("Lider")).toBeTruthy();
+    expect(
+      await screen.findByText("Lider", { selector: ".person-label-badge" }),
+    ).toBeTruthy();
   });
 
   it("uses an existing person and shows a toast for a duplicate name", async () => {
