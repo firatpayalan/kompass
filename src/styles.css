@@ -1030,7 +1030,24 @@ body {
   gap: 1rem;
 }
 
-.reminder-list li div,
+.reminder-list__open {
+  display: grid;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.reminder-list__open:hover strong {
+  text-decoration: underline;
+}
+
 .recent-note-list li {
   display: grid;
   gap: 0.5rem;

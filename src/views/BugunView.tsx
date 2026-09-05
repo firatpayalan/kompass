@@ -11,7 +11,11 @@ import NoteTimestamps from "../components/NoteTimestamps";
 
 type BugunDb = Pick<
   AppDb,
-  "listActiveNotes" | "softDeleteNote" | "listPeople" | "listInitiatives"
+  | "listActiveNotes"
+  | "softDeleteNote"
+  | "listPeople"
+  | "listInitiatives"
+  | "getNote"
 >;
 
 type BugunViewProps = {
@@ -25,6 +29,10 @@ type BugunViewProps = {
 const ignoreToast = () => undefined;
 const ignoreOpen = () => undefined;
 
+type LinkTarget =
+  | { kind: "person"; person: Person }
+  | { kind: "initiative"; initiative: Initiative };
+
 type ReminderSectionProps = {
   empty: string;
   headingId: string;
@@ -32,6 +40,7 @@ type ReminderSectionProps = {
   loadFailed: boolean;
   loading: boolean;
   onComplete: (reminder: BugunReminder) => Promise<void>;
+  onOpenReminder: (event: MouseEvent, reminder: BugunReminder) => void;
   title: string;
 };
 
@@ -42,6 +51,7 @@ function ReminderSection({
   loadFailed,
   loading,
   onComplete,
+  onOpenReminder,
   title,
 }: ReminderSectionProps) {
   return (
@@ -57,15 +67,22 @@ function ReminderSection({
         <ul className="reminder-list">
           {items.map((reminder) => (
             <li key={reminder.id}>
-              <div>
+              <button
+                className="reminder-list__open"
+                onClick={(event) => onOpenReminder(event, reminder)}
+                type="button"
+              >
                 <strong>{reminder.title}</strong>
                 <time dateTime={reminder.dueAt}>
                   {new Date(reminder.dueAt).toLocaleString("tr-TR")}
                 </time>
-              </div>
+              </button>
               <button
                 aria-label={`Tamamla: ${reminder.title}`}
-                onClick={() => void onComplete(reminder)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void onComplete(reminder);
+                }}
                 type="button"
               >
                 Tamamla
@@ -80,6 +97,22 @@ function ReminderSection({
 
 function isNavigable(note: Note): boolean {
   return note.personIds.length > 0 || note.initiativeIds.length > 0;
+}
+
+function targetsFromNote(
+  note: Note,
+  peopleById: Map<number, Person>,
+  initiativesById: Map<number, Initiative>,
+): LinkTarget[] {
+  const people = note.personIds
+    .map((id) => peopleById.get(id))
+    .filter((person): person is Person => Boolean(person))
+    .map((person) => ({ kind: "person" as const, person }));
+  const initiatives = note.initiativeIds
+    .map((id) => initiativesById.get(id))
+    .filter((initiative): initiative is Initiative => Boolean(initiative))
+    .map((initiative) => ({ kind: "initiative" as const, initiative }));
+  return [...people, ...initiatives];
 }
 
 export default function BugunView({
@@ -98,9 +131,9 @@ export default function BugunView({
     Map<number, Initiative>
   >(() => new Map());
   const [linkMenu, setLinkMenu] = useState<{
-    noteId: number;
     x: number;
     y: number;
+    targets: LinkTarget[];
   } | null>(null);
   const linkMenuRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -185,41 +218,46 @@ export default function BugunView({
     }
   };
 
-  const targetsFor = (noteId: number) => {
-    const note = recentNotes.find((item) => item.id === noteId);
-    if (!note) return [] as Array<
-      | { kind: "person"; person: Person }
-      | { kind: "initiative"; initiative: Initiative }
-    >;
-    const people = note.personIds
-      .map((id) => peopleById.get(id))
-      .filter((person): person is Person => Boolean(person))
-      .map((person) => ({ kind: "person" as const, person }));
-    const initiatives = note.initiativeIds
-      .map((id) => initiativesById.get(id))
-      .filter((initiative): initiative is Initiative => Boolean(initiative))
-      .map((initiative) => ({ kind: "initiative" as const, initiative }));
-    return [...people, ...initiatives];
-  };
-
-  const openLinkMenu = (event: MouseEvent, note: Note) => {
-    if (!isNavigable(note)) return;
-    const targets = [
-      ...note.personIds
-        .map((id) => peopleById.get(id))
-        .filter((person): person is Person => Boolean(person)),
-      ...note.initiativeIds
-        .map((id) => initiativesById.get(id))
-        .filter((initiative): initiative is Initiative => Boolean(initiative)),
-    ];
+  const showLinkMenu = (
+    event: MouseEvent,
+    targets: LinkTarget[],
+  ) => {
     if (targets.length === 0) {
       onToast("Bağlantı bulunamadı");
       return;
     }
-    setLinkMenu({ noteId: note.id, x: event.clientX, y: event.clientY });
+    setLinkMenu({ x: event.clientX, y: event.clientY, targets });
   };
 
-  const menuTargets = linkMenu ? targetsFor(linkMenu.noteId) : [];
+  const openNoteLinkMenu = (event: MouseEvent, note: Note) => {
+    if (!isNavigable(note)) return;
+    showLinkMenu(event, targetsFromNote(note, peopleById, initiativesById));
+  };
+
+  const openReminderLinkMenu = async (
+    event: MouseEvent,
+    reminder: BugunReminder,
+  ) => {
+    if (reminder.targetType === "initiative") {
+      const initiative = initiativesById.get(reminder.targetId);
+      showLinkMenu(
+        event,
+        initiative ? [{ kind: "initiative", initiative }] : [],
+      );
+      return;
+    }
+
+    try {
+      const note = await db.getNote(reminder.targetId);
+      if (!note) {
+        onToast("Bağlantı bulunamadı");
+        return;
+      }
+      showLinkMenu(event, targetsFromNote(note, peopleById, initiativesById));
+    } catch {
+      onToast("Bağlantı bulunamadı");
+    }
+  };
 
   return (
     <section className="bugun-view">
@@ -238,6 +276,9 @@ export default function BugunView({
         loadFailed={remindersLoadFailed}
         loading={remindersLoading}
         onComplete={completeReminder}
+        onOpenReminder={(event, reminder) => {
+          void openReminderLinkMenu(event, reminder);
+        }}
         title="Gecikenler"
       />
       <ReminderSection
@@ -247,6 +288,9 @@ export default function BugunView({
         loadFailed={remindersLoadFailed}
         loading={remindersLoading}
         onComplete={completeReminder}
+        onOpenReminder={(event, reminder) => {
+          void openReminderLinkMenu(event, reminder);
+        }}
         title="Hatırlatmalar"
       />
       <ReminderSection
@@ -256,6 +300,9 @@ export default function BugunView({
         loadFailed={remindersLoadFailed}
         loading={remindersLoading}
         onComplete={completeReminder}
+        onOpenReminder={(event, reminder) => {
+          void openReminderLinkMenu(event, reminder);
+        }}
         title="Yaklaşanlar"
       />
 
@@ -281,7 +328,7 @@ export default function BugunView({
                       key={note.id}
                       onClick={
                         navigable
-                          ? (event) => openLinkMenu(event, note)
+                          ? (event) => openNoteLinkMenu(event, note)
                           : undefined
                       }
                       onContextMenu={(event) => openArchiveMenu(event, note)}
@@ -297,13 +344,13 @@ export default function BugunView({
         )}
       </section>
 
-      {linkMenu && menuTargets.length > 0 ? (
+      {linkMenu && linkMenu.targets.length > 0 ? (
         <div
           className="person-label-menu"
           ref={linkMenuRef}
           style={{ left: linkMenu.x, top: linkMenu.y }}
         >
-          {menuTargets.map((target) =>
+          {linkMenu.targets.map((target) =>
             target.kind === "person" ? (
               <button
                 key={`person-${target.person.id}`}

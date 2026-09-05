@@ -56,6 +56,7 @@ function createDb(
   | "listActiveNotes"
   | "listPeople"
   | "listInitiatives"
+  | "getNote"
   | "listDueRemindersForBugun"
   | "listOverdueReminders"
   | "listUpcomingReminders"
@@ -65,6 +66,7 @@ function createDb(
     listActiveNotes: vi.fn().mockResolvedValue([]),
     listPeople: vi.fn().mockResolvedValue([]),
     listInitiatives: vi.fn().mockResolvedValue([]),
+    getNote: vi.fn().mockResolvedValue(null),
     listDueRemindersForBugun: vi.fn().mockResolvedValue([]),
     listOverdueReminders: vi.fn().mockResolvedValue([]),
     listUpcomingReminders: vi.fn().mockResolvedValue([]),

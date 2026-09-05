@@ -77,6 +77,7 @@ describe("Bugün recent-note navigation", () => {
           softDeleteNote: vi.fn(),
           listPeople: vi.fn().mockResolvedValue([person]),
           listInitiatives: vi.fn().mockResolvedValue([initiative]),
+          getNote: vi.fn(),
         }}
         onOpenInitiative={onOpenInitiative}
         onOpenPerson={onOpenPerson}
@@ -111,6 +112,7 @@ describe("Bugün recent-note navigation", () => {
           softDeleteNote: vi.fn(),
           listPeople: vi.fn().mockResolvedValue([person]),
           listInitiatives: vi.fn().mockResolvedValue([initiative]),
+          getNote: vi.fn(),
         }}
         onOpenInitiative={onOpenInitiative}
         onOpenPerson={onOpenPerson}
@@ -142,6 +144,7 @@ describe("Bugün recent-note navigation", () => {
           softDeleteNote: vi.fn(),
           listPeople: vi.fn().mockResolvedValue([]),
           listInitiatives: vi.fn().mockResolvedValue([]),
+          getNote: vi.fn(),
         }}
         onOpenInitiative={vi.fn()}
         onOpenPerson={vi.fn()}
