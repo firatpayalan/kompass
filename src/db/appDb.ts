@@ -2,6 +2,7 @@ import type {
   Initiative,
   Note,
   Person,
+  PersonLabel,
   Reminder,
   Topic,
 } from "../lib/types";
@@ -37,8 +38,15 @@ import {
   listNotesForPerson,
   listPeople,
   reorderPeople,
+  updatePerson,
   type CreatePersonInput,
+  type UpdatePersonPatch,
 } from "./peopleRepo";
+import {
+  createPersonLabel,
+  listPersonLabels,
+  type CreatePersonLabelInput,
+} from "./personLabelsRepo";
 import {
   advanceOrCompleteReminder,
   createReminder,
@@ -70,11 +78,14 @@ export type AppDb = {
   linkNoteToInitiatives(noteId: number, initiativeIds: number[]): Promise<void>;
 
   createPerson(input: CreatePersonInput): Promise<Person>;
+  updatePerson(id: number, patch: UpdatePersonPatch): Promise<Person>;
   listPeople(): Promise<Person[]>;
   reorderPeople(orderedIds: number[]): Promise<void>;
   findPersonByName(name: string): Promise<Person | null>;
   deletePerson(id: number): Promise<void>;
   listNotesForPerson(personId: number): Promise<Note[]>;
+  listPersonLabels(): Promise<PersonLabel[]>;
+  createPersonLabel(input: CreatePersonLabelInput): Promise<PersonLabel>;
 
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: number, title: string): Promise<Topic>;
@@ -119,11 +130,14 @@ export function createAppDb(db: AsyncDb): AppDb {
       linkNoteToInitiatives(db, noteId, initiativeIds),
 
     createPerson: (input) => createPerson(db, input),
+    updatePerson: (id, patch) => updatePerson(db, id, patch),
     listPeople: () => listPeople(db),
     reorderPeople: (orderedIds) => reorderPeople(db, orderedIds),
     findPersonByName: (name) => findPersonByName(db, name),
     deletePerson: (id) => deletePerson(db, id),
     listNotesForPerson: (personId) => listNotesForPerson(db, personId),
+    listPersonLabels: () => listPersonLabels(db),
+    createPersonLabel: (input) => createPersonLabel(db, input),
 
     createTopic: (input) => createTopic(db, input),
     updateTopic: (id, title) => updateTopic(db, id, title),

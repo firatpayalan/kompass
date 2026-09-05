@@ -2,6 +2,10 @@ import Database from "@tauri-apps/plugin-sql";
 
 import { applySchema, type AsyncDb } from "./asyncDb";
 import { ensurePeopleSortOrder } from "./peopleRepo";
+import {
+  ensurePeopleLabelId,
+  ensurePersonLabels,
+} from "./personLabelsRepo";
 import schemaSql from "./schema.sql?raw";
 
 const DATABASE_URL = "sqlite:leadership.db";
@@ -58,6 +62,8 @@ function wrapTauriDatabase(database: Database): AsyncDb {
 export async function connectAppDatabase(): Promise<AsyncDb> {
   const db = wrapTauriDatabase(await Database.load(DATABASE_URL));
   await applySchema(db, schemaSql);
+  await ensurePersonLabels(db);
   await ensurePeopleSortOrder(db);
+  await ensurePeopleLabelId(db);
   return db;
 }

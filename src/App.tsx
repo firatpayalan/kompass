@@ -134,6 +134,7 @@ export default function App({ db, notify, now }: AppProps = {}) {
           <PersonDetailView
             db={appDb}
             onBack={() => setActiveView("kisiler")}
+            onPersonUpdated={setSelectedPerson}
             onToast={showToast}
             person={selectedPerson}
           />

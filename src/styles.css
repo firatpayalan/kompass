@@ -801,6 +801,134 @@ button:disabled {
   box-shadow: 0 0.75rem 2rem rgb(15 23 42 / 25%);
 }
 
+.person-label-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.person-label-editor {
+  margin: 1rem 0 0;
+  max-width: 24rem;
+}
+
+.person-label-picker {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.person-label-picker__create {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.65rem;
+  background: #f8fafc;
+}
+
+.person-label-picker__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.person-label-picker__swatches legend {
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.person-label-swatch {
+  position: relative;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.person-label-swatch:has(input:checked) {
+  border-color: #172033;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.person-label-swatch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.person-label-picker__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.person-label-picker__toggle {
+  justify-self: start;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.person-label--sky {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.person-label--teal {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.person-label--amber {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.person-label--rose {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.person-label--slate {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.person-label--lime {
+  background: #ecfccb;
+  color: #3f6212;
+}
+
+.person-label--orange {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.person-label--indigo {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 @media (max-width: 42rem) {
   .app-shell {
     grid-template-columns: 1fr;

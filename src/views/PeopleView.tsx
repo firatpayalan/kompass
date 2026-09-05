@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PersonForm from "../components/PersonForm";
+import PersonLabelBadge from "../components/PersonLabelBadge";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Person } from "../lib/types";
 
-type PeopleDb = Pick<AppDb, "createPerson" | "listPeople" | "reorderPeople">;
+type PeopleDb = Pick<
+  AppDb,
+  | "createPerson"
+  | "listPeople"
+  | "reorderPeople"
+  | "listPersonLabels"
+  | "createPersonLabel"
+>;
+
 
 type PeopleViewProps = {
   db?: PeopleDb;
@@ -43,7 +52,7 @@ export function targetPersonIdAtPoint(
       return row.id;
     }
   }
-  return rows.at(-1)?.id ?? null;
+  return rows.length > 0 ? rows[rows.length - 1].id : null;
 }
 
 export default function PeopleView({
@@ -170,6 +179,8 @@ export default function PeopleView({
         </div>
         <PersonForm
           createPerson={db.createPerson}
+          createPersonLabel={db.createPersonLabel}
+          listPersonLabels={db.listPersonLabels}
           onCreated={onSelectPerson}
           onDuplicate={useExisting}
           onToast={onToast}
@@ -210,7 +221,12 @@ export default function PeopleView({
                 onClick={() => onSelectPerson(person)}
                 type="button"
               >
-                <strong>{person.name}</strong>
+                <span className="entity-list__heading">
+                  <strong>{person.name}</strong>
+                  {person.label ? (
+                    <PersonLabelBadge label={person.label} />
+                  ) : null}
+                </span>
                 {person.roleOrNotes ? <span>{person.roleOrNotes}</span> : null}
               </button>
             </li>

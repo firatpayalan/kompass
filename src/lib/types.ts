@@ -3,12 +3,20 @@ export type InitiativeStatus = "aktif" | "beklemede" | "bitti";
 export type ReminderPeriod = "once" | "daily" | "weekly" | "monthly";
 export type ReminderTargetType = "note" | "initiative";
 
+export interface PersonLabel {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
 export interface Person {
   id: number;
   name: string;
   roleOrNotes: string | null;
   createdAt: string;
   sortOrder: number;
+  label: PersonLabel | null;
 }
 
 export interface Initiative {

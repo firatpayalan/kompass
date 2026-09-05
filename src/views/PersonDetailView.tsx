@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import LinkedNotes from "../components/LinkedNotes";
+import PersonLabelBadge from "../components/PersonLabelBadge";
+import PersonLabelPicker from "../components/PersonLabelPicker";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { TopicWithNotes } from "../db/topicsRepo";
-import type { Note, Person } from "../lib/types";
+import type { Note, Person, PersonLabel } from "../lib/types";
+import type { PersonLabelColor } from "../lib/personLabels";
 
 type PersonDetailDb = Pick<
   AppDb,
@@ -12,12 +15,16 @@ type PersonDetailDb = Pick<
   | "listTopicsWithNotesForPerson"
   | "updateNote"
   | "updateTopic"
+  | "updatePerson"
+  | "listPersonLabels"
+  | "createPersonLabel"
 >;
 
 type PersonDetailViewProps = {
   db?: PersonDetailDb;
   person: Person;
   onBack: () => void;
+  onPersonUpdated?: (person: Person) => void;
   onToast?: (message: string) => void;
 };
 
@@ -27,6 +34,7 @@ export default function PersonDetailView({
   db = getDb(),
   person,
   onBack,
+  onPersonUpdated = ignore,
   onToast = ignore,
 }: PersonDetailViewProps) {
   const [topics, setTopics] = useState<TopicWithNotes[]>([]);
@@ -42,6 +50,10 @@ export default function PersonDetailView({
   const [renamingTopicId, setRenamingTopicId] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renaming, setRenaming] = useState(false);
+  const [labels, setLabels] = useState<PersonLabel[]>([]);
+  const [labelId, setLabelId] = useState<number | null>(
+    person.label?.id ?? null,
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +71,34 @@ export default function PersonDetailView({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setLabelId(person.label?.id ?? null);
+  }, [person.id, person.label?.id]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setLabels(await db.listPersonLabels());
+      } catch {
+        onToast("Etiketler yüklenemedi");
+      }
+    })();
+  }, [db, onToast]);
+
+  const changeLabel = async (nextLabelId: number | null) => {
+    setLabelId(nextLabelId);
+    try {
+      const updated = await db.updatePerson(person.id, {
+        labelId: nextLabelId,
+      });
+      onPersonUpdated(updated);
+      onToast("İlişki güncellendi");
+    } catch {
+      setLabelId(person.label?.id ?? null);
+      onToast("İlişki güncellenemedi");
+    }
+  };
 
   const toggleTopic = (topicId: number) => {
     setExpandedTopicIds((prev) => {
@@ -167,8 +207,35 @@ export default function PersonDetailView({
       <button className="back-button" onClick={onBack} type="button">
         ← Kişilere dön
       </button>
-      <h1>{person.name}</h1>
+      <h1>
+        {person.name}
+        {person.label ? (
+          <>
+            {" "}
+            <PersonLabelBadge label={person.label} />
+          </>
+        ) : null}
+      </h1>
       {person.roleOrNotes ? <p>{person.roleOrNotes}</p> : null}
+
+      <div className="person-label-editor">
+        <PersonLabelPicker
+          labels={labels}
+          onChange={(next) => {
+            void changeLabel(next);
+          }}
+          onCreate={async (labelName: string, color: PersonLabelColor) => {
+            const label = await db.createPersonLabel({
+              name: labelName,
+              color,
+            });
+            setLabels(await db.listPersonLabels());
+            return label;
+          }}
+          onToast={onToast}
+          value={labelId}
+        />
+      </div>
 
       <form
         className="detail-note-form"

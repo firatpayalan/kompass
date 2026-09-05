@@ -25,6 +25,7 @@ const person: Person = {
   roleOrNotes: "Ürün lideri",
   createdAt: "2026-09-05T08:00:00.000Z",
   sortOrder: 0,
+  label: null,
 };
 
 const initiative: Initiative = {
@@ -119,6 +120,7 @@ describe("Task 13 people and initiatives UI", () => {
       roleOrNotes: "software engineer 2",
       createdAt: "2026-09-05T08:00:00.000Z",
       sortOrder: 0,
+      label: null,
     };
     const cartman: Person = {
       id: 2,
@@ -126,6 +128,7 @@ describe("Task 13 people and initiatives UI", () => {
       roleOrNotes: null,
       createdAt: "2026-09-05T08:00:00.000Z",
       sortOrder: 1,
+      label: null,
     };
     const reorderPeople = vi.fn().mockResolvedValue(undefined);
     render(
@@ -185,6 +188,33 @@ describe("Task 13 people and initiatives UI", () => {
     const rows = screen.getAllByRole("listitem");
     expect(within(rows[0]).getByRole("button", { name: "cartman" })).toBeTruthy();
     expect(within(rows[1]).getByRole("button", { name: "baris" })).toBeTruthy();
+  });
+
+  it("shows a relationship badge on the people list", async () => {
+    const labeled: Person = {
+      ...person,
+      label: {
+        id: 9,
+        name: "Lider",
+        color: "sky",
+        createdAt: "2026-09-05T00:00:00.000Z",
+      },
+    };
+    render(
+      <PeopleView
+        db={{
+          createPerson: vi.fn(),
+          listPeople: vi.fn().mockResolvedValue([labeled]),
+          listPersonLabels: vi.fn().mockResolvedValue([labeled.label!]),
+          createPersonLabel: vi.fn(),
+          reorderPeople: vi.fn(),
+        }}
+        onSelectPerson={vi.fn()}
+        onToast={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("Lider")).toBeTruthy();
   });
 
   it("uses an existing person and shows a toast for a duplicate name", async () => {
@@ -260,6 +290,9 @@ describe("Task 13 people and initiatives UI", () => {
           createTopic: vi.fn(),
           updateNote: vi.fn(),
           updateTopic: vi.fn(),
+          updatePerson: vi.fn(),
+          listPersonLabels: vi.fn().mockResolvedValue([]),
+          createPersonLabel: vi.fn(),
           listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
             topics: [topicWithNotes],
             untopicNotes: [],
@@ -353,6 +386,9 @@ describe("Task 13 people and initiatives UI", () => {
           createTopic,
           updateNote: vi.fn(),
           updateTopic: vi.fn(),
+          updatePerson: vi.fn(),
+          listPersonLabels: vi.fn().mockResolvedValue([]),
+          createPersonLabel: vi.fn(),
           listTopicsWithNotesForPerson,
         }}
         onBack={vi.fn()}
@@ -436,6 +472,9 @@ describe("Task 13 people and initiatives UI", () => {
           createTopic: vi.fn(),
           updateNote,
           updateTopic,
+          updatePerson: vi.fn(),
+          listPersonLabels: vi.fn().mockResolvedValue([]),
+          createPersonLabel: vi.fn(),
           listTopicsWithNotesForPerson,
         }}
         onBack={vi.fn()}

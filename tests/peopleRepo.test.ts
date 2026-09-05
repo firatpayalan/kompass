@@ -9,7 +9,9 @@ import {
   listNotesForPerson,
   listPeople,
   reorderPeople,
+  updatePerson,
 } from "../src/db/peopleRepo";
+import { listPersonLabels } from "../src/db/personLabelsRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
 describe("peopleRepo", () => {
@@ -29,6 +31,7 @@ describe("peopleRepo", () => {
       roleOrNotes: "Satış lideri",
       createdAt: nowIso,
       sortOrder: -1,
+      label: null,
     });
     expect(await listPeople(db)).toEqual([person]);
     expect(await findPersonByName(db, "ayşe")).toEqual(person);
@@ -64,6 +67,27 @@ describe("peopleRepo", () => {
       "Deniz",
       "Can",
     ]);
+    db.close();
+  });
+
+  it("assigns a relationship label to a person", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-05T10:00:00.000Z";
+    const labels = await listPersonLabels(db);
+    const lider = labels.find((label) => label.name === "Lider");
+    expect(lider).toBeTruthy();
+
+    const person = await createPerson(db, {
+      name: "Ayşe",
+      labelId: lider!.id,
+      nowIso,
+    });
+    expect(person.label).toEqual(
+      expect.objectContaining({ name: "Lider", color: "sky" }),
+    );
+
+    const updated = await updatePerson(db, person.id, { labelId: null });
+    expect(updated.label).toBeNull();
     db.close();
   });
 

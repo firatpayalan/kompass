@@ -21,6 +21,7 @@ const person: Person = {
   roleOrNotes: "Ürün lideri",
   createdAt: "2026-09-05T08:00:00.000Z",
   sortOrder: 0,
+  label: null,
 };
 
 const initiative: Initiative = {
@@ -66,6 +67,9 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     listNotesForInitiative: vi.fn().mockResolvedValue([]),
     listNotesForPerson: vi.fn().mockResolvedValue([]),
     listPeople: vi.fn().mockResolvedValue([person]),
+    listPersonLabels: vi.fn().mockResolvedValue([]),
+    createPersonLabel: vi.fn(),
+    updatePerson: vi.fn(),
     listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({ topics: [], untopicNotes: [] }),
     markReminderDone: vi.fn(),
     permanentlyDeleteNote: vi.fn(),

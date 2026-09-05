@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { BUILTIN_PERSON_LABELS } from "../lib/personLabels";
 import type { AsyncDb } from "./asyncDb";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -19,6 +20,14 @@ export function openTestDb(): Database.Database {
   const db = new Database(":memory:");
 
   db.exec(readSchemaSql());
+  const seed = db.prepare(
+    `INSERT OR IGNORE INTO person_labels (name, color, created_at)
+     VALUES (?, ?, ?)`,
+  );
+  const nowIso = "2026-09-05T00:00:00.000Z";
+  for (const builtin of BUILTIN_PERSON_LABELS) {
+    seed.run(builtin.name, builtin.color, nowIso);
+  }
   return db;
 }
 
