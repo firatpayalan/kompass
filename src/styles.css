@@ -601,6 +601,16 @@ body {
   background: #ffffff;
 }
 
+.linked-note-list li.linked-note-list__item--overdue {
+  background: #fde8e8;
+  border-color: #f0b4b4;
+}
+
+.linked-note-list li.linked-note-list__item--soon {
+  background: #fff6d8;
+  border-color: #e8d48a;
+}
+
 .linked-note-list p {
   margin: 0 0 0.75rem;
   white-space: pre-wrap;

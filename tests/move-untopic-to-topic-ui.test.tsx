@@ -45,6 +45,7 @@ const untopicNote: Note = {
   personIds: [1],
   initiativeIds: [],
   topicIds: [],
+  nextReminderDueAt: null,
 };
 
 function baseDb(overrides: Partial<AppDb> = {}) {

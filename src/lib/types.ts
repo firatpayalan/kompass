@@ -46,6 +46,7 @@ export interface Note {
   personIds: number[];
   initiativeIds: number[];
   topicIds: number[];
+  nextReminderDueAt: string | null;
 }
 
 export interface Topic {

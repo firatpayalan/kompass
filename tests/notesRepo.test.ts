@@ -10,6 +10,7 @@ import {
   updateNote,
 } from "../src/db/notesRepo";
 import { createPerson } from "../src/db/peopleRepo";
+import { createReminder, markReminderDone } from "../src/db/remindersRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 import { createTopic } from "../src/db/topicsRepo";
 
@@ -59,6 +60,7 @@ describe("notesRepo", () => {
       personIds: [person.id],
       initiativeIds: [initiative.id],
       topicIds: [],
+      nextReminderDueAt: null,
     });
     expect(await getNote(db, note.id)).toEqual(note);
     expect(await listActiveNotes(db)).toEqual([note]);
@@ -152,6 +154,47 @@ describe("notesRepo", () => {
         personIds: [person.id],
       }),
     );
+    db.close();
+  });
+
+  it("includes nextReminderDueAt from open note reminders", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-06T10:00:00.000Z";
+    const note = await createNote(db, { body: "Hatırlatmalı not", nowIso });
+    const earlierDue = "2026-09-07T09:00:00.000Z";
+    const laterDue = "2026-09-10T12:00:00.000Z";
+
+    await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: laterDue,
+      period: "once",
+      nowIso,
+    });
+    await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: earlierDue,
+      period: "once",
+      nowIso,
+    });
+
+    const fetched = await getNote(db, note.id);
+    expect(fetched?.nextReminderDueAt).toBe(earlierDue);
+
+    const [listed] = await listActiveNotes(db);
+    expect(listed.nextReminderDueAt).toBe(earlierDue);
+
+    const doneReminder = await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: "2026-09-06T08:00:00.000Z",
+      period: "once",
+      nowIso,
+    });
+    await markReminderDone(db, doneReminder.id);
+
+    expect((await getNote(db, note.id))?.nextReminderDueAt).toBe(earlierDue);
     db.close();
   });
 });

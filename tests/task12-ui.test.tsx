@@ -166,6 +166,7 @@ describe("Task 12 notes UI", () => {
             personIds: [],
             initiativeIds: [],
     topicIds: [],
+    nextReminderDueAt: null,
   }}
           onEdit={() => setEditing(true)}
           onSave={onSave}
@@ -200,6 +201,7 @@ describe("Task 12 notes UI", () => {
             personIds: [],
             initiativeIds: [],
     topicIds: [],
+    nextReminderDueAt: null,
   },
         ]}
         onDelete={onDelete}

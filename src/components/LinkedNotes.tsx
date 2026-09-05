@@ -6,6 +6,7 @@ import NoteTagBadges from "./NoteTagBadges";
 import NoteTimestamps from "./NoteTimestamps";
 import ReminderForm, { type ReminderDraft } from "./ReminderForm";
 import TopicTagsEditor from "./TopicTagsEditor";
+import { reminderUrgency } from "../lib/reminderUrgency";
 import type { ReminderPeriod } from "../lib/types";
 
 type LinkedNotesProps = {
@@ -34,6 +35,7 @@ type LinkedNotesProps = {
   onToast?: (message: string) => void;
   topicOptions?: { id: number; title: string }[];
   onMoveToTopic?: (noteId: number, topicId: number) => Promise<void>;
+  now?: () => Date;
 };
 
 export default function LinkedNotes({
@@ -51,6 +53,7 @@ export default function LinkedNotes({
   onToast = () => undefined,
   topicOptions,
   onMoveToTopic,
+  now = () => new Date(),
 }: LinkedNotesProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -114,9 +117,20 @@ export default function LinkedNotes({
     >
       {({ openArchiveMenu }) => (
         <ul aria-label={label} className="linked-note-list">
-          {notes.map((note) => (
+          {notes.map((note) => {
+            const urgency = reminderUrgency(note.nextReminderDueAt, now());
+            const className = [
+              "linked-note-list__item",
+              urgency === "overdue" ? "linked-note-list__item--overdue" : null,
+              urgency === "soon" ? "linked-note-list__item--soon" : null,
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            return (
             <li
               key={note.id}
+              className={className}
               onContextMenu={
                 onArchiveNote
                   ? (event) => openArchiveMenu(event, note)
@@ -247,7 +261,8 @@ export default function LinkedNotes({
                 <NoteTagBadges tags={note.tags} />
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </NoteArchiveShell>

@@ -24,6 +24,7 @@ const note: Note = {
   personIds: [],
   initiativeIds: [],
   topicIds: [],
+  nextReminderDueAt: null,
 };
 
 describe("note right-click archive", () => {

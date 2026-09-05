@@ -38,6 +38,7 @@ const linkedNote: Note = {
   personIds: [1],
   initiativeIds: [2],
   topicIds: [],
+  nextReminderDueAt: null,
 };
 
 describe("NotesView links", () => {

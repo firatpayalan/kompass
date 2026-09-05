@@ -26,6 +26,11 @@ type IdRow = {
   id: number;
 };
 
+type ReminderDueRow = {
+  note_id: number;
+  due_at: string;
+};
+
 export type CreateNoteInput = {
   body: string;
   personIds?: number[];
@@ -136,6 +141,23 @@ async function getLinkedIdsByNote(
   return groupByNoteId(rows, (row) => row.linked_id);
 }
 
+async function getNextReminderDueByNote(
+  db: AsyncDb,
+  noteIds: number[],
+): Promise<Map<number, string>> {
+  const rows = await db.select<ReminderDueRow>(
+    `SELECT target_id AS note_id, MIN(due_at) AS due_at
+     FROM reminders
+     WHERE done = 0
+       AND target_type = 'note'
+       AND target_id IN (${placeholders(noteIds.length)})
+     GROUP BY target_id`,
+    noteIds,
+  );
+
+  return new Map(rows.map((row) => [row.note_id, row.due_at]));
+}
+
 export async function mapNoteRows(
   db: AsyncDb,
   rows: NoteRow[],
@@ -145,11 +167,12 @@ export async function mapNoteRows(
   }
 
   const noteIds = rows.map((row) => row.id);
-  const [tags, personIds, initiativeIds, topicIds] = await Promise.all([
+  const [tags, personIds, initiativeIds, topicIds, dueMap] = await Promise.all([
     getTagsByNote(db, noteIds),
     getLinkedIdsByNote(db, "note_people", "person_id", noteIds),
     getLinkedIdsByNote(db, "note_initiatives", "initiative_id", noteIds),
     getLinkedIdsByNote(db, "note_topics", "topic_id", noteIds),
+    getNextReminderDueByNote(db, noteIds),
   ]);
 
   return rows.map((row) => ({
@@ -162,6 +185,7 @@ export async function mapNoteRows(
     personIds: personIds.get(row.id) ?? [],
     initiativeIds: initiativeIds.get(row.id) ?? [],
     topicIds: topicIds.get(row.id) ?? [],
+    nextReminderDueAt: dueMap.get(row.id) ?? null,
   }));
 }
 

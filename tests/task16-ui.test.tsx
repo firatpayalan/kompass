@@ -24,6 +24,7 @@ const deletedNote: Note = {
   personIds: [],
   initiativeIds: [],
   topicIds: [],
+  nextReminderDueAt: null,
 };
 
 function createDb(

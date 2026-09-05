@@ -45,6 +45,7 @@ const resultNote: Note = {
   personIds: [],
   initiativeIds: [],
     topicIds: [],
+    nextReminderDueAt: null,
   };
 
 function createDb(overrides: Partial<AppDb> = {}): AppDb {

@@ -44,6 +44,7 @@ function note(id: number): Note {
     personIds: [],
     initiativeIds: [],
     topicIds: [],
+    nextReminderDueAt: null,
   };
 }
 

@@ -51,6 +51,7 @@ const note: Note = {
   personIds: [],
   initiativeIds: [],
     topicIds: [],
+    nextReminderDueAt: null,
   };
 
 function createDb(overrides: Partial<AppDb> = {}): AppDb {
@@ -275,6 +276,7 @@ describe("initiative detail editing", () => {
           personIds: [],
           initiativeIds: [2],
           topicIds: [],
+          nextReminderDueAt: null,
         },
       ]);
     const onToast = vi.fn();

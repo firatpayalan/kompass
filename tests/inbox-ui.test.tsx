@@ -44,6 +44,7 @@ const inboxNote: Note = {
   personIds: [],
   initiativeIds: [],
     topicIds: [],
+    nextReminderDueAt: null,
   };
 
 describe("InboxView", () => {
