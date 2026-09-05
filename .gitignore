@@ -1,1 +1,16 @@
 .superpowers/
+
+# JavaScript
+node_modules/
+dist/
+*.log
+*.local
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
