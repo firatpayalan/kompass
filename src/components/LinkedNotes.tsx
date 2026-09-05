@@ -1,6 +1,10 @@
 import { useState } from "react";
-import type { Note } from "../lib/types";
+import type { Note, NoteTag } from "../lib/types";
+import type { PersonLabelColor } from "../lib/personLabels";
+import NoteArchiveShell from "./NoteArchiveShell";
+import NoteTagBadges from "./NoteTagBadges";
 import NoteTimestamps from "./NoteTimestamps";
+import TopicTagsEditor from "./TopicTagsEditor";
 
 type LinkedNotesProps = {
   loading: boolean;
@@ -8,6 +12,22 @@ type LinkedNotesProps = {
   label?: string;
   emptyLabel?: string;
   onUpdateNote?: (noteId: number, body: string) => Promise<void>;
+  onArchiveNote?: (noteId: number) => Promise<void>;
+  tagCatalog?: NoteTag[];
+  onAddTag?: (
+    noteId: number,
+    name: string,
+    color: PersonLabelColor,
+  ) => Promise<void>;
+  onLinkTag?: (noteId: number, tagId: number) => Promise<void>;
+  onUpdateTag?: (
+    id: number,
+    patch: { name?: string; color?: PersonLabelColor },
+  ) => Promise<void>;
+  onDeleteTag?: (id: number) => Promise<void>;
+  onToast?: (message: string) => void;
+  topicOptions?: { id: number; title: string }[];
+  onMoveToTopic?: (noteId: number, topicId: number) => Promise<void>;
 };
 
 export default function LinkedNotes({
@@ -16,10 +36,27 @@ export default function LinkedNotes({
   label = "Bağlı notlar",
   emptyLabel = "Henüz bağlı not yok.",
   onUpdateNote,
+  onArchiveNote,
+  tagCatalog,
+  onAddTag,
+  onLinkTag,
+  onUpdateTag,
+  onDeleteTag,
+  onToast = () => undefined,
+  topicOptions,
+  onMoveToTopic,
 }: LinkedNotesProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [moveTopicByNote, setMoveTopicByNote] = useState<
+    Record<number, string>
+  >({});
+  const [movingId, setMovingId] = useState<number | null>(null);
+  const canEditTags = Boolean(onAddTag && onUpdateTag && onDeleteTag);
+  const canMove = Boolean(
+    topicOptions && topicOptions.length > 0 && onMoveToTopic,
+  );
 
   if (loading) {
     return <p>{label} yükleniyor…</p>;
@@ -46,50 +83,137 @@ export default function LinkedNotes({
   };
 
   return (
-    <ul aria-label={label} className="linked-note-list">
-      {notes.map((note) => (
-        <li key={note.id}>
-          {editingId === note.id ? (
-            <div className="linked-note-edit">
-              <label>
-                Notu düzenle
-                <textarea
-                  autoFocus
-                  onChange={(event) => setDraft(event.target.value)}
-                  rows={3}
-                  value={draft}
+    <NoteArchiveShell
+      enabled={Boolean(onArchiveNote)}
+      onArchive={async (noteId) => {
+        await onArchiveNote?.(noteId);
+      }}
+    >
+      {({ openArchiveMenu }) => (
+        <ul aria-label={label} className="linked-note-list">
+          {notes.map((note) => (
+            <li
+              key={note.id}
+              onContextMenu={
+                onArchiveNote
+                  ? (event) => openArchiveMenu(event, note)
+                  : undefined
+              }
+            >
+              {editingId === note.id ? (
+                <div className="linked-note-edit">
+                  <label>
+                    Notu düzenle
+                    <textarea
+                      autoFocus
+                      onChange={(event) => setDraft(event.target.value)}
+                      rows={3}
+                      value={draft}
+                    />
+                  </label>
+                  <div className="linked-note-edit__actions">
+                    <button
+                      onClick={() => setEditingId(null)}
+                      type="button"
+                    >
+                      Vazgeç
+                    </button>
+                    <button disabled={saving} onClick={saveEdit} type="button">
+                      {saving ? "Kaydediliyor…" : "Kaydet"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p>{note.body}</p>
+                  <div className="linked-note-meta">
+                    <NoteTimestamps note={note} />
+                    {onUpdateNote ? (
+                      <button
+                        onClick={() => startEdit(note)}
+                        type="button"
+                      >
+                        Düzenle
+                      </button>
+                    ) : null}
+                  </div>
+                  {canMove ? (
+                    <div className="linked-note-move">
+                      <label>
+                        Konuya taşı
+                        <select
+                          onChange={(event) =>
+                            setMoveTopicByNote((prev) => ({
+                              ...prev,
+                              [note.id]: event.target.value,
+                            }))
+                          }
+                          value={moveTopicByNote[note.id] ?? ""}
+                        >
+                          <option value="">Konu seç…</option>
+                          {topicOptions!.map((topic) => (
+                            <option key={topic.id} value={topic.id}>
+                              {topic.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        disabled={movingId === note.id}
+                        onClick={() => {
+                          void (async () => {
+                            const raw = moveTopicByNote[note.id] ?? "";
+                            const topicId = Number(raw);
+                            if (!raw || Number.isNaN(topicId)) {
+                              onToast("Konu seçin");
+                              return;
+                            }
+                            setMovingId(note.id);
+                            try {
+                              await onMoveToTopic?.(note.id, topicId);
+                            } finally {
+                              setMovingId(null);
+                            }
+                          })();
+                        }}
+                        type="button"
+                      >
+                        {movingId === note.id ? "Taşınıyor…" : "Taşı"}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+              {canEditTags ? (
+                <TopicTagsEditor
+                  catalog={tagCatalog}
+                  colorInputName={`note-tag-color-${note.id}`}
+                  onAdd={async (name, color) => {
+                    await onAddTag?.(note.id, name, color);
+                  }}
+                  onDelete={async (tagId) => {
+                    await onDeleteTag?.(tagId);
+                  }}
+                  onLinkExisting={
+                    onLinkTag
+                      ? async (tagId) => {
+                          await onLinkTag(note.id, tagId);
+                        }
+                      : undefined
+                  }
+                  onToast={onToast}
+                  onUpdate={async (tagId, patch) => {
+                    await onUpdateTag?.(tagId, patch);
+                  }}
+                  tags={note.tags}
                 />
-              </label>
-              <div className="linked-note-edit__actions">
-                <button
-                  onClick={() => setEditingId(null)}
-                  type="button"
-                >
-                  Vazgeç
-                </button>
-                <button disabled={saving} onClick={saveEdit} type="button">
-                  {saving ? "Kaydediliyor…" : "Kaydet"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p>{note.body}</p>
-              <div className="linked-note-meta">
-                <NoteTimestamps note={note} />
-                {onUpdateNote ? (
-                  <button
-                    onClick={() => startEdit(note)}
-                    type="button"
-                  >
-                    Düzenle
-                  </button>
-                ) : null}
-              </div>
-            </>
-          )}
-        </li>
-      ))}
-    </ul>
+              ) : (
+                <NoteTagBadges tags={note.tags} />
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </NoteArchiveShell>
   );
 }

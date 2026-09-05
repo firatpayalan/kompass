@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS people (
   role_or_notes TEXT,
   created_at TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  label_id INTEGER REFERENCES person_labels(id) ON DELETE SET NULL
+  label_id INTEGER REFERENCES person_labels(id) ON DELETE SET NULL,
+  archived_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS initiatives (
@@ -21,7 +22,9 @@ CREATE TABLE IF NOT EXISTS initiatives (
   name TEXT NOT NULL COLLATE NOCASE,
   status TEXT NOT NULL CHECK (status IN ('aktif', 'beklemede', 'bitti')),
   blocker_summary TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  archived_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS notes (
@@ -34,7 +37,8 @@ CREATE TABLE IF NOT EXISTS notes (
 
 CREATE TABLE IF NOT EXISTS tags (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE COLLATE NOCASE
+  name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  color TEXT NOT NULL DEFAULT 'slate'
 );
 
 CREATE TABLE IF NOT EXISTS note_tags (

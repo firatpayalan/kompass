@@ -3,12 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   createNote,
   getNote,
+  linkNoteToTopics,
   listActiveNotes,
   listInboxNotes,
   linkNoteToPeople,
   updateNote,
 } from "../src/db/notesRepo";
+import { createPerson } from "../src/db/peopleRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
+import { createTopic } from "../src/db/topicsRepo";
 
 describe("notesRepo", () => {
   it("rejects an empty body", async () => {
@@ -49,7 +52,10 @@ describe("notesRepo", () => {
       createdAt,
       updatedAt: createdAt,
       deletedAt: null,
-      tags: ["aksiyon", "önemli"],
+      tags: [
+        { id: expect.any(Number), name: "aksiyon", color: "slate" },
+        { id: expect.any(Number), name: "önemli", color: "slate" },
+      ],
       personIds: [person.id],
       initiativeIds: [initiative.id],
       topicIds: [],
@@ -82,7 +88,7 @@ describe("notesRepo", () => {
     db.close();
   });
 
-  it("updates a note body and rebuilds its tags", async () => {
+  it("updates a note body and merges hashtag tags", async () => {
     const db = openTestAsyncDb();
     const note = await createNote(db, {
       body: "İlk metin #eski",
@@ -92,7 +98,8 @@ describe("notesRepo", () => {
     const updated = await updateNote(db, note.id, "Yeni metin #yeni", "2026-09-05T11:00:00.000Z");
 
     expect(updated.body).toBe("Yeni metin #yeni");
-    expect(updated.tags).toEqual(["yeni"]);
+    expect(updated.tags.map((tag) => tag.name).sort()).toEqual(["eski", "yeni"]);
+    expect(updated.tags.every((tag) => tag.color === "slate")).toBe(true);
     expect(updated.updatedAt).toBe("2026-09-05T11:00:00.000Z");
     db.close();
   });
@@ -117,6 +124,34 @@ describe("notesRepo", () => {
     const listed = await listInboxNotes(db);
 
     expect(listed.map((note) => note.id)).toEqual([inbox.id]);
+    db.close();
+  });
+
+  it("links an untopic note to a topic", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-06T10:00:00.000Z";
+    const person = await createPerson(db, { name: "Ayşe", nowIso });
+    const topic = await createTopic(db, {
+      personId: person.id,
+      title: "1:1",
+      nowIso,
+    });
+    const note = await createNote(db, {
+      body: "Konusuz not",
+      personIds: [person.id],
+      nowIso,
+    });
+
+    expect(note.topicIds).toEqual([]);
+    await linkNoteToTopics(db, note.id, [topic.id]);
+
+    expect(await getNote(db, note.id)).toEqual(
+      expect.objectContaining({
+        id: note.id,
+        topicIds: [topic.id],
+        personIds: [person.id],
+      }),
+    );
     db.close();
   });
 });

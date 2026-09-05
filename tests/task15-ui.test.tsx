@@ -22,6 +22,7 @@ const person: Person = {
   createdAt: "2026-09-05T08:00:00.000Z",
   sortOrder: 0,
   label: null,
+  archivedAt: null,
 };
 
 const initiative: Initiative = {
@@ -30,6 +31,8 @@ const initiative: Initiative = {
   status: "aktif",
   blockerSummary: null,
   createdAt: "2026-09-05T09:00:00.000Z",
+  sortOrder: 0,
+  archivedAt: null,
 };
 
 const resultNote: Note = {
@@ -38,7 +41,7 @@ const resultNote: Note = {
   createdAt: "2026-09-05T10:00:00.000Z",
   updatedAt: "2026-09-05T10:00:00.000Z",
   deletedAt: null,
-  tags: ["strateji"],
+  tags: [{ id: 1, name: "strateji", color: "slate" }],
   personIds: [],
   initiativeIds: [],
     topicIds: [],
@@ -57,12 +60,24 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
           listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
     updateTopic: vi.fn(),
     deleteInitiative: vi.fn(),
     deletePerson: vi.fn(),
+    listArchivedPeople: vi.fn().mockResolvedValue([]),
+    listArchivedInitiatives: vi.fn().mockResolvedValue([]),
+    archivePerson: vi.fn(),
+    archiveInitiative: vi.fn(),
+    restorePerson: vi.fn(),
+    restoreInitiative: vi.fn(),
     findPersonByName: vi.fn(),
     getNote: vi.fn(),
     linkNoteToInitiatives: vi.fn(),
+    linkNoteToTopics: vi.fn(),
     linkNoteToPeople: vi.fn(),
     listActiveNotes: vi.fn().mockResolvedValue([]),
     listInboxNotes: vi.fn().mockResolvedValue([]),
@@ -85,6 +100,8 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     softDeleteNote: vi.fn(),
     updateInitiative: vi.fn(),
     updateNote: vi.fn(),
+    reorderPeople: vi.fn(),
+    reorderInitiatives: vi.fn(),
     ...overrides,
   };
 }
@@ -131,7 +148,7 @@ describe("Task 15 search and keyboard navigation", () => {
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     expect(screen.getByRole("dialog", { name: "Komut paleti" })).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Silinenler" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Arşiv" })).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Komut paleti" })).toBeNull();
   });

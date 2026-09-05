@@ -27,7 +27,7 @@ const viewCommands: Array<{ label: string; view: SidebarView }> = [
   { label: "Kişiler", view: "kisiler" },
   { label: "İşler", view: "isler" },
   { label: "Arama", view: "arama" },
-  { label: "Silinenler", view: "silinenler" },
+  { label: "Arşiv", view: "arsiv" },
 ];
 
 const normalize = (value: string) => value.toLocaleLowerCase("tr-TR");

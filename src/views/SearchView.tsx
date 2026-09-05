@@ -2,18 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Note } from "../lib/types";
+import NoteArchiveShell from "../components/NoteArchiveShell";
+import NoteTagBadges from "../components/NoteTagBadges";
 import NoteTimestamps from "../components/NoteTimestamps";
 
-type SearchDb = Pick<AppDb, "searchNotes">;
+type SearchDb = Pick<AppDb, "searchNotes" | "softDeleteNote">;
 
 type SearchViewProps = {
   db?: SearchDb;
   focusRequestKey?: number;
+  onToast?: (message: string) => void;
 };
+
+const ignoreToast = () => undefined;
 
 export default function SearchView({
   db = getDb(),
   focusRequestKey = 0,
+  onToast = ignoreToast,
 }: SearchViewProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Note[]>([]);
@@ -60,6 +66,16 @@ export default function SearchView({
     };
   }, [db, query]);
 
+  const archiveNote = async (noteId: number) => {
+    try {
+      await db.softDeleteNote(noteId, new Date().toISOString());
+      setResults((prev) => prev.filter((note) => note.id !== noteId));
+      onToast("Not arşivlendi");
+    } catch {
+      onToast("Not arşivlenemedi");
+    }
+  };
+
   return (
     <section className="search-view">
       <h1>Arama</h1>
@@ -81,21 +97,22 @@ export default function SearchView({
         <p>Sonuç bulunamadı.</p>
       ) : null}
       {results.length > 0 ? (
-        <ul aria-label="Arama sonuçları" className="search-results">
-          {results.map((note) => (
-            <li key={note.id}>
-              <p>{note.body}</p>
-              {note.tags.length > 0 ? (
-                <div className="note-list__tags">
-                  {note.tags.map((tag) => (
-                    <span key={tag}>#{tag}</span>
-                  ))}
-                </div>
-              ) : null}
-              <NoteTimestamps note={note} />
-            </li>
-          ))}
-        </ul>
+        <NoteArchiveShell enabled onArchive={archiveNote}>
+          {({ openArchiveMenu }) => (
+            <ul aria-label="Arama sonuçları" className="search-results">
+              {results.map((note) => (
+                <li
+                  key={note.id}
+                  onContextMenu={(event) => openArchiveMenu(event, note)}
+                >
+                  <p>{note.body}</p>
+                  <NoteTagBadges tags={note.tags} />
+                  <NoteTimestamps note={note} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </NoteArchiveShell>
       ) : null}
     </section>
   );

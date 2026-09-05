@@ -37,6 +37,8 @@ const initiative: Initiative = {
   status: "aktif",
   blockerSummary: "Bütçe onayı",
   createdAt: "2026-09-05T09:00:00.000Z",
+  sortOrder: 0,
+  archivedAt: null,
 };
 
 const note: Note = {
@@ -64,12 +66,24 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
           listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
     updateTopic: vi.fn(),
     deleteInitiative: vi.fn(),
     deletePerson: vi.fn(),
+    listArchivedPeople: vi.fn().mockResolvedValue([]),
+    listArchivedInitiatives: vi.fn().mockResolvedValue([]),
+    archivePerson: vi.fn(),
+    archiveInitiative: vi.fn(),
+    restorePerson: vi.fn(),
+    restoreInitiative: vi.fn(),
     findPersonByName: vi.fn(),
     getNote: vi.fn(),
     linkNoteToInitiatives: vi.fn(),
+    linkNoteToTopics: vi.fn(),
     linkNoteToPeople: vi.fn(),
     listActiveNotes: vi.fn().mockResolvedValue([]),
     listInboxNotes: vi.fn().mockResolvedValue([]),
@@ -92,6 +106,8 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     softDeleteNote: vi.fn(),
     updateInitiative: vi.fn(),
     updateNote: vi.fn(),
+    reorderPeople: vi.fn(),
+    reorderInitiatives: vi.fn(),
     ...overrides,
   };
 }
@@ -152,16 +168,20 @@ describe("initiative detail editing", () => {
   it("saves an edited status and blocker summary", async () => {
     const updateInitiative = vi.fn().mockResolvedValue({
       ...initiative,
-      status: "bitti",
+      status: "beklemede",
       blockerSummary: "Engel kalmadı",
     });
+    const createNote = vi.fn().mockResolvedValue({ id: 50 });
+    const listNotesForInitiative = vi.fn().mockResolvedValue([]);
     const onToast = vi.fn();
     render(
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
-          listNotesForInitiative: vi.fn().mockResolvedValue([]),
+          createNote,
+          listNotesForInitiative,
           updateInitiative,
+          updateNote: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -170,7 +190,7 @@ describe("initiative detail editing", () => {
     );
 
     fireEvent.change(screen.getByLabelText("Durum"), {
-      target: { value: "bitti" },
+      target: { value: "beklemede" },
     });
     fireEvent.change(screen.getByLabelText("Engel özeti"), {
       target: { value: "Engel kalmadı" },
@@ -181,12 +201,19 @@ describe("initiative detail editing", () => {
 
     await waitFor(() =>
       expect(updateInitiative).toHaveBeenCalledWith(2, {
-        status: "bitti",
+        status: "beklemede",
         blockerSummary: "Engel kalmadı",
       }),
     );
+    expect(createNote).toHaveBeenCalledWith({
+      body: "Engel kalmadı",
+      initiativeIds: [2],
+      personIds: [],
+    });
     expect(onToast).toHaveBeenCalledWith("İş güncellendi");
-    expect(await screen.findByText("Bitti", { selector: "span" })).toBeTruthy();
+    expect(
+      await screen.findByText("Beklemede", { selector: "span" }),
+    ).toBeTruthy();
   });
 
   it("attaches a reminder to an existing initiative", async () => {
@@ -196,8 +223,10 @@ describe("initiative detail editing", () => {
       <InitiativeDetailView
         db={{
           createReminder,
+          createNote: vi.fn(),
           listNotesForInitiative: vi.fn().mockResolvedValue([]),
           updateInitiative: vi.fn(),
+          updateNote: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -227,6 +256,56 @@ describe("initiative detail editing", () => {
     );
     expect(onToast).toHaveBeenCalledWith("Hatırlatma eklendi");
   });
+
+  it("adds a note under the initiative", async () => {
+    const createNote = vi.fn().mockResolvedValue({ id: 51 });
+    const listNotesForInitiative = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([
+        {
+          id: 51,
+          body: "Yeni iş notu",
+          createdAt: "2026-09-06T00:00:00.000Z",
+          updatedAt: "2026-09-06T00:00:00.000Z",
+          deletedAt: null,
+          tags: [],
+          personIds: [],
+          initiativeIds: [2],
+          topicIds: [],
+        },
+      ]);
+    const onToast = vi.fn();
+    render(
+      <InitiativeDetailView
+        db={{
+          createReminder: vi.fn(),
+          createNote,
+          listNotesForInitiative,
+          updateInitiative: vi.fn(),
+          updateNote: vi.fn(),
+        }}
+        initiative={initiative}
+        onBack={vi.fn()}
+        onToast={onToast}
+      />,
+    );
+
+    fireEvent.change(await screen.findByLabelText("Not ekle"), {
+      target: { value: "Yeni iş notu" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Not ekle" }));
+
+    await waitFor(() =>
+      expect(createNote).toHaveBeenCalledWith({
+        body: "Yeni iş notu",
+        initiativeIds: [2],
+        personIds: [],
+      }),
+    );
+    expect(onToast).toHaveBeenCalledWith("Not eklendi");
+    expect(await screen.findByText("Yeni iş notu")).toBeTruthy();
+  });
 });
 
 describe("reminders on existing notes", () => {
@@ -238,8 +317,15 @@ describe("reminders on existing notes", () => {
         db={{
           createReminder,
           listActiveNotes: vi.fn().mockResolvedValue([note]),
+          listPeople: vi.fn().mockResolvedValue([]),
+          listInitiatives: vi.fn().mockResolvedValue([]),
           softDeleteNote: vi.fn(),
           updateNote,
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
         }}
         onToast={vi.fn()}
       />,
@@ -273,8 +359,15 @@ describe("reminders on existing notes", () => {
         db={{
           createReminder: vi.fn().mockRejectedValue(new Error("disk")),
           listActiveNotes: vi.fn().mockResolvedValue([note]),
+          listPeople: vi.fn().mockResolvedValue([]),
+          listInitiatives: vi.fn().mockResolvedValue([]),
           softDeleteNote: vi.fn(),
           updateNote: vi.fn().mockResolvedValue(note),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
         }}
         onToast={onToast}
       />,

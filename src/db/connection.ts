@@ -1,11 +1,13 @@
 import Database from "@tauri-apps/plugin-sql";
 
 import { applySchema, type AsyncDb } from "./asyncDb";
-import { ensurePeopleSortOrder } from "./peopleRepo";
+import { ensurePeopleArchivedAt, ensurePeopleSortOrder } from "./peopleRepo";
 import {
   ensurePeopleLabelId,
   ensurePersonLabels,
 } from "./personLabelsRepo";
+import { ensureInitiativesArchivedAt, ensureInitiativesSortOrder } from "./initiativesRepo";
+import { ensureNoteTagsColor } from "./noteTagsRepo";
 import { ensureTopicTagsSchema } from "./topicTagsRepo";
 import schemaSql from "./schema.sql?raw";
 
@@ -65,7 +67,11 @@ export async function connectAppDatabase(): Promise<AsyncDb> {
   await applySchema(db, schemaSql);
   await ensurePersonLabels(db);
   await ensurePeopleSortOrder(db);
+  await ensurePeopleArchivedAt(db);
   await ensurePeopleLabelId(db);
+  await ensureInitiativesSortOrder(db);
+  await ensureInitiativesArchivedAt(db);
   await ensureTopicTagsSchema(db);
+  await ensureNoteTagsColor(db);
   return db;
 }

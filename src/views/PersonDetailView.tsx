@@ -6,7 +6,7 @@ import TopicTagsEditor from "../components/TopicTagsEditor";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { TopicWithNotes } from "../db/topicsRepo";
-import type { Note, Person, PersonLabel, TopicTag } from "../lib/types";
+import type { Note, NoteTag, Person, PersonLabel, TopicTag } from "../lib/types";
 import type { PersonLabelColor } from "../lib/personLabels";
 
 type PersonDetailDb = Pick<
@@ -15,6 +15,7 @@ type PersonDetailDb = Pick<
   | "createTopic"
   | "listTopicsWithNotesForPerson"
   | "updateNote"
+  | "softDeleteNote"
   | "updateTopic"
   | "updatePerson"
   | "listPersonLabels"
@@ -26,6 +27,12 @@ type PersonDetailDb = Pick<
   | "listTopicTags"
   | "updateTopicTag"
   | "deleteTopicTag"
+  | "addTagToNote"
+  | "linkTagToNote"
+  | "listNoteTags"
+  | "updateNoteTag"
+  | "deleteNoteTag"
+  | "linkNoteToTopics"
 >;
 
 type PersonDetailViewProps = {
@@ -60,6 +67,7 @@ export default function PersonDetailView({
   const [renaming, setRenaming] = useState(false);
   const [labels, setLabels] = useState<PersonLabel[]>([]);
   const [topicTagCatalog, setTopicTagCatalog] = useState<TopicTag[]>([]);
+  const [noteTagCatalog, setNoteTagCatalog] = useState<NoteTag[]>([]);
   const [labelId, setLabelId] = useState<number | null>(
     person.label?.id ?? null,
   );
@@ -67,13 +75,15 @@ export default function PersonDetailView({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [result, catalog] = await Promise.all([
+      const [result, topicCatalog, noteCatalog] = await Promise.all([
         db.listTopicsWithNotesForPerson(person.id),
         db.listTopicTags(),
+        db.listNoteTags(),
       ]);
       setTopics(result.topics);
       setUntopicNotes(result.untopicNotes);
-      setTopicTagCatalog(catalog);
+      setTopicTagCatalog(topicCatalog);
+      setNoteTagCatalog(noteCatalog);
     } catch {
       onToast("Konular yüklenemedi");
     } finally {
@@ -213,6 +223,55 @@ export default function PersonDetailView({
       onToast("Not güncellenemedi");
       throw new Error("Not güncellenemedi");
     }
+  };
+
+  const archiveNote = async (noteId: number) => {
+    try {
+      await db.softDeleteNote(noteId, new Date().toISOString());
+      onToast("Not arşivlendi");
+      await load();
+    } catch {
+      onToast("Not arşivlenemedi");
+    }
+  };
+
+  const moveNoteToTopic = async (noteId: number, topicId: number) => {
+    try {
+      await db.linkNoteToTopics(noteId, [topicId]);
+      onToast("Nota konu bağlandı");
+      setExpandedTopicIds((prev) => new Set(prev).add(topicId));
+      await load();
+    } catch {
+      onToast("Nota konu bağlanamadı");
+    }
+  };
+
+  const noteTagHandlers = {
+    tagCatalog: noteTagCatalog,
+    onAddTag: async (
+      noteId: number,
+      name: string,
+      color: PersonLabelColor,
+    ) => {
+      await db.addTagToNote(noteId, { name, color });
+      await load();
+    },
+    onLinkTag: async (noteId: number, tagId: number) => {
+      await db.linkTagToNote(noteId, tagId);
+      await load();
+    },
+    onUpdateTag: async (
+      id: number,
+      patch: { name?: string; color?: PersonLabelColor },
+    ) => {
+      await db.updateNoteTag(id, patch);
+      await load();
+    },
+    onDeleteTag: async (id: number) => {
+      await db.deleteNoteTag(id);
+      await load();
+    },
+    onToast,
   };
 
   return (
@@ -386,7 +445,9 @@ export default function PersonDetailView({
                       label={`${topic.title} notları`}
                       loading={false}
                       notes={topic.notes}
+                      onArchiveNote={archiveNote}
                       onUpdateNote={updateNote}
+                      {...noteTagHandlers}
                     />
                     <form
                       className="topic-note-form"
@@ -445,7 +506,19 @@ export default function PersonDetailView({
             label="Konusuz notlar"
             loading={false}
             notes={untopicNotes}
+            onArchiveNote={archiveNote}
+            onMoveToTopic={topics.length > 0 ? moveNoteToTopic : undefined}
+            onToast={onToast}
             onUpdateNote={updateNote}
+            topicOptions={
+              topics.length > 0
+                ? topics.map((topic) => ({
+                    id: topic.id,
+                    title: topic.title,
+                  }))
+                : undefined
+            }
+            {...noteTagHandlers}
           />
         </>
       ) : null}

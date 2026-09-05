@@ -66,6 +66,37 @@ describe("Task 12 notes UI", () => {
     expect(onToast).toHaveBeenCalledWith("Gelen kutusuna kaydedildi");
   });
 
+  it("saves on Enter and keeps Shift+Enter as a newline", async () => {
+    const createNote = vi.fn().mockResolvedValue({ id: 43 });
+    const onSaved = vi.fn();
+    render(
+      <QuickNoteModal
+        db={{
+          createNote,
+          createReminder: vi.fn(),
+        }}
+        draftStore={createDraftStore()}
+        onClose={vi.fn()}
+        onSaved={onSaved}
+        onToast={vi.fn()}
+      />,
+    );
+
+    const textarea = screen.getByLabelText("Not");
+    fireEvent.change(textarea, { target: { value: "Enter ile kaydet" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
+    expect(createNote).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(textarea, { key: "Enter" });
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(createNote).toHaveBeenCalledWith({
+      body: "Enter ile kaydet",
+      personIds: [],
+      initiativeIds: [],
+    });
+  });
+
   it("keeps the draft and shows a Turkish toast when saving fails", async () => {
     const draftStore = createDraftStore();
     const onToast = vi.fn();

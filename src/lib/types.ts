@@ -17,6 +17,7 @@ export interface Person {
   createdAt: string;
   sortOrder: number;
   label: PersonLabel | null;
+  archivedAt: string | null;
 }
 
 export interface Initiative {
@@ -25,6 +26,14 @@ export interface Initiative {
   status: InitiativeStatus;
   blockerSummary: string | null;
   createdAt: string;
+  sortOrder: number;
+  archivedAt: string | null;
+}
+
+export interface NoteTag {
+  id: number;
+  name: string;
+  color: string;
 }
 
 export interface Note {
@@ -33,7 +42,7 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  tags: string[];
+  tags: NoteTag[];
   personIds: number[];
   initiativeIds: number[];
   topicIds: number[];

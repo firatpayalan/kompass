@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Initiative, Note, Person } from "../lib/types";
+import NoteArchiveShell from "../components/NoteArchiveShell";
+import NoteTagBadges from "../components/NoteTagBadges";
 import NoteTimestamps from "../components/NoteTimestamps";
 
 type InboxDb = Pick<
@@ -108,9 +110,10 @@ export default function InboxView({
     try {
       await db.softDeleteNote(id, new Date().toISOString());
       if (organizingId === id) setOrganizingId(null);
+      onToast("Not arşivlendi");
       await load();
     } catch {
-      onToast("Not silinemedi");
+      onToast("Not arşivlenemedi");
     }
   };
 
@@ -125,59 +128,110 @@ export default function InboxView({
       ) : notes.length === 0 ? (
         <p>Gelen kutusu boş.</p>
       ) : (
+        <NoteArchiveShell enabled onArchive={deleteNote}>
+          {({ openArchiveMenu }) => (
         <ul className="note-list">
           {notes.map((note) => (
-            <li className="note-list__item" key={note.id}>
+            <li
+              className="note-list__item"
+              key={note.id}
+              onContextMenu={
+                organizingId === note.id
+                  ? undefined
+                  : (event) => openArchiveMenu(event, note)
+              }
+            >
               {organizingId === note.id ? (
                 <div className="inbox-organize">
-                  <label>
+                  <label className="inbox-organize__field">
                     Not metni
                     <textarea
                       autoFocus
                       onChange={(event) => setBody(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter" &&
+                          !event.shiftKey &&
+                          !event.nativeEvent.isComposing
+                        ) {
+                          event.preventDefault();
+                          if (saving) return;
+                          void saveOrganize();
+                        }
+                      }}
                       rows={4}
                       value={body}
                     />
                   </label>
-                  <div className="quick-note-modal__links">
-                    <fieldset>
-                      <legend>Kişiler</legend>
-                      {people.length === 0 ? <span>Kişi yok</span> : null}
-                      {people.map((person) => (
-                        <label key={person.id}>
-                          <input
-                            checked={personIds.includes(person.id)}
-                            onChange={() =>
-                              toggleId(person.id, personIds, setPersonIds)
-                            }
-                            type="checkbox"
-                          />
-                          {person.name}
-                        </label>
-                      ))}
-                    </fieldset>
-                    <fieldset>
-                      <legend>İşler</legend>
-                      {initiatives.length === 0 ? <span>İş yok</span> : null}
-                      {initiatives.map((initiative) => (
-                        <label key={initiative.id}>
-                          <input
-                            checked={initiativeIds.includes(initiative.id)}
-                            onChange={() =>
-                              toggleId(
-                                initiative.id,
-                                initiativeIds,
-                                setInitiativeIds,
-                              )
-                            }
-                            type="checkbox"
-                          />
-                          {initiative.name}
-                        </label>
-                      ))}
-                    </fieldset>
+                  <div className="inbox-organize__targets">
+                    <section
+                      aria-labelledby={`inbox-people-${note.id}`}
+                      className="inbox-organize__group"
+                    >
+                      <h3 id={`inbox-people-${note.id}`}>Kişiler</h3>
+                      {people.length === 0 ? (
+                        <p className="inbox-organize__empty">Kişi yok</p>
+                      ) : (
+                        <div className="inbox-organize__chips">
+                          {people.map((person) => (
+                            <label
+                              className={`inbox-organize__chip${
+                                personIds.includes(person.id)
+                                  ? " inbox-organize__chip--selected"
+                                  : ""
+                              }`}
+                              key={person.id}
+                            >
+                              <input
+                                checked={personIds.includes(person.id)}
+                                onChange={() =>
+                                  toggleId(person.id, personIds, setPersonIds)
+                                }
+                                type="checkbox"
+                              />
+                              {person.name}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                    <section
+                      aria-labelledby={`inbox-initiatives-${note.id}`}
+                      className="inbox-organize__group"
+                    >
+                      <h3 id={`inbox-initiatives-${note.id}`}>İşler</h3>
+                      {initiatives.length === 0 ? (
+                        <p className="inbox-organize__empty">İş yok</p>
+                      ) : (
+                        <div className="inbox-organize__chips">
+                          {initiatives.map((initiative) => (
+                            <label
+                              className={`inbox-organize__chip${
+                                initiativeIds.includes(initiative.id)
+                                  ? " inbox-organize__chip--selected"
+                                  : ""
+                              }`}
+                              key={initiative.id}
+                            >
+                              <input
+                                checked={initiativeIds.includes(initiative.id)}
+                                onChange={() =>
+                                  toggleId(
+                                    initiative.id,
+                                    initiativeIds,
+                                    setInitiativeIds,
+                                  )
+                                }
+                                type="checkbox"
+                              />
+                              {initiative.name}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </section>
                   </div>
-                  <div className="note-editor__actions">
+                  <div className="inbox-organize__actions">
                     <button
                       onClick={() => setOrganizingId(null)}
                       type="button"
@@ -185,6 +239,7 @@ export default function InboxView({
                       Vazgeç
                     </button>
                     <button
+                      className="inbox-organize__primary"
                       disabled={saving}
                       onClick={saveOrganize}
                       type="button"
@@ -196,13 +251,7 @@ export default function InboxView({
               ) : (
                 <>
                   <p className="note-editor__preview">{note.body}</p>
-                  {note.tags.length > 0 ? (
-                    <div className="note-list__tags">
-                      {note.tags.map((tag) => (
-                        <span key={tag}>#{tag}</span>
-                      ))}
-                    </div>
-                  ) : null}
+                  <NoteTagBadges tags={note.tags} />
                   <div className="note-list__meta">
                     <NoteTimestamps note={note} />
                     <button
@@ -220,6 +269,8 @@ export default function InboxView({
             </li>
           ))}
         </ul>
+          )}
+        </NoteArchiveShell>
       )}
     </section>
   );

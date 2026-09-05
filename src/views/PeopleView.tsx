@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import ConfirmDialog from "../components/ConfirmDialog";
 import PersonForm from "../components/PersonForm";
 import PersonLabelBadge from "../components/PersonLabelBadge";
 import type { AppDb } from "../db/appDb";
@@ -10,6 +11,7 @@ type PeopleDb = Pick<
   | "createPerson"
   | "listPeople"
   | "reorderPeople"
+  | "archivePerson"
   | "listPersonLabels"
   | "createPersonLabel"
   | "updatePersonLabel"
@@ -65,7 +67,14 @@ export default function PeopleView({
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragId, setDragId] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{
+    personId: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const peopleRef = useRef(people);
   const dragRef = useRef<{
     id: number;
@@ -172,6 +181,41 @@ export default function PeopleView({
     };
   };
 
+  useEffect(() => {
+    if (!menu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      setMenu(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenu(null);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menu]);
+
+  const openPersonMenu = (event: MouseEvent, personId: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenu({ personId, x: event.clientX, y: event.clientY });
+  };
+
+  const confirmArchivePerson = async () => {
+    if (!personToDelete) return;
+    try {
+      await db.archivePerson(personToDelete.id, new Date().toISOString());
+      setPersonToDelete(null);
+      onToast("Kişi arşivlendi");
+      await loadPeople();
+    } catch {
+      onToast("Kişi arşivlenemedi");
+    }
+  };
+
   return (
     <section className="entity-view">
       <header>
@@ -206,6 +250,7 @@ export default function PeopleView({
               }
               data-person-id={person.id}
               key={person.id}
+              onContextMenu={(event) => openPersonMenu(event, person.id)}
             >
               <button
                 aria-label={`${person.name} sırasını değiştir`}
@@ -223,6 +268,7 @@ export default function PeopleView({
                 aria-label={person.name}
                 className="entity-list__open"
                 onClick={() => onSelectPerson(person)}
+                onContextMenu={(event) => openPersonMenu(event, person.id)}
                 type="button"
               >
                 <span className="entity-list__heading">
@@ -237,6 +283,35 @@ export default function PeopleView({
           ))}
         </ul>
       )}
+      {menu ? (
+        <div
+          className="person-label-menu"
+          ref={menuRef}
+          style={{ left: menu.x, top: menu.y }}
+        >
+          <button
+            className="person-label-menu__danger"
+            onClick={() => {
+              const target =
+                people.find((person) => person.id === menu.personId) ?? null;
+              setMenu(null);
+              setPersonToDelete(target);
+            }}
+            type="button"
+          >
+            Kişiyi arşivle
+          </button>
+        </div>
+      ) : null}
+      {personToDelete ? (
+        <ConfirmDialog
+          confirmLabel="Arşivle"
+          message={`“${personToDelete.name}” arşivlenecek. Bağlı notlar da arşive gider. Emin misiniz?`}
+          onCancel={() => setPersonToDelete(null)}
+          onConfirm={() => void confirmArchivePerson()}
+          title="Kişiyi arşivle"
+        />
+      ) : null}
     </section>
   );
 }

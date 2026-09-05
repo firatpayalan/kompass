@@ -21,6 +21,7 @@ const person: Person = {
   createdAt: "2026-09-05T08:00:00.000Z",
   sortOrder: 0,
   label: null,
+  archivedAt: null,
 };
 
 const initiative: Initiative = {
@@ -29,6 +30,8 @@ const initiative: Initiative = {
   status: "aktif",
   blockerSummary: null,
   createdAt: "2026-09-05T09:00:00.000Z",
+  sortOrder: 0,
+  archivedAt: null,
 };
 
 const inboxNote: Note = {

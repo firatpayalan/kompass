@@ -102,6 +102,17 @@ export default function QuickNoteModal({
           <textarea
             autoFocus
             onChange={(event) => setBody(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                if (saving) return;
+                void save();
+              }
+            }}
             placeholder="Notunuzu yazın…"
             rows={7}
             value={body}

@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  archiveInitiative,
   createInitiative,
   deleteInitiative,
   linkNoteToInitiatives,
+  listArchivedInitiatives,
   listInitiatives,
   listNotesForInitiative,
+  reorderInitiatives,
+  restoreInitiative,
   updateInitiative,
 } from "../src/db/initiativesRepo";
-import { createNote, getNote, softDeleteNote } from "../src/db/notesRepo";
+import {
+  createNote,
+  getNote,
+  listActiveNotes,
+  listDeletedNotes,
+  softDeleteNote,
+} from "../src/db/notesRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
 describe("initiativesRepo", () => {
@@ -29,6 +39,8 @@ describe("initiativesRepo", () => {
       status: "aktif",
       blockerSummary: "Bütçe",
       createdAt: nowIso,
+      sortOrder: -1,
+      archivedAt: null,
     });
     expect(await listInitiatives(db)).toEqual([initiative]);
     db.close();
@@ -119,6 +131,96 @@ describe("initiativesRepo", () => {
     expect(await getNote(db, note.id)).toEqual(
       expect.objectContaining({ id: note.id, initiativeIds: [] }),
     );
+    db.close();
+  });
+
+  it("reorders initiatives by the given id sequence", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-05T10:00:00.000Z";
+    const a = await createInitiative(db, {
+      name: "Alpha",
+      status: "aktif",
+      nowIso,
+    });
+    const b = await createInitiative(db, {
+      name: "Beta",
+      status: "aktif",
+      nowIso,
+    });
+    const c = await createInitiative(db, {
+      name: "Gamma",
+      status: "aktif",
+      nowIso,
+    });
+
+    await reorderInitiatives(db, [a.id, c.id, b.id]);
+
+    expect((await listInitiatives(db)).map((item) => item.name)).toEqual([
+      "Alpha",
+      "Gamma",
+      "Beta",
+    ]);
+    db.close();
+  });
+
+  it("archives an initiative with linked notes and restores them together", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-05T10:00:00.000Z";
+    const archivedAt = "2026-09-05T12:00:00.000Z";
+    const initiative = await createInitiative(db, {
+      name: "Lansman",
+      status: "aktif",
+      nowIso,
+    });
+    const note = await createNote(db, {
+      body: "Bağlı not",
+      initiativeIds: [initiative.id],
+      nowIso,
+    });
+    const alreadyTrashed = await createNote(db, {
+      body: "Önceden silinmiş",
+      initiativeIds: [initiative.id],
+      nowIso,
+    });
+    await softDeleteNote(db, alreadyTrashed.id, "2026-09-05T11:00:00.000Z");
+
+    await archiveInitiative(db, initiative.id, archivedAt);
+
+    expect(await listInitiatives(db)).toEqual([]);
+    expect(await listArchivedInitiatives(db)).toEqual([
+      expect.objectContaining({ id: initiative.id, archivedAt }),
+    ]);
+    expect(await listActiveNotes(db)).toEqual([]);
+    expect(await getNote(db, note.id)).toEqual(
+      expect.objectContaining({ deletedAt: archivedAt }),
+    );
+    expect(await listDeletedNotes(db)).toEqual([]);
+    expect(
+      await listNotesForInitiative(db, initiative.id, { includeDeleted: true }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: note.id }),
+        expect.objectContaining({ id: alreadyTrashed.id }),
+      ]),
+    );
+
+    await restoreInitiative(db, initiative.id);
+
+    expect(await listInitiatives(db)).toEqual([
+      expect.objectContaining({ id: initiative.id, archivedAt: null }),
+    ]);
+    expect(await listActiveNotes(db)).toEqual([
+      expect.objectContaining({ id: note.id, deletedAt: null }),
+    ]);
+    expect(await getNote(db, alreadyTrashed.id)).toEqual(
+      expect.objectContaining({
+        id: alreadyTrashed.id,
+        deletedAt: "2026-09-05T11:00:00.000Z",
+      }),
+    );
+    expect(await listDeletedNotes(db)).toEqual([
+      expect.objectContaining({ id: alreadyTrashed.id }),
+    ]);
     db.close();
   });
 });

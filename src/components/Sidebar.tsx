@@ -5,7 +5,7 @@ export type View =
   | "kisiler"
   | "isler"
   | "arama"
-  | "silinenler"
+  | "arsiv"
   | "kisi:"
   | "is:";
 
@@ -23,7 +23,7 @@ const navigationItems: Array<{ view: SidebarView; label: string }> = [
   { view: "kisiler", label: "Kişiler" },
   { view: "isler", label: "İşler" },
   { view: "arama", label: "Arama" },
-  { view: "silinenler", label: "Silinenler" },
+  { view: "arsiv", label: "Arşiv" },
 ];
 
 export default function Sidebar({

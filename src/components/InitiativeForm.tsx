@@ -4,6 +4,7 @@ import type { Initiative, InitiativeStatus } from "../lib/types";
 
 type InitiativeFormProps = {
   createInitiative: AppDb["createInitiative"];
+  createNote: AppDb["createNote"];
   onCreated: (initiative: Initiative) => void;
   onDuplicate: (name: string) => Promise<Initiative | null>;
   onToast: (message: string) => void;
@@ -11,6 +12,7 @@ type InitiativeFormProps = {
 
 export default function InitiativeForm({
   createInitiative,
+  createNote,
   onCreated,
   onDuplicate,
   onToast,
@@ -30,12 +32,30 @@ export default function InitiativeForm({
 
     setSaving(true);
     try {
+      const nextBlocker =
+        status === "beklemede" ? blockerSummary.trim() || null : null;
       const initiative = await createInitiative({
         name: trimmedName,
         status,
-        blockerSummary: blockerSummary.trim() || null,
+        blockerSummary: nextBlocker,
         nowIso: new Date().toISOString(),
       });
+      if (nextBlocker) {
+        try {
+          await createNote({
+            body: nextBlocker,
+            initiativeIds: [initiative.id],
+            personIds: [],
+          });
+        } catch {
+          onToast("İş eklendi, engel notu eklenemedi");
+          setName("");
+          setStatus("aktif");
+          setBlockerSummary("");
+          onCreated(initiative);
+          return;
+        }
+      }
       setName("");
       setStatus("aktif");
       setBlockerSummary("");
@@ -78,14 +98,26 @@ export default function InitiativeForm({
           <option value="bitti">Bitti</option>
         </select>
       </label>
-      <label>
-        Engel özeti
-        <textarea
-          onChange={(event) => setBlockerSummary(event.target.value)}
-          rows={3}
-          value={blockerSummary}
-        />
-      </label>
+      {status === "beklemede" ? (
+        <label>
+          Engel özeti
+          <textarea
+            onChange={(event) => setBlockerSummary(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+            rows={3}
+            value={blockerSummary}
+          />
+        </label>
+      ) : null}
       <button disabled={saving} type="submit">
         {saving ? "Ekleniyor…" : "İş ekle"}
       </button>

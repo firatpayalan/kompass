@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
-import type { TopicTag } from "../lib/types";
 import {
   PERSON_LABEL_COLORS,
   type PersonLabelColor,
 } from "../lib/personLabels";
 
+export type EditableTag = {
+  id: number;
+  name: string;
+  color: string;
+};
+
 type TopicTagsEditorProps = {
-  tags: TopicTag[];
-  catalog?: TopicTag[];
+  tags: EditableTag[];
+  catalog?: EditableTag[];
   colorInputName?: string;
   onAdd: (name: string, color: PersonLabelColor) => Promise<void>;
   onLinkExisting?: (tagId: number) => Promise<void>;
@@ -148,7 +153,7 @@ export default function TopicTagsEditor({
         {tags.map((tag) =>
           renamingId === tag.id ? (
             <input
-              aria-label="Konu etiketini düzenle"
+              aria-label="Etiketi düzenle"
               autoFocus
               className={`person-label-chip-input person-label--${tag.color}`}
               key={tag.id}
@@ -183,7 +188,7 @@ export default function TopicTagsEditor({
 
       <form className="topic-tags-editor__add" onSubmit={submitAdd}>
         <input
-          aria-label="Yeni konu etiketi"
+          aria-label="Yeni etiket"
           autoComplete="off"
           onChange={(event) => setName(event.target.value)}
           placeholder="Etiket ekle…"

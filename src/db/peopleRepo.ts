@@ -13,6 +13,7 @@ type PersonRow = {
   label_name: string | null;
   label_color: string | null;
   label_created_at: string | null;
+  archived_at: string | null;
 };
 
 export type CreatePersonInput = {
@@ -51,6 +52,7 @@ function mapPerson(row: PersonRow): Person {
     createdAt: row.created_at,
     sortOrder: row.sort_order,
     label: mapLabelFromRow(row),
+    archivedAt: row.archived_at,
   };
 }
 
@@ -62,6 +64,7 @@ const PERSON_SELECT = `
     people.created_at,
     people.sort_order,
     people.label_id,
+    people.archived_at,
     person_labels.name AS label_name,
     person_labels.color AS label_color,
     person_labels.created_at AS label_created_at
@@ -91,6 +94,14 @@ export async function ensurePeopleSortOrder(db: AsyncDb): Promise<void> {
   }
 }
 
+export async function ensurePeopleArchivedAt(db: AsyncDb): Promise<void> {
+  const columns = await db.select<{ name: string }>("PRAGMA table_info(people)");
+  if (columns.some((column) => column.name === "archived_at")) {
+    return;
+  }
+  await db.execute("ALTER TABLE people ADD COLUMN archived_at TEXT");
+}
+
 export async function createPerson(
   db: AsyncDb,
   input: CreatePersonInput,
@@ -108,15 +119,16 @@ export async function createPerson(
     }
 
     const [row] = await tx.select<PersonRow>(
-      `INSERT INTO people (name, role_or_notes, created_at, sort_order, label_id)
+      `INSERT INTO people (name, role_or_notes, created_at, sort_order, label_id, archived_at)
        VALUES (
          ?,
          ?,
          ?,
-         COALESCE((SELECT MIN(sort_order) FROM people), 0) - 1,
-         ?
+         COALESCE((SELECT MIN(sort_order) FROM people WHERE archived_at IS NULL), 0) - 1,
+         ?,
+         NULL
        )
-       RETURNING id, name, role_or_notes, created_at, sort_order, label_id`,
+       RETURNING id, name, role_or_notes, created_at, sort_order, label_id, archived_at`,
       [
         input.name,
         input.roleOrNotes ?? null,
@@ -179,7 +191,18 @@ export async function getPerson(
 export async function listPeople(db: AsyncDb): Promise<Person[]> {
   const rows = await db.select<PersonRow>(
     `${PERSON_SELECT}
+     WHERE people.archived_at IS NULL
      ORDER BY people.sort_order ASC, people.id ASC`,
+  );
+
+  return rows.map(mapPerson);
+}
+
+export async function listArchivedPeople(db: AsyncDb): Promise<Person[]> {
+  const rows = await db.select<PersonRow>(
+    `${PERSON_SELECT}
+     WHERE people.archived_at IS NOT NULL
+     ORDER BY people.archived_at DESC, people.id DESC`,
   );
 
   return rows.map(mapPerson);
@@ -205,13 +228,74 @@ export async function findPersonByName(
 ): Promise<Person | null> {
   const [row] = await db.select<PersonRow>(
     `${PERSON_SELECT}
-     WHERE people.name = ? COLLATE NOCASE`,
+     WHERE people.name = ? COLLATE NOCASE
+       AND people.archived_at IS NULL`,
     [name],
   );
 
   return row ? mapPerson(row) : null;
 }
 
+export async function archivePerson(
+  db: AsyncDb,
+  id: number,
+  nowIso: string,
+): Promise<void> {
+  await db.withTransaction(async (tx) => {
+    const person = await getPerson(tx, id);
+    if (!person) {
+      throw new Error("Kişi bulunamadı");
+    }
+    if (person.archivedAt) {
+      return;
+    }
+
+    await tx.execute("UPDATE people SET archived_at = ? WHERE id = ?", [
+      nowIso,
+      id,
+    ]);
+    await tx.execute(
+      `UPDATE notes
+       SET deleted_at = ?
+       WHERE deleted_at IS NULL
+         AND id IN (
+           SELECT note_id FROM note_people WHERE person_id = ?
+         )`,
+      [nowIso, id],
+    );
+  });
+}
+
+export async function restorePerson(db: AsyncDb, id: number): Promise<Person> {
+  return db.withTransaction(async (tx) => {
+    const person = await getPerson(tx, id);
+    if (!person) {
+      throw new Error("Kişi bulunamadı");
+    }
+    if (!person.archivedAt) {
+      return person;
+    }
+
+    await tx.execute(
+      `UPDATE notes
+       SET deleted_at = NULL
+       WHERE deleted_at = ?
+         AND id IN (
+           SELECT note_id FROM note_people WHERE person_id = ?
+         )`,
+      [person.archivedAt, id],
+    );
+    await tx.execute("UPDATE people SET archived_at = NULL WHERE id = ?", [id]);
+
+    const restored = await getPerson(tx, id);
+    if (!restored) {
+      throw new Error("Kişi bulunamadı");
+    }
+    return restored;
+  });
+}
+
+/** Hard delete — prefer archivePerson from the UI. */
 export async function deletePerson(db: AsyncDb, id: number): Promise<void> {
   await db.withTransaction(async (tx) => {
     await tx.execute("DELETE FROM note_people WHERE person_id = ?", [id]);

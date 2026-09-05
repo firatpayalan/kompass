@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { createNote, getNote, softDeleteNote } from "../src/db/notesRepo";
+import { createNote, getNote, listActiveNotes, listDeletedNotes, softDeleteNote } from "../src/db/notesRepo";
 import {
+  archivePerson,
   createPerson,
   deletePerson,
   findPersonByName,
   linkNoteToPeople,
+  listArchivedPeople,
   listNotesForPerson,
   listPeople,
   reorderPeople,
+  restorePerson,
   updatePerson,
 } from "../src/db/peopleRepo";
 import { listPersonLabels } from "../src/db/personLabelsRepo";
@@ -32,6 +35,7 @@ describe("peopleRepo", () => {
       createdAt: nowIso,
       sortOrder: -1,
       label: null,
+      archivedAt: null,
     });
     expect(await listPeople(db)).toEqual([person]);
     expect(await findPersonByName(db, "ayşe")).toEqual(person);
@@ -143,6 +147,56 @@ describe("peopleRepo", () => {
     expect(await getNote(db, note.id)).toEqual(
       expect.objectContaining({ id: note.id, personIds: [] }),
     );
+    db.close();
+  });
+
+  it("archives a person with linked notes and restores them together", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-05T10:00:00.000Z";
+    const archivedAt = "2026-09-05T12:00:00.000Z";
+    const person = await createPerson(db, { name: "Ayşe", nowIso });
+    const note = await createNote(db, {
+      body: "Bağlı not",
+      personIds: [person.id],
+      nowIso,
+    });
+    const alreadyTrashed = await createNote(db, {
+      body: "Önceden silinmiş",
+      personIds: [person.id],
+      nowIso,
+    });
+    await softDeleteNote(db, alreadyTrashed.id, "2026-09-05T11:00:00.000Z");
+
+    await archivePerson(db, person.id, archivedAt);
+
+    expect(await listPeople(db)).toEqual([]);
+    expect(await listArchivedPeople(db)).toEqual([
+      expect.objectContaining({ id: person.id, archivedAt }),
+    ]);
+    expect(await listActiveNotes(db)).toEqual([]);
+    expect(await getNote(db, note.id)).toEqual(
+      expect.objectContaining({ deletedAt: archivedAt }),
+    );
+    // Linked notes (including previously trashed) live under Arşiv, not Silinenler.
+    expect(await listDeletedNotes(db)).toEqual([]);
+
+    await restorePerson(db, person.id);
+
+    expect(await listPeople(db)).toEqual([
+      expect.objectContaining({ id: person.id, archivedAt: null }),
+    ]);
+    expect(await listActiveNotes(db)).toEqual([
+      expect.objectContaining({ id: note.id, deletedAt: null }),
+    ]);
+    expect(await getNote(db, alreadyTrashed.id)).toEqual(
+      expect.objectContaining({
+        id: alreadyTrashed.id,
+        deletedAt: "2026-09-05T11:00:00.000Z",
+      }),
+    );
+    expect(await listDeletedNotes(db)).toEqual([
+      expect.objectContaining({ id: alreadyTrashed.id }),
+    ]);
     db.close();
   });
 });

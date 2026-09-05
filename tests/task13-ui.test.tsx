@@ -26,6 +26,7 @@ const person: Person = {
   createdAt: "2026-09-05T08:00:00.000Z",
   sortOrder: 0,
   label: null,
+  archivedAt: null,
 };
 
 const initiative: Initiative = {
@@ -34,6 +35,8 @@ const initiative: Initiative = {
   status: "aktif",
   blockerSummary: "Bütçe onayı",
   createdAt: "2026-09-05T09:00:00.000Z",
+  sortOrder: 0,
+  archivedAt: null,
 };
 
 const notes: Note[] = [
@@ -85,6 +88,11 @@ describe("Task 13 people and initiatives UI", () => {
           listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
       createNote: vi.fn(),
       updateTopic: vi.fn(),
       updateNote: vi.fn(),
@@ -127,6 +135,7 @@ describe("Task 13 people and initiatives UI", () => {
       createdAt: "2026-09-05T08:00:00.000Z",
       sortOrder: 0,
       label: null,
+  archivedAt: null,
     };
     const cartman: Person = {
       id: 2,
@@ -135,6 +144,7 @@ describe("Task 13 people and initiatives UI", () => {
       createdAt: "2026-09-05T08:00:00.000Z",
       sortOrder: 1,
       label: null,
+  archivedAt: null,
     };
     const reorderPeople = vi.fn().mockResolvedValue(undefined);
     render(
@@ -258,12 +268,15 @@ describe("Task 13 people and initiatives UI", () => {
 
   it("creates an initiative with status and blocker summary", async () => {
     const createInitiative = vi.fn().mockResolvedValue(initiative);
+    const createNote = vi.fn().mockResolvedValue({ id: 99 });
     const onSelectInitiative = vi.fn();
     render(
       <InitiativesView
         db={{
           createInitiative,
+          createNote,
           listInitiatives: vi.fn().mockResolvedValue([]),
+          reorderInitiatives: vi.fn(),
         }}
         onSelectInitiative={onSelectInitiative}
         onToast={vi.fn()}
@@ -274,7 +287,7 @@ describe("Task 13 people and initiatives UI", () => {
       target: { value: "Lansman" },
     });
     fireEvent.change(screen.getByLabelText("Durum"), {
-      target: { value: "aktif" },
+      target: { value: "beklemede" },
     });
     fireEvent.change(screen.getByLabelText("Engel özeti"), {
       target: { value: "Bütçe onayı" },
@@ -284,11 +297,16 @@ describe("Task 13 people and initiatives UI", () => {
     await waitFor(() =>
       expect(createInitiative).toHaveBeenCalledWith({
         name: "Lansman",
-        status: "aktif",
+        status: "beklemede",
         blockerSummary: "Bütçe onayı",
         nowIso: expect.any(String),
       }),
     );
+    expect(createNote).toHaveBeenCalledWith({
+      body: "Bütçe onayı",
+      initiativeIds: [initiative.id],
+      personIds: [],
+    });
     expect(onSelectInitiative).toHaveBeenCalledWith(initiative);
   });
 
@@ -303,6 +321,11 @@ describe("Task 13 people and initiatives UI", () => {
           listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
           updateNote: vi.fn(),
           updateTopic: vi.fn(),
           updatePerson: vi.fn(),
@@ -415,6 +438,11 @@ describe("Task 13 people and initiatives UI", () => {
           listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
           listTopicsWithNotesForPerson,
         }}
         onBack={vi.fn()}
@@ -501,6 +529,11 @@ describe("Task 13 people and initiatives UI", () => {
           listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
           updateNote,
           updateTopic,
           updatePerson: vi.fn(),
@@ -546,8 +579,10 @@ describe("Task 13 people and initiatives UI", () => {
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
+          createNote: vi.fn(),
           listNotesForInitiative: vi.fn().mockResolvedValue(notes),
           updateInitiative: vi.fn(),
+          updateNote: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -558,9 +593,7 @@ describe("Task 13 people and initiatives UI", () => {
     expect(
       (screen.getByLabelText("Durum") as HTMLSelectElement).value,
     ).toBe("aktif");
-    expect(
-      (screen.getByLabelText("Engel özeti") as HTMLTextAreaElement).value,
-    ).toBe("Bütçe onayı");
+    expect(screen.queryByLabelText("Engel özeti")).toBeNull();
     expect(
       await screen.findByRole("list", { name: "Bağlı notlar" }),
     ).toBeTruthy();

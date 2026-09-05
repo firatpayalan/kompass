@@ -3,16 +3,24 @@ import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { ReminderTicker } from "../hooks/useReminderTicker";
 import type { Note } from "../lib/types";
+import NoteArchiveShell from "../components/NoteArchiveShell";
 import NoteTimestamps from "../components/NoteTimestamps";
 
-type BugunDb = Pick<AppDb, "listActiveNotes">;
+type BugunDb = Pick<AppDb, "listActiveNotes" | "softDeleteNote">;
 
 type BugunViewProps = {
   db?: BugunDb;
   ticker: ReminderTicker;
+  onToast?: (message: string) => void;
 };
 
-export default function BugunView({ db = getDb(), ticker }: BugunViewProps) {
+const ignoreToast = () => undefined;
+
+export default function BugunView({
+  db = getDb(),
+  ticker,
+  onToast = ignoreToast,
+}: BugunViewProps) {
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const {
@@ -22,6 +30,17 @@ export default function BugunView({ db = getDb(), ticker }: BugunViewProps) {
     permissionDenied,
     reminders,
   } = ticker;
+
+  const loadNotes = async () => {
+    try {
+      const notes = await db.listActiveNotes();
+      setRecentNotes(notes.slice(0, 10));
+    } catch {
+      // Keep the panel usable even if notes fail.
+    } finally {
+      setNotesLoading(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -42,6 +61,16 @@ export default function BugunView({ db = getDb(), ticker }: BugunViewProps) {
       active = false;
     };
   }, [db]);
+
+  const archiveNote = async (noteId: number) => {
+    try {
+      await db.softDeleteNote(noteId, new Date().toISOString());
+      onToast("Not arşivlendi");
+      await loadNotes();
+    } catch {
+      onToast("Not arşivlenemedi");
+    }
+  };
 
   return (
     <section className="bugun-view">
@@ -91,14 +120,21 @@ export default function BugunView({ db = getDb(), ticker }: BugunViewProps) {
         ) : recentNotes.length === 0 ? (
           <p>Henüz not yok.</p>
         ) : (
-          <ul aria-label="Son notlar" className="recent-note-list">
-            {recentNotes.map((note) => (
-              <li key={note.id}>
-                <p>{note.body}</p>
-                <NoteTimestamps note={note} />
-              </li>
-            ))}
-          </ul>
+          <NoteArchiveShell enabled onArchive={archiveNote}>
+            {({ openArchiveMenu }) => (
+              <ul aria-label="Son notlar" className="recent-note-list">
+                {recentNotes.map((note) => (
+                  <li
+                    key={note.id}
+                    onContextMenu={(event) => openArchiveMenu(event, note)}
+                  >
+                    <p>{note.body}</p>
+                    <NoteTimestamps note={note} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </NoteArchiveShell>
         )}
       </section>
     </section>

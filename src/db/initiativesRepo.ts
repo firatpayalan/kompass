@@ -8,6 +8,8 @@ type InitiativeRow = {
   status: InitiativeStatus;
   blocker_summary: string | null;
   created_at: string;
+  sort_order: number;
+  archived_at: string | null;
 };
 
 export type CreateInitiativeInput = {
@@ -23,7 +25,8 @@ export type UpdateInitiativePatch = {
   blockerSummary?: string | null;
 };
 
-const INITIATIVE_COLUMNS = "id, name, status, blocker_summary, created_at";
+const INITIATIVE_COLUMNS =
+  "id, name, status, blocker_summary, created_at, sort_order, archived_at";
 
 function mapInitiative(row: InitiativeRow): Initiative {
   return {
@@ -32,7 +35,43 @@ function mapInitiative(row: InitiativeRow): Initiative {
     status: row.status,
     blockerSummary: row.blocker_summary,
     createdAt: row.created_at,
+    sortOrder: row.sort_order,
+    archivedAt: row.archived_at,
   };
+}
+
+/** Adds sort_order for DBs created before the column existed. */
+export async function ensureInitiativesSortOrder(db: AsyncDb): Promise<void> {
+  const columns = await db.select<{ name: string }>(
+    "PRAGMA table_info(initiatives)",
+  );
+  if (columns.some((column) => column.name === "sort_order")) {
+    return;
+  }
+
+  await db.execute(
+    "ALTER TABLE initiatives ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+  );
+
+  const rows = await db.select<{ id: number }>(
+    `SELECT id FROM initiatives ORDER BY name COLLATE NOCASE, id`,
+  );
+  for (let index = 0; index < rows.length; index += 1) {
+    await db.execute("UPDATE initiatives SET sort_order = ? WHERE id = ?", [
+      index,
+      rows[index].id,
+    ]);
+  }
+}
+
+export async function ensureInitiativesArchivedAt(db: AsyncDb): Promise<void> {
+  const columns = await db.select<{ name: string }>(
+    "PRAGMA table_info(initiatives)",
+  );
+  if (columns.some((column) => column.name === "archived_at")) {
+    return;
+  }
+  await db.execute("ALTER TABLE initiatives ADD COLUMN archived_at TEXT");
 }
 
 async function getInitiative(
@@ -56,7 +95,8 @@ async function findInitiativeByName(
   const [row] = await db.select<InitiativeRow>(
     `SELECT ${INITIATIVE_COLUMNS}
      FROM initiatives
-     WHERE name = ? COLLATE NOCASE`,
+     WHERE name = ? COLLATE NOCASE
+       AND archived_at IS NULL`,
     [name],
   );
 
@@ -73,8 +113,15 @@ export async function createInitiative(
     }
 
     const [row] = await tx.select<InitiativeRow>(
-      `INSERT INTO initiatives (name, status, blocker_summary, created_at)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO initiatives (name, status, blocker_summary, created_at, sort_order, archived_at)
+       VALUES (
+         ?,
+         ?,
+         ?,
+         ?,
+         COALESCE((SELECT MIN(sort_order) FROM initiatives WHERE archived_at IS NULL), 0) - 1,
+         NULL
+       )
        RETURNING ${INITIATIVE_COLUMNS}`,
       [input.name, input.status, input.blockerSummary ?? null, input.nowIso],
     );
@@ -87,10 +134,103 @@ export async function listInitiatives(db: AsyncDb): Promise<Initiative[]> {
   const rows = await db.select<InitiativeRow>(
     `SELECT ${INITIATIVE_COLUMNS}
      FROM initiatives
-     ORDER BY name COLLATE NOCASE, id`,
+     WHERE archived_at IS NULL
+     ORDER BY sort_order ASC, id ASC`,
   );
 
   return rows.map(mapInitiative);
+}
+
+export async function listArchivedInitiatives(
+  db: AsyncDb,
+): Promise<Initiative[]> {
+  const rows = await db.select<InitiativeRow>(
+    `SELECT ${INITIATIVE_COLUMNS}
+     FROM initiatives
+     WHERE archived_at IS NOT NULL
+     ORDER BY archived_at DESC, id DESC`,
+  );
+
+  return rows.map(mapInitiative);
+}
+
+export async function reorderInitiatives(
+  db: AsyncDb,
+  orderedIds: number[],
+): Promise<void> {
+  await db.withTransaction(async (tx) => {
+    for (let index = 0; index < orderedIds.length; index += 1) {
+      await tx.execute("UPDATE initiatives SET sort_order = ? WHERE id = ?", [
+        index,
+        orderedIds[index],
+      ]);
+    }
+  });
+}
+
+export async function archiveInitiative(
+  db: AsyncDb,
+  id: number,
+  nowIso: string,
+): Promise<void> {
+  await db.withTransaction(async (tx) => {
+    const initiative = await getInitiative(tx, id);
+    if (!initiative) {
+      throw new Error("İş bulunamadı");
+    }
+    if (initiative.archivedAt) {
+      return;
+    }
+
+    await tx.execute("UPDATE initiatives SET archived_at = ? WHERE id = ?", [
+      nowIso,
+      id,
+    ]);
+    await tx.execute(
+      `UPDATE notes
+       SET deleted_at = ?
+       WHERE deleted_at IS NULL
+         AND id IN (
+           SELECT note_id FROM note_initiatives WHERE initiative_id = ?
+         )`,
+      [nowIso, id],
+    );
+  });
+}
+
+export async function restoreInitiative(
+  db: AsyncDb,
+  id: number,
+): Promise<Initiative> {
+  return db.withTransaction(async (tx) => {
+    const initiative = await getInitiative(tx, id);
+    if (!initiative) {
+      throw new Error("İş bulunamadı");
+    }
+    if (!initiative.archivedAt) {
+      return initiative;
+    }
+
+    await tx.execute(
+      `UPDATE notes
+       SET deleted_at = NULL
+       WHERE deleted_at = ?
+         AND id IN (
+           SELECT note_id FROM note_initiatives WHERE initiative_id = ?
+         )`,
+      [initiative.archivedAt, id],
+    );
+    await tx.execute(
+      "UPDATE initiatives SET archived_at = NULL WHERE id = ?",
+      [id],
+    );
+
+    const restored = await getInitiative(tx, id);
+    if (!restored) {
+      throw new Error("İş bulunamadı");
+    }
+    return restored;
+  });
 }
 
 export async function updateInitiative(

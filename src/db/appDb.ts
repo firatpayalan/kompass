@@ -1,6 +1,7 @@
 import type {
   Initiative,
   Note,
+  NoteTag,
   Person,
   PersonLabel,
   Reminder,
@@ -10,18 +11,32 @@ import type {
 import type { AsyncDb } from "./asyncDb";
 import { connectAppDatabase } from "./connection";
 import {
+  archiveInitiative,
   createInitiative,
   deleteInitiative,
   linkNoteToInitiatives,
+  listArchivedInitiatives,
   listInitiatives,
   listNotesForInitiative,
+  reorderInitiatives,
+  restoreInitiative,
   updateInitiative,
   type CreateInitiativeInput,
   type UpdateInitiativePatch,
 } from "./initiativesRepo";
 import {
+  addTagToNote,
+  deleteNoteTag,
+  linkTagToNote,
+  listNoteTags,
+  updateNoteTag,
+  type AddNoteTagInput,
+  type UpdateNoteTagPatch,
+} from "./noteTagsRepo";
+import {
   createNote,
   getNote,
+  linkNoteToTopics,
   listActiveNotes,
   listDeletedNotes,
   listInboxNotes,
@@ -32,13 +47,16 @@ import {
   type CreateNoteInput,
 } from "./notesRepo";
 import {
+  archivePerson,
   createPerson,
   deletePerson,
   findPersonByName,
   linkNoteToPeople,
+  listArchivedPeople,
   listNotesForPerson,
   listPeople,
   reorderPeople,
+  restorePerson,
   updatePerson,
   type CreatePersonInput,
   type UpdatePersonPatch,
@@ -89,12 +107,16 @@ export type AppDb = {
   permanentlyDeleteNote(id: number): Promise<void>;
   linkNoteToPeople(noteId: number, personIds: number[]): Promise<void>;
   linkNoteToInitiatives(noteId: number, initiativeIds: number[]): Promise<void>;
+  linkNoteToTopics(noteId: number, topicIds: number[]): Promise<void>;
 
   createPerson(input: CreatePersonInput): Promise<Person>;
   updatePerson(id: number, patch: UpdatePersonPatch): Promise<Person>;
   listPeople(): Promise<Person[]>;
+  listArchivedPeople(): Promise<Person[]>;
   reorderPeople(orderedIds: number[]): Promise<void>;
   findPersonByName(name: string): Promise<Person | null>;
+  archivePerson(id: number, nowIso: string): Promise<void>;
+  restorePerson(id: number): Promise<Person>;
   deletePerson(id: number): Promise<void>;
   listNotesForPerson(personId: number): Promise<Note[]>;
   listPersonLabels(): Promise<PersonLabel[]>;
@@ -107,7 +129,10 @@ export type AppDb = {
 
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: number, title: string): Promise<Topic>;
-  listTopicsWithNotesForPerson(personId: number): Promise<{
+  listTopicsWithNotesForPerson(
+    personId: number,
+    options?: { includeDeletedNotes?: boolean },
+  ): Promise<{
     topics: TopicWithNotes[];
     untopicNotes: Note[];
   }>;
@@ -117,14 +142,27 @@ export type AppDb = {
   updateTopicTag(id: number, patch: UpdateTopicTagPatch): Promise<TopicTag>;
   deleteTopicTag(id: number): Promise<void>;
 
+  addTagToNote(noteId: number, input: AddNoteTagInput): Promise<NoteTag>;
+  linkTagToNote(noteId: number, tagId: number): Promise<NoteTag>;
+  listNoteTags(): Promise<NoteTag[]>;
+  updateNoteTag(id: number, patch: UpdateNoteTagPatch): Promise<NoteTag>;
+  deleteNoteTag(id: number): Promise<void>;
+
   createInitiative(input: CreateInitiativeInput): Promise<Initiative>;
   listInitiatives(): Promise<Initiative[]>;
+  listArchivedInitiatives(): Promise<Initiative[]>;
+  reorderInitiatives(orderedIds: number[]): Promise<void>;
+  archiveInitiative(id: number, nowIso: string): Promise<void>;
+  restoreInitiative(id: number): Promise<Initiative>;
   updateInitiative(
     id: number,
     patch: UpdateInitiativePatch,
   ): Promise<Initiative>;
   deleteInitiative(id: number): Promise<void>;
-  listNotesForInitiative(initiativeId: number): Promise<Note[]>;
+  listNotesForInitiative(
+    initiativeId: number,
+    options?: { includeDeleted?: boolean },
+  ): Promise<Note[]>;
 
   createReminder(input: CreateReminderInput): Promise<Reminder>;
   listDueRemindersForBugun(
@@ -151,12 +189,17 @@ export function createAppDb(db: AsyncDb): AppDb {
       linkNoteToPeople(db, noteId, personIds),
     linkNoteToInitiatives: (noteId, initiativeIds) =>
       linkNoteToInitiatives(db, noteId, initiativeIds),
+    linkNoteToTopics: (noteId, topicIds) =>
+      linkNoteToTopics(db, noteId, topicIds),
 
     createPerson: (input) => createPerson(db, input),
     updatePerson: (id, patch) => updatePerson(db, id, patch),
     listPeople: () => listPeople(db),
+    listArchivedPeople: () => listArchivedPeople(db),
     reorderPeople: (orderedIds) => reorderPeople(db, orderedIds),
     findPersonByName: (name) => findPersonByName(db, name),
+    archivePerson: (id, nowIso) => archivePerson(db, id, nowIso),
+    restorePerson: (id) => restorePerson(db, id),
     deletePerson: (id) => deletePerson(db, id),
     listNotesForPerson: (personId) => listNotesForPerson(db, personId),
     listPersonLabels: () => listPersonLabels(db),
@@ -166,20 +209,30 @@ export function createAppDb(db: AsyncDb): AppDb {
 
     createTopic: (input) => createTopic(db, input),
     updateTopic: (id, title) => updateTopic(db, id, title),
-    listTopicsWithNotesForPerson: (personId) =>
-      listTopicsWithNotesForPerson(db, personId),
+    listTopicsWithNotesForPerson: (personId, options) =>
+      listTopicsWithNotesForPerson(db, personId, options),
     addTagToTopic: (topicId, input) => addTagToTopic(db, topicId, input),
     linkTagToTopic: (topicId, tagId) => linkTagToTopic(db, topicId, tagId),
     listTopicTags: () => listTopicTags(db),
     updateTopicTag: (id, patch) => updateTopicTag(db, id, patch),
     deleteTopicTag: (id) => deleteTopicTag(db, id),
 
+    addTagToNote: (noteId, input) => addTagToNote(db, noteId, input),
+    linkTagToNote: (noteId, tagId) => linkTagToNote(db, noteId, tagId),
+    listNoteTags: () => listNoteTags(db),
+    updateNoteTag: (id, patch) => updateNoteTag(db, id, patch),
+    deleteNoteTag: (id) => deleteNoteTag(db, id),
+
     createInitiative: (input) => createInitiative(db, input),
     listInitiatives: () => listInitiatives(db),
+    listArchivedInitiatives: () => listArchivedInitiatives(db),
+    reorderInitiatives: (orderedIds) => reorderInitiatives(db, orderedIds),
+    archiveInitiative: (id, nowIso) => archiveInitiative(db, id, nowIso),
+    restoreInitiative: (id) => restoreInitiative(db, id),
     updateInitiative: (id, patch) => updateInitiative(db, id, patch),
     deleteInitiative: (id) => deleteInitiative(db, id),
-    listNotesForInitiative: (initiativeId) =>
-      listNotesForInitiative(db, initiativeId),
+    listNotesForInitiative: (initiativeId, options) =>
+      listNotesForInitiative(db, initiativeId, options),
 
     createReminder: (input) => createReminder(db, input),
     listDueRemindersForBugun: (now) => listDueRemindersForBugun(db, now),

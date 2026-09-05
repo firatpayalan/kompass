@@ -135,16 +135,22 @@ export type TopicWithNotes = Topic & {
 export async function listTopicsWithNotesForPerson(
   db: AsyncDb,
   personId: number,
+  options: { includeDeletedNotes?: boolean } = {},
 ): Promise<{ topics: TopicWithNotes[]; untopicNotes: Note[] }> {
+  const noteOpts = { includeDeleted: options.includeDeletedNotes === true };
   const topics = await listTopicsForPerson(db, personId);
   const topicsWithNotes = await Promise.all(
     topics.map(async (topic) => ({
       ...topic,
-      notes: await listNotesForTopic(db, topic.id),
+      notes: await listNotesForTopic(db, topic.id, noteOpts),
       tags: await listTagsForTopic(db, topic.id),
     })),
   );
-  const untopicNotes = await listUntopicNotesForPerson(db, personId);
+  const untopicNotes = await listUntopicNotesForPerson(
+    db,
+    personId,
+    noteOpts,
+  );
   return { topics: topicsWithNotes, untopicNotes };
 }
 

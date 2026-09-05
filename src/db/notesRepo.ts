@@ -1,5 +1,5 @@
 import { parseHashtags } from "../lib/tags";
-import type { Note } from "../lib/types";
+import type { Note, NoteTag } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
 
 export type NoteRow = {
@@ -10,9 +10,11 @@ export type NoteRow = {
   deleted_at: string | null;
 };
 
-type TagRow = {
+type TagLinkRow = {
   note_id: number;
+  id: number;
   name: string;
+  color: string;
 };
 
 type LinkRow = {
@@ -74,17 +76,21 @@ async function replaceLinks(
   });
 }
 
-async function listLinkedActiveNotes(
+async function listLinkedNotes(
   db: AsyncDb,
   table: "note_people" | "note_initiatives",
   idColumn: "person_id" | "initiative_id",
   linkedId: number,
+  options: { includeDeleted?: boolean } = {},
 ): Promise<Note[]> {
+  const deletedClause = options.includeDeleted
+    ? ""
+    : "AND notes.deleted_at IS NULL";
   const rows = await db.select<NoteRow>(
     `SELECT notes.id, notes.body, notes.created_at, notes.updated_at, notes.deleted_at
      FROM notes
      JOIN ${table} ON ${table}.note_id = notes.id
-     WHERE ${table}.${idColumn} = ? AND notes.deleted_at IS NULL
+     WHERE ${table}.${idColumn} = ? ${deletedClause}
      ORDER BY notes.created_at DESC, notes.id DESC`,
     [linkedId],
   );
@@ -95,9 +101,10 @@ async function listLinkedActiveNotes(
 async function getTagsByNote(
   db: AsyncDb,
   noteIds: number[],
-): Promise<Map<number, string[]>> {
-  const rows = await db.select<TagRow>(
-    `SELECT note_tags.note_id AS note_id, tags.name AS name
+): Promise<Map<number, NoteTag[]>> {
+  const rows = await db.select<TagLinkRow>(
+    `SELECT note_tags.note_id AS note_id, tags.id AS id, tags.name AS name,
+            COALESCE(tags.color, 'slate') AS color
      FROM tags
      JOIN note_tags ON note_tags.tag_id = tags.id
      WHERE note_tags.note_id IN (${placeholders(noteIds.length)})
@@ -105,7 +112,11 @@ async function getTagsByNote(
     noteIds,
   );
 
-  return groupByNoteId(rows, (row) => row.name);
+  return groupByNoteId(rows, (row) => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+  }));
 }
 
 async function getLinkedIdsByNote(
@@ -185,7 +196,10 @@ export async function createNote(
     const insertedNoteId = inserted.id;
 
     for (const tag of parseHashtags(input.body)) {
-      await tx.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", [tag]);
+      await tx.execute(
+        "INSERT OR IGNORE INTO tags (name, color) VALUES (?, 'slate')",
+        [tag],
+      );
       const [tagRow] = await tx.select<IdRow>(
         "SELECT id FROM tags WHERE name = ?",
         [tag],
@@ -238,15 +252,18 @@ export async function updateNote(
       "UPDATE notes SET body = ?, updated_at = ? WHERE id = ?",
       [body, nowIso, id],
     );
-    await tx.execute("DELETE FROM note_tags WHERE note_id = ?", [id]);
+    // Keep chip-managed tags; only ensure hashtags from the body are linked.
     for (const tag of parseHashtags(body)) {
-      await tx.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", [tag]);
+      await tx.execute(
+        "INSERT OR IGNORE INTO tags (name, color) VALUES (?, 'slate')",
+        [tag],
+      );
       const [tagRow] = await tx.select<IdRow>(
         "SELECT id FROM tags WHERE name = ?",
         [tag],
       );
       await tx.execute(
-        "INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)",
+        "INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?, ?)",
         [id, tagRow.id],
       );
     }
@@ -275,8 +292,29 @@ export function listActiveNotes(db: AsyncDb): Promise<Note[]> {
   return listNotes(db, false);
 }
 
-export function listDeletedNotes(db: AsyncDb): Promise<Note[]> {
-  return listNotes(db, true);
+export async function listDeletedNotes(db: AsyncDb): Promise<Note[]> {
+  const rows = await db.select<NoteRow>(
+    `SELECT id, body, created_at, updated_at, deleted_at
+     FROM notes
+     WHERE deleted_at IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1
+         FROM note_people
+         JOIN people ON people.id = note_people.person_id
+         WHERE note_people.note_id = notes.id
+           AND people.archived_at IS NOT NULL
+       )
+       AND NOT EXISTS (
+         SELECT 1
+         FROM note_initiatives
+         JOIN initiatives ON initiatives.id = note_initiatives.initiative_id
+         WHERE note_initiatives.note_id = notes.id
+           AND initiatives.archived_at IS NOT NULL
+       )
+     ORDER BY created_at DESC, id DESC`,
+  );
+
+  return mapNoteRows(db, rows);
 }
 
 /** Active notes with no person and no initiative links (quick-capture inbox). */
@@ -331,30 +369,36 @@ export function listNotesForPerson(
   db: AsyncDb,
   personId: number,
 ): Promise<Note[]> {
-  return listLinkedActiveNotes(db, "note_people", "person_id", personId);
+  return listLinkedNotes(db, "note_people", "person_id", personId);
 }
 
 export function listNotesForInitiative(
   db: AsyncDb,
   initiativeId: number,
+  options: { includeDeleted?: boolean } = {},
 ): Promise<Note[]> {
-  return listLinkedActiveNotes(
+  return listLinkedNotes(
     db,
     "note_initiatives",
     "initiative_id",
     initiativeId,
+    options,
   );
 }
 
 export async function listNotesForTopic(
   db: AsyncDb,
   topicId: number,
+  options: { includeDeleted?: boolean } = {},
 ): Promise<Note[]> {
+  const deletedClause = options.includeDeleted
+    ? ""
+    : "AND notes.deleted_at IS NULL";
   const rows = await db.select<NoteRow>(
     `SELECT notes.id, notes.body, notes.created_at, notes.updated_at, notes.deleted_at
      FROM notes
      JOIN note_topics ON note_topics.note_id = notes.id
-     WHERE note_topics.topic_id = ? AND notes.deleted_at IS NULL
+     WHERE note_topics.topic_id = ? ${deletedClause}
      ORDER BY notes.created_at DESC, notes.id DESC`,
     [topicId],
   );
@@ -366,13 +410,17 @@ export async function listNotesForTopic(
 export async function listUntopicNotesForPerson(
   db: AsyncDb,
   personId: number,
+  options: { includeDeleted?: boolean } = {},
 ): Promise<Note[]> {
+  const deletedClause = options.includeDeleted
+    ? ""
+    : "AND notes.deleted_at IS NULL";
   const rows = await db.select<NoteRow>(
     `SELECT notes.id, notes.body, notes.created_at, notes.updated_at, notes.deleted_at
      FROM notes
      JOIN note_people ON note_people.note_id = notes.id
      WHERE note_people.person_id = ?
-       AND notes.deleted_at IS NULL
+       ${deletedClause}
        AND NOT EXISTS (
          SELECT 1 FROM note_topics WHERE note_topics.note_id = notes.id
        )

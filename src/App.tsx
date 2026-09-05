@@ -15,6 +15,7 @@ import {
 import { createDraftStore } from "./lib/drafts";
 import type { Initiative, Person } from "./lib/types";
 import BugunView from "./views/BugunView";
+import ArchiveView from "./views/ArchiveView";
 import InboxView from "./views/InboxView";
 import InitiativeDetailView from "./views/InitiativeDetailView";
 import InitiativesView from "./views/InitiativesView";
@@ -22,7 +23,6 @@ import NotesView from "./views/NotesView";
 import PeopleView from "./views/PeopleView";
 import PersonDetailView from "./views/PersonDetailView";
 import SearchView from "./views/SearchView";
-import TrashView from "./views/TrashView";
 
 type AppProps = {
   db?: AppDb;
@@ -87,7 +87,7 @@ export default function App({ db, notify, now }: AppProps = {}) {
   const renderView = () => {
     switch (activeView) {
       case "bugun":
-        return <BugunView db={appDb} ticker={reminderTicker} />;
+        return <BugunView db={appDb} onToast={showToast} ticker={reminderTicker} />;
       case "gelen":
         return (
           <InboxView
@@ -125,10 +125,11 @@ export default function App({ db, notify, now }: AppProps = {}) {
           <SearchView
             db={appDb}
             focusRequestKey={searchFocusRequestKey}
+            onToast={showToast}
           />
         );
-      case "silinenler":
-        return <TrashView />;
+      case "arsiv":
+        return <ArchiveView db={appDb} onToast={showToast} />;
       case "kisi:":
         return selectedPerson ? (
           <PersonDetailView
