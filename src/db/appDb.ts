@@ -49,6 +49,7 @@ import { searchNotes, type SearchNotesOptions } from "./searchRepo";
 import {
   createTopic,
   listTopicsWithNotesForPerson,
+  updateTopic,
   type CreateTopicInput,
   type TopicWithNotes,
 } from "./topicsRepo";
@@ -74,6 +75,7 @@ export type AppDb = {
   listNotesForPerson(personId: number): Promise<Note[]>;
 
   createTopic(input: CreateTopicInput): Promise<Topic>;
+  updateTopic(id: number, title: string): Promise<Topic>;
   listTopicsWithNotesForPerson(personId: number): Promise<{
     topics: TopicWithNotes[];
     untopicNotes: Note[];
@@ -121,6 +123,7 @@ export function createAppDb(db: AsyncDb): AppDb {
     listNotesForPerson: (personId) => listNotesForPerson(db, personId),
 
     createTopic: (input) => createTopic(db, input),
+    updateTopic: (id, title) => updateTopic(db, id, title),
     listTopicsWithNotesForPerson: (personId) =>
       listTopicsWithNotesForPerson(db, personId),
 

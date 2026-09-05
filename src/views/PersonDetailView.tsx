@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import LinkedNotes from "../components/LinkedNotes";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
@@ -7,7 +7,11 @@ import type { Note, Person } from "../lib/types";
 
 type PersonDetailDb = Pick<
   AppDb,
-  "createNote" | "createTopic" | "listTopicsWithNotesForPerson"
+  | "createNote"
+  | "createTopic"
+  | "listTopicsWithNotesForPerson"
+  | "updateNote"
+  | "updateTopic"
 >;
 
 type PersonDetailViewProps = {
@@ -35,6 +39,9 @@ export default function PersonDetailView({
   const [expandedTopicIds, setExpandedTopicIds] = useState<Set<number>>(
     () => new Set(),
   );
+  const [renamingTopicId, setRenamingTopicId] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renaming, setRenaming] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,6 +96,33 @@ export default function PersonDetailView({
     }
   };
 
+  const startRename = (topic: TopicWithNotes, event: MouseEvent) => {
+    event.stopPropagation();
+    setRenamingTopicId(topic.id);
+    setRenameDraft(topic.title);
+    setExpandedTopicIds((prev) => new Set(prev).add(topic.id));
+  };
+
+  const saveRename = async (topicId: number) => {
+    if (!renameDraft.trim()) {
+      onToast("Konu boş olamaz");
+      return;
+    }
+    setRenaming(true);
+    try {
+      await db.updateTopic(topicId, renameDraft);
+      setRenamingTopicId(null);
+      onToast("Konu güncellendi");
+      await load();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Konu güncellenemedi";
+      onToast(message);
+    } finally {
+      setRenaming(false);
+    }
+  };
+
   const addNoteToTopic = async (topicId: number) => {
     const body = noteDrafts[topicId] ?? "";
     if (!body.trim()) {
@@ -110,6 +144,21 @@ export default function PersonDetailView({
       onToast("Not kaydedilemedi");
     } finally {
       setSavingTopicId(null);
+    }
+  };
+
+  const updateNote = async (noteId: number, body: string) => {
+    if (!body.trim()) {
+      onToast("Not boş olamaz");
+      throw new Error("Not boş olamaz");
+    }
+    try {
+      await db.updateNote(noteId, body);
+      onToast("Not güncellendi");
+      await load();
+    } catch {
+      onToast("Not güncellenemedi");
+      throw new Error("Not güncellenemedi");
     }
   };
 
@@ -150,25 +199,65 @@ export default function PersonDetailView({
         <div className="topic-list">
           {topics.map((topic) => {
             const expanded = expandedTopicIds.has(topic.id);
+            const renamingThis = renamingTopicId === topic.id;
             return (
               <article
                 className={`topic-card${expanded ? " topic-card--expanded" : ""}`}
                 key={topic.id}
               >
-                <button
-                  aria-expanded={expanded}
-                  className="topic-card__toggle"
-                  onClick={() => toggleTopic(topic.id)}
-                  type="button"
-                >
-                  <span aria-hidden="true" className="topic-card__chevron">
-                    {expanded ? "▾" : "▸"}
-                  </span>
-                  <span className="topic-card__title">{topic.title}</span>
-                  <span className="topic-card__count">
-                    {topic.notes.length} not
-                  </span>
-                </button>
+                {renamingThis ? (
+                  <form
+                    className="topic-rename-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void saveRename(topic.id);
+                    }}
+                  >
+                    <label>
+                      Konu adı
+                      <input
+                        autoFocus
+                        onChange={(event) => setRenameDraft(event.target.value)}
+                        value={renameDraft}
+                      />
+                    </label>
+                    <div className="topic-rename-form__actions">
+                      <button
+                        onClick={() => setRenamingTopicId(null)}
+                        type="button"
+                      >
+                        Vazgeç
+                      </button>
+                      <button disabled={renaming} type="submit">
+                        {renaming ? "Kaydediliyor…" : "Kaydet"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="topic-card__header">
+                    <button
+                      aria-expanded={expanded}
+                      className="topic-card__toggle"
+                      onClick={() => toggleTopic(topic.id)}
+                      type="button"
+                    >
+                      <span aria-hidden="true" className="topic-card__chevron">
+                        {expanded ? "▾" : "▸"}
+                      </span>
+                      <span className="topic-card__title">{topic.title}</span>
+                      <span className="topic-card__count">
+                        {topic.notes.length} not
+                      </span>
+                    </button>
+                    <button
+                      className="topic-card__rename"
+                      onClick={(event) => startRename(topic, event)}
+                      type="button"
+                    >
+                      Yeniden adlandır
+                    </button>
+                  </div>
+                )}
                 {expanded ? (
                   <div className="topic-card__body">
                     <LinkedNotes
@@ -176,6 +265,7 @@ export default function PersonDetailView({
                       label={`${topic.title} notları`}
                       loading={false}
                       notes={topic.notes}
+                      onUpdateNote={updateNote}
                     />
                     <form
                       className="topic-note-form"
@@ -223,6 +313,7 @@ export default function PersonDetailView({
             label="Konusuz notlar"
             loading={false}
             notes={untopicNotes}
+            onUpdateNote={updateNote}
           />
         </>
       ) : null}

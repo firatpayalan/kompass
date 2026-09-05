@@ -59,6 +59,7 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     createPerson: vi.fn(),
     createReminder: vi.fn(),
     createTopic: vi.fn(),
+    updateTopic: vi.fn(),
     deleteInitiative: vi.fn(),
     deletePerson: vi.fn(),
     findPersonByName: vi.fn(),

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Note } from "../lib/types";
 
 type LinkedNotesProps = {
@@ -5,6 +6,7 @@ type LinkedNotesProps = {
   notes: Note[];
   label?: string;
   emptyLabel?: string;
+  onUpdateNote?: (noteId: number, body: string) => Promise<void>;
 };
 
 export default function LinkedNotes({
@@ -12,7 +14,12 @@ export default function LinkedNotes({
   notes,
   label = "Bağlı notlar",
   emptyLabel = "Henüz bağlı not yok.",
+  onUpdateNote,
 }: LinkedNotesProps) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+
   if (loading) {
     return <p>{label} yükleniyor…</p>;
   }
@@ -21,14 +28,67 @@ export default function LinkedNotes({
     return <p>{emptyLabel}</p>;
   }
 
+  const startEdit = (note: Note) => {
+    setEditingId(note.id);
+    setDraft(note.body);
+  };
+
+  const saveEdit = async () => {
+    if (editingId === null || !onUpdateNote) return;
+    setSaving(true);
+    try {
+      await onUpdateNote(editingId, draft);
+      setEditingId(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <ul aria-label={label} className="linked-note-list">
       {notes.map((note) => (
         <li key={note.id}>
-          <p>{note.body}</p>
-          <time dateTime={note.createdAt}>
-            {new Date(note.createdAt).toLocaleString("tr-TR")}
-          </time>
+          {editingId === note.id ? (
+            <div className="linked-note-edit">
+              <label>
+                Notu düzenle
+                <textarea
+                  autoFocus
+                  onChange={(event) => setDraft(event.target.value)}
+                  rows={3}
+                  value={draft}
+                />
+              </label>
+              <div className="linked-note-edit__actions">
+                <button
+                  onClick={() => setEditingId(null)}
+                  type="button"
+                >
+                  Vazgeç
+                </button>
+                <button disabled={saving} onClick={saveEdit} type="button">
+                  {saving ? "Kaydediliyor…" : "Kaydet"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p>{note.body}</p>
+              <div className="linked-note-meta">
+                <time dateTime={note.createdAt}>
+                  {new Date(note.createdAt).toLocaleString("tr-TR")}
+                </time>
+                {onUpdateNote ? (
+                  <button
+                    onClick={() => startEdit(note)}
+                    type="button"
+                  >
+                    Düzenle
+                  </button>
+                ) : null}
+              </div>
+            </>
+          )}
         </li>
       ))}
     </ul>

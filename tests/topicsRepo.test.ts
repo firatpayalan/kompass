@@ -5,6 +5,7 @@ import { createPerson } from "../src/db/peopleRepo";
 import {
   createTopic,
   listTopicsWithNotesForPerson,
+  updateTopic,
 } from "../src/db/topicsRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
@@ -62,6 +63,26 @@ describe("topicsRepo", () => {
         nowIso: "2026-09-05T11:00:00.000Z",
       }),
     ).rejects.toThrow("Bu isimde konu var");
+    db.close();
+  });
+
+  it("renames a topic", async () => {
+    const db = openTestAsyncDb();
+    const person = await createPerson(db, {
+      name: "Stan",
+      nowIso: "2026-09-05T09:00:00.000Z",
+    });
+    const topic = await createTopic(db, {
+      personId: person.id,
+      title: "Eski ad",
+      nowIso: "2026-09-05T10:00:00.000Z",
+    });
+
+    const updated = await updateTopic(db, topic.id, "Yeni ad");
+
+    expect(updated.title).toBe("Yeni ad");
+    const listed = await listTopicsWithNotesForPerson(db, person.id);
+    expect(listed.topics[0].title).toBe("Yeni ad");
     db.close();
   });
 });

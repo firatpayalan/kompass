@@ -195,6 +195,93 @@ body {
   overflow: hidden;
 }
 
+.topic-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+.topic-card__rename {
+  margin: 0.5rem 0.75rem 0.5rem 0;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.45rem;
+  background: #ffffff;
+  color: #1f3a5f;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  align-self: center;
+}
+
+.topic-rename-form {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+}
+
+.topic-rename-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.topic-rename-form input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+.topic-rename-form__actions,
+.linked-note-edit__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.linked-note-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.linked-note-meta button,
+.linked-note-edit__actions button,
+.topic-rename-form__actions button {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.45rem;
+  background: #ffffff;
+  color: #1f3a5f;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.linked-note-edit {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.linked-note-edit label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.linked-note-edit textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.5rem;
+  font: inherit;
+  resize: vertical;
+}
+
 .topic-card__toggle {
   display: grid;
   grid-template-columns: auto 1fr auto;

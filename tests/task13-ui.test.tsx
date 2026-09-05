@@ -78,6 +78,8 @@ describe("Task 13 people and initiatives UI", () => {
       }),
       createTopic: vi.fn(),
       createNote: vi.fn(),
+      updateTopic: vi.fn(),
+      updateNote: vi.fn(),
     } as unknown as AppDb;
     render(<App db={db} />);
 
@@ -178,6 +180,8 @@ describe("Task 13 people and initiatives UI", () => {
         db={{
           createNote: vi.fn(),
           createTopic: vi.fn(),
+          updateNote: vi.fn(),
+          updateTopic: vi.fn(),
           listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
             topics: [topicWithNotes],
             untopicNotes: [],
@@ -266,7 +270,13 @@ describe("Task 13 people and initiatives UI", () => {
 
     render(
       <PersonDetailView
-        db={{ createNote, createTopic, listTopicsWithNotesForPerson }}
+        db={{
+          createNote,
+          createTopic,
+          updateNote: vi.fn(),
+          updateTopic: vi.fn(),
+          listTopicsWithNotesForPerson,
+        }}
         onBack={vi.fn()}
         onToast={onToast}
         person={person}
@@ -298,6 +308,77 @@ describe("Task 13 people and initiatives UI", () => {
         topicIds: [5],
       });
       expect(screen.getByText("küfür etti")).toBeTruthy();
+    });
+  });
+
+  it("renames a topic and updates a note", async () => {
+    const updateTopic = vi.fn().mockResolvedValue({
+      id: 5,
+      personId: person.id,
+      title: "Yeni konu",
+      createdAt: topicWithNotes.createdAt,
+    });
+    const updateNote = vi.fn().mockResolvedValue({
+      ...notes[0],
+      body: "güncellenmiş not",
+    });
+    const listTopicsWithNotesForPerson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        topics: [topicWithNotes],
+        untopicNotes: [],
+      })
+      .mockResolvedValueOnce({
+        topics: [{ ...topicWithNotes, title: "Yeni konu" }],
+        untopicNotes: [],
+      })
+      .mockResolvedValueOnce({
+        topics: [
+          {
+            ...topicWithNotes,
+            title: "Yeni konu",
+            notes: [{ ...notes[0], body: "güncellenmiş not" }, notes[1]],
+          },
+        ],
+        untopicNotes: [],
+      });
+
+    render(
+      <PersonDetailView
+        db={{
+          createNote: vi.fn(),
+          createTopic: vi.fn(),
+          updateNote,
+          updateTopic,
+          listTopicsWithNotesForPerson,
+        }}
+        onBack={vi.fn()}
+        onToast={vi.fn()}
+        person={person}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /1:1/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Yeniden adlandır" }));
+    fireEvent.change(screen.getByLabelText("Konu adı"), {
+      target: { value: "Yeni konu" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+
+    await waitFor(() => {
+      expect(updateTopic).toHaveBeenCalledWith(5, "Yeni konu");
+      expect(screen.getByText("Yeni konu")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Düzenle" })[0]);
+    fireEvent.change(screen.getByLabelText("Notu düzenle"), {
+      target: { value: "güncellenmiş not" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+
+    await waitFor(() => {
+      expect(updateNote).toHaveBeenCalledWith(11, "güncellenmiş not");
+      expect(screen.getByText("güncellenmiş not")).toBeTruthy();
     });
   });
 

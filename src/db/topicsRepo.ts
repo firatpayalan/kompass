@@ -71,6 +71,47 @@ export async function createTopic(
   };
 }
 
+export async function getTopic(
+  db: AsyncDb,
+  id: number,
+): Promise<Topic | null> {
+  const rows = await db.select<TopicRow>(
+    `SELECT id, person_id, title, created_at
+     FROM topics
+     WHERE id = ?`,
+    [id],
+  );
+  return rows[0] ? mapTopic(rows[0]) : null;
+}
+
+export async function updateTopic(
+  db: AsyncDb,
+  id: number,
+  title: string,
+): Promise<Topic> {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw new Error("Konu boş olamaz");
+  }
+
+  const current = await getTopic(db, id);
+  if (!current) {
+    throw new Error("Konu bulunamadı");
+  }
+
+  const duplicate = await findTopicByTitle(db, current.personId, trimmed);
+  if (duplicate && duplicate.id !== id) {
+    throw new Error("Bu isimde konu var");
+  }
+
+  await db.execute(`UPDATE topics SET title = ? WHERE id = ?`, [
+    trimmed,
+    id,
+  ]);
+
+  return { ...current, title: trimmed };
+}
+
 export async function listTopicsForPerson(
   db: AsyncDb,
   personId: number,
