@@ -54,7 +54,7 @@ export default function App({ db }: AppProps = {}) {
   const renderView = () => {
     switch (activeView) {
       case "bugun":
-        return <BugunView />;
+        return <BugunView db={appDb} />;
       case "notlar":
         return (
           <NotesView

@@ -335,6 +335,62 @@ body {
   margin-top: 0.75rem;
 }
 
+.bugun-view {
+  max-width: 64rem;
+}
+
+.bugun-view > section {
+  margin-top: 2rem;
+}
+
+.inline-banner {
+  padding: 0.8rem 1rem;
+  border: 1px solid #f59e0b;
+  border-radius: 0.65rem;
+  color: #78350f;
+  background: #fffbeb;
+}
+
+.reminder-list,
+.recent-note-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.reminder-list li,
+.recent-note-list li {
+  padding: 1rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.reminder-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reminder-list li div,
+.recent-note-list li {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.reminder-list time,
+.recent-note-list time {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.recent-note-list p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 button {
   padding: 0.55rem 0.8rem;
   border: 1px solid #b9c4d2;
