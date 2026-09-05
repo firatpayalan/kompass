@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { PersonLabel } from "../lib/types";
 import {
   PERSON_LABEL_COLORS,
@@ -20,6 +20,7 @@ export default function PersonLabelPicker({
   onCreate,
   onToast,
 }: PersonLabelPickerProps) {
+  const headingId = useId();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState<PersonLabelColor>("slate");
@@ -47,32 +48,66 @@ export default function PersonLabelPicker({
   };
 
   return (
-    <div className="person-label-picker">
-      <label>
-        İlişki
-        <select
-          onChange={(event) => {
-            const next = event.target.value;
-            onChange(next === "" ? null : Number(next));
-          }}
-          value={value ?? ""}
+    <div aria-labelledby={headingId} className="person-label-picker" role="group">
+      <div className="person-label-picker__header">
+        <span className="person-label-picker__title" id={headingId}>
+          İlişki
+        </span>
+        {!creating ? (
+          <button
+            className="person-label-picker__toggle"
+            onClick={() => setCreating(true)}
+            type="button"
+          >
+            Yeni etiket
+          </button>
+        ) : null}
+      </div>
+
+      <div className="person-label-picker__chips" role="listbox" aria-label="İlişki etiketleri">
+        <button
+          aria-selected={value === null}
+          className={
+            value === null
+              ? "person-label-chip person-label-chip--none person-label-chip--selected"
+              : "person-label-chip person-label-chip--none"
+          }
+          onClick={() => onChange(null)}
+          role="option"
+          type="button"
         >
-          <option value="">Etiket yok</option>
-          {labels.map((label) => (
-            <option key={label.id} value={label.id}>
+          Yok
+        </button>
+        {labels.map((label) => {
+          const selected = value === label.id;
+          return (
+            <button
+              aria-selected={selected}
+              className={
+                selected
+                  ? `person-label-chip person-label--${label.color} person-label-chip--selected`
+                  : `person-label-chip person-label--${label.color}`
+              }
+              key={label.id}
+              onClick={() => onChange(label.id)}
+              role="option"
+              type="button"
+            >
               {label.name}
-            </option>
-          ))}
-        </select>
-      </label>
+            </button>
+          );
+        })}
+      </div>
 
       {creating ? (
         <div className="person-label-picker__create">
           <label>
-            Yeni etiket
+            Yeni etiket adı
             <input
               autoComplete="off"
+              autoFocus
               onChange={(event) => setName(event.target.value)}
+              placeholder="Örn. Mentor"
               value={name}
             />
           </label>
@@ -103,15 +138,7 @@ export default function PersonLabelPicker({
             </button>
           </div>
         </div>
-      ) : (
-        <button
-          className="person-label-picker__toggle"
-          onClick={() => setCreating(true)}
-          type="button"
-        >
-          Yeni etiket
-        </button>
-      )}
+      ) : null}
     </div>
   );
 }
