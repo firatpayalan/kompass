@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PersonForm from "../components/PersonForm";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
@@ -13,12 +13,13 @@ type PeopleViewProps = {
 };
 
 const ignore = () => undefined;
+const DRAG_THRESHOLD_PX = 6;
 
 function namesMatch(left: string, right: string): boolean {
   return left.localeCompare(right, "tr", { sensitivity: "base" }) === 0;
 }
 
-function movePerson(
+export function movePerson(
   people: Person[],
   fromId: number,
   toId: number,
@@ -33,6 +34,18 @@ function movePerson(
   return next;
 }
 
+export function targetPersonIdAtPoint(
+  clientY: number,
+  rows: Array<{ id: number; top: number; height: number }>,
+): number | null {
+  for (const row of rows) {
+    if (clientY < row.top + row.height / 2) {
+      return row.id;
+    }
+  }
+  return rows.at(-1)?.id ?? null;
+}
+
 export default function PeopleView({
   db = getDb(),
   onSelectPerson = ignore,
@@ -41,6 +54,19 @@ export default function PeopleView({
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragId, setDragId] = useState<number | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const peopleRef = useRef(people);
+  const dragRef = useRef<{
+    id: number;
+    startY: number;
+    active: boolean;
+    order: Person[];
+  } | null>(null);
+  const persistOrderRef = useRef<(next: Person[]) => Promise<void>>(
+    async () => undefined,
+  );
+
+  peopleRef.current = people;
 
   const loadPeople = useCallback(async () => {
     try {
@@ -59,20 +85,80 @@ export default function PeopleView({
     void loadPeople();
   }, [loadPeople]);
 
+  persistOrderRef.current = async (next: Person[]) => {
+    try {
+      await db.reorderPeople(next.map((person) => person.id));
+    } catch {
+      onToast("Sıra kaydedilemedi");
+      await loadPeople();
+    }
+  };
+
   const useExisting = async (name: string) => {
     const loaded = await loadPeople();
     return loaded.find((item) => namesMatch(item.name, name)) ?? null;
   };
 
-  const applyOrder = async (next: Person[]) => {
-    const previous = people;
-    setPeople(next);
-    try {
-      await db.reorderPeople(next.map((person) => person.id));
-    } catch {
-      setPeople(previous);
-      onToast("Sıra kaydedilemedi");
-    }
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      const session = dragRef.current;
+      if (!session) return;
+
+      if (!session.active) {
+        if (Math.abs(event.clientY - session.startY) < DRAG_THRESHOLD_PX) {
+          return;
+        }
+        session.active = true;
+        setDragId(session.id);
+      }
+
+      const rowEls = listRef.current
+        ? [...listRef.current.querySelectorAll<HTMLElement>("[data-person-id]")]
+        : [];
+      const rows = rowEls.map((row) => {
+        const rect = row.getBoundingClientRect();
+        return {
+          id: Number(row.dataset.personId),
+          top: rect.top,
+          height: rect.height,
+        };
+      });
+      const overId = targetPersonIdAtPoint(event.clientY, rows);
+      if (overId == null) return;
+
+      const next = movePerson(session.order, session.id, overId);
+      if (next.every((person, index) => person.id === session.order[index]?.id)) {
+        return;
+      }
+      session.order = next;
+      setPeople(next);
+    };
+
+    const onPointerUp = () => {
+      const session = dragRef.current;
+      dragRef.current = null;
+      setDragId(null);
+      if (!session?.active) return;
+      void persistOrderRef.current(session.order);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, []);
+
+  const startPointerDrag = (personId: number, clientY: number) => {
+    dragRef.current = {
+      id: personId,
+      startY: clientY,
+      active: false,
+      order: peopleRef.current,
+    };
   };
 
   return (
@@ -95,7 +181,7 @@ export default function PeopleView({
       ) : people.length === 0 ? (
         <p>Henüz kişi yok.</p>
       ) : (
-        <ul className="entity-list">
+        <ul className="entity-list" ref={listRef}>
           {people.map((person) => (
             <li
               className={
@@ -103,32 +189,16 @@ export default function PeopleView({
                   ? "entity-list__row entity-list__row--dragging"
                   : "entity-list__row"
               }
+              data-person-id={person.id}
               key={person.id}
-              onDragOver={(event) => {
-                event.preventDefault();
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                const fromId = Number(
-                  event.dataTransfer.getData("text/person-id") || dragId,
-                );
-                setDragId(null);
-                if (!Number.isFinite(fromId)) return;
-                void applyOrder(movePerson(people, fromId, person.id));
-              }}
             >
               <button
                 aria-label={`${person.name} sırasını değiştir`}
                 className="entity-list__handle"
-                draggable
-                onDragEnd={() => setDragId(null)}
-                onDragStart={(event) => {
-                  setDragId(person.id);
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setData(
-                    "text/person-id",
-                    String(person.id),
-                  );
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  startPointerDrag(person.id, event.clientY);
                 }}
                 type="button"
               >

@@ -112,7 +112,7 @@ describe("Task 13 people and initiatives UI", () => {
     expect(onSelectPerson).toHaveBeenCalledWith(person);
   });
 
-  it("reorders people when a row is dropped onto another", async () => {
+  it("reorders people when a row is dragged onto another", async () => {
     const baris: Person = {
       id: 1,
       name: "baris",
@@ -146,16 +146,38 @@ describe("Task 13 people and initiatives UI", () => {
     });
     const target = screen.getByRole("button", { name: "cartman" }).closest("li");
     expect(target).toBeTruthy();
+    Object.defineProperty(target!, "getBoundingClientRect", {
+      value: () => ({
+        top: 100,
+        height: 60,
+        bottom: 160,
+        left: 0,
+        right: 100,
+        width: 100,
+        x: 0,
+        y: 100,
+        toJSON: () => undefined,
+      }),
+    });
+    const source = handle.closest("li");
+    Object.defineProperty(source!, "getBoundingClientRect", {
+      value: () => ({
+        top: 20,
+        height: 60,
+        bottom: 80,
+        left: 0,
+        right: 100,
+        width: 100,
+        x: 0,
+        y: 20,
+        toJSON: () => undefined,
+      }),
+    });
 
-    const dataTransfer = {
-      effectAllowed: "move",
-      setData: vi.fn(),
-      getData: vi.fn().mockReturnValue("1"),
-    };
-
-    fireEvent.dragStart(handle, { dataTransfer });
-    fireEvent.dragOver(target!);
-    fireEvent.drop(target!, { dataTransfer });
+    fireEvent.pointerDown(handle, { button: 0, clientY: 40 });
+    fireEvent.pointerMove(window, { clientY: 50 });
+    fireEvent.pointerMove(window, { clientY: 130 });
+    fireEvent.pointerUp(window);
 
     await waitFor(() => {
       expect(reorderPeople).toHaveBeenCalledWith([2, 1]);

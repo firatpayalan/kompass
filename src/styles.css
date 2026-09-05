@@ -431,6 +431,7 @@ body {
   border-radius: 0.75rem;
   background: #ffffff;
   overflow: hidden;
+  user-select: none;
 }
 
 .entity-list__row--dragging {
@@ -444,11 +445,13 @@ body {
   padding: 0;
   border: 0;
   border-right: 1px solid #e8eef4;
+  border-radius: 0;
   background: #f8fafc;
   color: #64748b;
   font-size: 1.1rem;
   line-height: 1;
   cursor: grab;
+  touch-action: none;
 }
 
 .entity-list__handle:active {
