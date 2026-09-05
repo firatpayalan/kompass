@@ -1047,6 +1047,15 @@ body {
   white-space: pre-wrap;
 }
 
+.recent-note-list__item--navigable {
+  cursor: pointer;
+}
+
+.recent-note-list__item--navigable:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
 button {
   padding: 0.55rem 0.8rem;
   border: 1px solid #b9c4d2;

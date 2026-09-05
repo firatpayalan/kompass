@@ -87,7 +87,15 @@ export default function App({ db, notify, now }: AppProps = {}) {
   const renderView = () => {
     switch (activeView) {
       case "bugun":
-        return <BugunView db={appDb} onToast={showToast} ticker={reminderTicker} />;
+        return (
+          <BugunView
+            db={appDb}
+            onOpenInitiative={openInitiative}
+            onOpenPerson={openPerson}
+            onToast={showToast}
+            ticker={reminderTicker}
+          />
+        );
       case "gelen":
         return (
           <InboxView

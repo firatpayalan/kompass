@@ -54,6 +54,8 @@ function createDb(
   AppDb,
   | "advanceOrCompleteReminder"
   | "listActiveNotes"
+  | "listPeople"
+  | "listInitiatives"
   | "listDueRemindersForBugun"
   | "listOverdueReminders"
   | "listUpcomingReminders"
@@ -61,6 +63,8 @@ function createDb(
   return {
     advanceOrCompleteReminder: vi.fn().mockResolvedValue(undefined),
     listActiveNotes: vi.fn().mockResolvedValue([]),
+    listPeople: vi.fn().mockResolvedValue([]),
+    listInitiatives: vi.fn().mockResolvedValue([]),
     listDueRemindersForBugun: vi.fn().mockResolvedValue([]),
     listOverdueReminders: vi.fn().mockResolvedValue([]),
     listUpcomingReminders: vi.fn().mockResolvedValue([]),
@@ -73,6 +77,8 @@ type BugunHarnessProps = {
     AppDb,
     | "advanceOrCompleteReminder"
     | "listActiveNotes"
+    | "listPeople"
+    | "listInitiatives"
     | "listDueRemindersForBugun"
     | "listOverdueReminders"
     | "listUpcomingReminders"

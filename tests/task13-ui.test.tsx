@@ -79,6 +79,13 @@ describe("Task 13 people and initiatives UI", () => {
     const db = {
       createPerson: vi.fn(),
       listPeople: vi.fn().mockResolvedValue([person]),
+      listInitiatives: vi.fn().mockResolvedValue([]),
+      listActiveNotes: vi.fn().mockResolvedValue([]),
+      listDueRemindersForBugun: vi.fn().mockResolvedValue([]),
+      listOverdueReminders: vi.fn().mockResolvedValue([]),
+      listUpcomingReminders: vi.fn().mockResolvedValue([]),
+      advanceOrCompleteReminder: vi.fn(),
+      softDeleteNote: vi.fn(),
       listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
         topics: [topicWithNotes],
         untopicNotes: [],
