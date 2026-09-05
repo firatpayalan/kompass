@@ -5,7 +5,13 @@ Local-first desktop app for engineering managers.
 
 ## Çalıştırma / Run
 
-Gereksinimler / Prerequisites: Node.js, npm, Rust.
+Gereksinimler / Prerequisites:
+
+- Node.js ve npm / Node.js and npm
+- Rust toolchain (`rustup`, `cargo`)
+
+Bağımlılıkları kurun ve masaüstü uygulamasını geliştirme modunda başlatın:
+Install dependencies and start the desktop app in development mode:
 
 ```bash
 npm install
@@ -23,5 +29,10 @@ npm run dev
 ```bash
 npm test
 npm run build
-npm run tauri build
+```
+
+Rust doğrulaması / Rust verification:
+
+```bash
+cargo check --manifest-path src-tauri/Cargo.toml
 ```
