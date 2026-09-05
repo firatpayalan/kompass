@@ -13,6 +13,7 @@ type PeopleDb = Pick<
   | "listPersonLabels"
   | "createPersonLabel"
   | "updatePersonLabel"
+  | "deletePersonLabel"
 >;
 
 
@@ -181,6 +182,7 @@ export default function PeopleView({
         <PersonForm
           createPerson={db.createPerson}
           createPersonLabel={db.createPersonLabel}
+          deletePersonLabel={db.deletePersonLabel}
           listPersonLabels={db.listPersonLabels}
           updatePersonLabel={db.updatePersonLabel}
           onCreated={onSelectPerson}

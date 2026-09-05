@@ -208,6 +208,7 @@ describe("Task 13 people and initiatives UI", () => {
           listPersonLabels: vi.fn().mockResolvedValue([labeled.label!]),
           createPersonLabel: vi.fn(),
           updatePersonLabel: vi.fn(),
+          deletePersonLabel: vi.fn(),
           reorderPeople: vi.fn(),
         }}
         onSelectPerson={vi.fn()}
@@ -297,6 +298,7 @@ describe("Task 13 people and initiatives UI", () => {
           listPersonLabels: vi.fn().mockResolvedValue([]),
           createPersonLabel: vi.fn(),
           updatePersonLabel: vi.fn(),
+          deletePersonLabel: vi.fn(),
           listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
             topics: [topicWithNotes],
             untopicNotes: [],
@@ -394,6 +396,7 @@ describe("Task 13 people and initiatives UI", () => {
           listPersonLabels: vi.fn().mockResolvedValue([]),
           createPersonLabel: vi.fn(),
           updatePersonLabel: vi.fn(),
+          deletePersonLabel: vi.fn(),
           listTopicsWithNotesForPerson,
         }}
         onBack={vi.fn()}
@@ -481,6 +484,7 @@ describe("Task 13 people and initiatives UI", () => {
           listPersonLabels: vi.fn().mockResolvedValue([]),
           createPersonLabel: vi.fn(),
           updatePersonLabel: vi.fn(),
+          deletePersonLabel: vi.fn(),
           listTopicsWithNotesForPerson,
         }}
         onBack={vi.fn()}

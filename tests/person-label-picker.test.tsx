@@ -34,6 +34,7 @@ describe("PersonLabelPicker context menu", () => {
         labels={labels}
         onChange={vi.fn()}
         onCreate={vi.fn()}
+        onDelete={vi.fn()}
         onToast={onToast}
         onUpdate={onUpdate}
         value={1}
@@ -61,6 +62,7 @@ describe("PersonLabelPicker context menu", () => {
         labels={labels}
         onChange={vi.fn()}
         onCreate={vi.fn()}
+        onDelete={vi.fn()}
         onToast={vi.fn()}
         onUpdate={onUpdate}
         value={1}
@@ -73,6 +75,32 @@ describe("PersonLabelPicker context menu", () => {
 
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalledWith(1, { color: "rose" });
+    });
+  });
+
+  it("deletes a label from the context menu after confirm", async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onChange = vi.fn();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(
+      <PersonLabelPicker
+        labels={labels}
+        onChange={onChange}
+        onCreate={vi.fn()}
+        onDelete={onDelete}
+        onToast={vi.fn()}
+        onUpdate={vi.fn()}
+        value={1}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByRole("option", { name: "Lider" }));
+    fireEvent.click(screen.getByRole("button", { name: "Etiket sil" }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith(1);
+      expect(onChange).toHaveBeenCalledWith(null);
     });
   });
 });

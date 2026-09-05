@@ -9,6 +9,7 @@ type PersonFormProps = {
   listPersonLabels: AppDb["listPersonLabels"];
   createPersonLabel: AppDb["createPersonLabel"];
   updatePersonLabel: AppDb["updatePersonLabel"];
+  deletePersonLabel: AppDb["deletePersonLabel"];
   onCreated: (person: Person) => void;
   onDuplicate: (name: string) => Promise<Person | null>;
   onToast: (message: string) => void;
@@ -19,6 +20,7 @@ export default function PersonForm({
   listPersonLabels,
   createPersonLabel,
   updatePersonLabel,
+  deletePersonLabel,
   onCreated,
   onDuplicate,
   onToast,
@@ -106,6 +108,13 @@ export default function PersonForm({
           const label = await updatePersonLabel(id, patch);
           await reloadLabels();
           return label;
+        }}
+        onDelete={async (id) => {
+          await deletePersonLabel(id);
+          await reloadLabels();
+          if (labelId === id) {
+            setLabelId(null);
+          }
         }}
         onToast={onToast}
         value={labelId}

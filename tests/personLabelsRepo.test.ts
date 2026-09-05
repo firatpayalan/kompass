@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   createPersonLabel,
+  deletePersonLabel,
+  getPersonLabel,
   listPersonLabels,
   updatePersonLabel,
 } from "../src/db/personLabelsRepo";
+import { createPerson, listPeople } from "../src/db/peopleRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
 describe("personLabelsRepo", () => {
@@ -61,6 +64,24 @@ describe("personLabelsRepo", () => {
     await expect(
       updatePersonLabel(db, lider.id, { name: "Pair" }),
     ).rejects.toThrow("Bu isimde etiket var");
+    db.close();
+  });
+
+  it("deletes a label and clears it from people", async () => {
+    const db = openTestAsyncDb();
+    const labels = await listPersonLabels(db);
+    const lider = labels.find((label) => label.name === "Lider")!;
+    const person = await createPerson(db, {
+      name: "Ayşe",
+      labelId: lider.id,
+      nowIso: "2026-09-05T10:00:00.000Z",
+    });
+    expect(person.label?.id).toBe(lider.id);
+
+    await deletePersonLabel(db, lider.id);
+
+    expect(await getPersonLabel(db, lider.id)).toBeNull();
+    expect((await listPeople(db))[0]?.label).toBeNull();
     db.close();
   });
 });

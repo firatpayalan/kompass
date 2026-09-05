@@ -14,6 +14,7 @@ type PersonLabelPickerProps = {
     id: number,
     patch: { name?: string; color?: PersonLabelColor },
   ) => Promise<PersonLabel>;
+  onDelete: (id: number) => Promise<void>;
   onToast: (message: string) => void;
 };
 
@@ -27,6 +28,7 @@ export default function PersonLabelPicker({
   onChange,
   onCreate,
   onUpdate,
+  onDelete,
   onToast,
 }: PersonLabelPickerProps) {
   const headingId = useId();
@@ -114,6 +116,26 @@ export default function PersonLabelPicker({
       onToast(
         error instanceof Error ? error.message : "Etiket güncellenemedi",
       );
+    }
+  };
+
+  const removeLabel = async (labelId: number) => {
+    const label = labels.find((item) => item.id === labelId);
+    const confirmed = window.confirm(
+      `"${label?.name ?? "Etiket"}" silinsin mi? Bu etiketi kullanan kişiler etiketsiz kalır.`,
+    );
+    if (!confirmed) {
+      setMenu(null);
+      return;
+    }
+    try {
+      await onDelete(labelId);
+      if (value === labelId) {
+        onChange(null);
+      }
+      setMenu(null);
+    } catch (error) {
+      onToast(error instanceof Error ? error.message : "Etiket silinemedi");
     }
   };
 
@@ -279,6 +301,15 @@ export default function PersonLabelPicker({
                 type="button"
               >
                 Renk değiştir
+              </button>
+              <button
+                className="person-label-menu__danger"
+                onClick={() => {
+                  void removeLabel(menu.labelId);
+                }}
+                type="button"
+              >
+                Etiket sil
               </button>
             </>
           ) : (

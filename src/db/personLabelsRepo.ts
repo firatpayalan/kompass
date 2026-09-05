@@ -158,3 +158,15 @@ export async function updatePersonLabel(
     throw new Error("Bu isimde etiket var");
   }
 }
+
+export async function deletePersonLabel(
+  db: AsyncDb,
+  id: number,
+): Promise<void> {
+  const existing = await getPersonLabel(db, id);
+  if (!existing) {
+    throw new Error("Etiket bulunamadı");
+  }
+  // people.label_id uses ON DELETE SET NULL
+  await db.execute("DELETE FROM person_labels WHERE id = ?", [id]);
+}

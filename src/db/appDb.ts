@@ -44,6 +44,7 @@ import {
 } from "./peopleRepo";
 import {
   createPersonLabel,
+  deletePersonLabel,
   listPersonLabels,
   updatePersonLabel,
   type CreatePersonLabelInput,
@@ -92,6 +93,7 @@ export type AppDb = {
     id: number,
     patch: UpdatePersonLabelPatch,
   ): Promise<PersonLabel>;
+  deletePersonLabel(id: number): Promise<void>;
 
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: number, title: string): Promise<Topic>;
@@ -145,6 +147,7 @@ export function createAppDb(db: AsyncDb): AppDb {
     listPersonLabels: () => listPersonLabels(db),
     createPersonLabel: (input) => createPersonLabel(db, input),
     updatePersonLabel: (id, patch) => updatePersonLabel(db, id, patch),
+    deletePersonLabel: (id) => deletePersonLabel(db, id),
 
     createTopic: (input) => createTopic(db, input),
     updateTopic: (id, title) => updateTopic(db, id, title),

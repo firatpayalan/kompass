@@ -19,6 +19,7 @@ type PersonDetailDb = Pick<
   | "listPersonLabels"
   | "createPersonLabel"
   | "updatePersonLabel"
+  | "deletePersonLabel"
 >;
 
 type PersonDetailViewProps = {
@@ -240,6 +241,14 @@ export default function PersonDetailView({
               onPersonUpdated({ ...person, label });
             }
             return label;
+          }}
+          onDelete={async (id) => {
+            await db.deletePersonLabel(id);
+            setLabels(await db.listPersonLabels());
+            if (person.label?.id === id) {
+              onPersonUpdated({ ...person, label: null });
+              setLabelId(null);
+            }
           }}
           onToast={onToast}
           value={labelId}
