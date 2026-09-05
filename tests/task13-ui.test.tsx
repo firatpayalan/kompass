@@ -160,7 +160,10 @@ describe("Task 13 people and initiatives UI", () => {
   it("shows a person's linked notes in repository chronology", async () => {
     render(
       <PersonDetailView
-        db={{ listNotesForPerson: vi.fn().mockResolvedValue(notes) }}
+        db={{
+          createNote: vi.fn(),
+          listNotesForPerson: vi.fn().mockResolvedValue(notes),
+        }}
         onBack={vi.fn()}
         person={person}
       />,
@@ -173,6 +176,60 @@ describe("Task 13 people and initiatives UI", () => {
       expect.stringContaining("Yeni görüşme"),
       expect.stringContaining("İlk görüşme"),
     ]);
+  });
+
+  it("adds a note linked to the person from the detail screen", async () => {
+    const createNote = vi.fn().mockResolvedValue({
+      id: 99,
+      body: "cartman ile 1:1",
+      createdAt: "2026-09-05T12:00:00.000Z",
+      updatedAt: "2026-09-05T12:00:00.000Z",
+      deletedAt: null,
+      tags: [],
+      personIds: [person.id],
+      initiativeIds: [],
+    });
+    const listNotesForPerson = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: 99,
+          body: "cartman ile 1:1",
+          createdAt: "2026-09-05T12:00:00.000Z",
+          updatedAt: "2026-09-05T12:00:00.000Z",
+          deletedAt: null,
+          tags: [],
+          personIds: [person.id],
+          initiativeIds: [],
+        },
+      ]);
+    const onToast = vi.fn();
+
+    render(
+      <PersonDetailView
+        db={{ createNote, listNotesForPerson }}
+        onBack={vi.fn()}
+        onToast={onToast}
+        person={person}
+      />,
+    );
+
+    await screen.findByText("Henüz bağlı not yok.");
+    fireEvent.change(screen.getByLabelText("Bu kişi hakkında not"), {
+      target: { value: "cartman ile 1:1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Not ekle" }));
+
+    await waitFor(() => {
+      expect(createNote).toHaveBeenCalledWith({
+        body: "cartman ile 1:1",
+        personIds: [person.id],
+        initiativeIds: [],
+      });
+      expect(onToast).toHaveBeenCalledWith("Not eklendi");
+      expect(screen.getByText("cartman ile 1:1")).toBeTruthy();
+    });
   });
 
   it("shows initiative status, blocker, and linked notes", async () => {
