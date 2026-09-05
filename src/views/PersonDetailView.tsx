@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import LinkedNotes from "../components/LinkedNotes";
+import NoteBodyField from "../components/NoteBodyField";
 import PersonLabelBadge from "../components/PersonLabelBadge";
 import PersonLabelPicker from "../components/PersonLabelPicker";
 import type { ReminderDraft } from "../components/ReminderForm";
@@ -35,6 +36,8 @@ type PersonDetailDb = Pick<
   | "updateNoteTag"
   | "deleteNoteTag"
   | "linkNoteToTopics"
+  | "saveNoteImage"
+  | "getNoteImage"
 >;
 
 type PersonDetailViewProps = {
@@ -468,11 +471,13 @@ export default function PersonDetailView({
                   <div className="topic-card__body">
                     <LinkedNotes
                       emptyLabel="Bu konuda henüz not yok."
+                      getNoteImage={(id) => db.getNoteImage(id)}
                       label={`${topic.title} notları`}
                       loading={false}
                       notes={topic.notes}
                       onArchiveNote={archiveNote}
                       onUpdateNote={updateNote}
+                      saveNoteImage={(input) => db.saveNoteImage(input)}
                       {...noteTagHandlers}
                     />
                     <form
@@ -482,31 +487,31 @@ export default function PersonDetailView({
                         void addNoteToTopic(topic.id);
                       }}
                     >
-                      <label>
-                        Not ekle
-                        <textarea
-                          onChange={(event) =>
-                            setNoteDrafts((prev) => ({
-                              ...prev,
-                              [topic.id]: event.target.value,
-                            }))
+                      <NoteBodyField
+                        label="Not ekle"
+                        onChange={(value) =>
+                          setNoteDrafts((prev) => ({
+                            ...prev,
+                            [topic.id]: value,
+                          }))
+                        }
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "Enter" &&
+                            !event.shiftKey &&
+                            !event.nativeEvent.isComposing
+                          ) {
+                            event.preventDefault();
+                            if (savingTopicId === topic.id) return;
+                            void addNoteToTopic(topic.id);
                           }
-                          onKeyDown={(event) => {
-                            if (
-                              event.key === "Enter" &&
-                              !event.shiftKey &&
-                              !event.nativeEvent.isComposing
-                            ) {
-                              event.preventDefault();
-                              if (savingTopicId === topic.id) return;
-                              void addNoteToTopic(topic.id);
-                            }
-                          }}
-                          placeholder={`${topic.title} hakkında not…`}
-                          rows={3}
-                          value={noteDrafts[topic.id] ?? ""}
-                        />
-                      </label>
+                        }}
+                        onToast={onToast}
+                        placeholder={`${topic.title} hakkında not…`}
+                        rows={3}
+                        saveNoteImage={(input) => db.saveNoteImage(input)}
+                        value={noteDrafts[topic.id] ?? ""}
+                      />
                       <button
                         disabled={savingTopicId === topic.id}
                         type="submit"
@@ -530,6 +535,7 @@ export default function PersonDetailView({
           <LinkedNotes
             {...noteTagHandlers}
             emptyLabel="Konusuz not yok."
+            getNoteImage={(id) => db.getNoteImage(id)}
             label="Konusuz notlar"
             loading={false}
             notes={untopicNotes}
@@ -537,6 +543,7 @@ export default function PersonDetailView({
             onMoveToTopic={topics.length > 0 ? moveNoteToTopic : undefined}
             onToast={onToast}
             onUpdateNote={updateNote}
+            saveNoteImage={(input) => db.saveNoteImage(input)}
             topicOptions={
               topics.length > 0
                 ? topics.map((topic) => ({

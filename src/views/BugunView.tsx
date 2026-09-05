@@ -7,6 +7,7 @@ import type {
 } from "../hooks/useReminderTicker";
 import type { Initiative, Note, Person } from "../lib/types";
 import NoteArchiveShell from "../components/NoteArchiveShell";
+import NoteBodyView from "../components/NoteBodyView";
 import NoteTimestamps from "../components/NoteTimestamps";
 
 type BugunDb = Pick<
@@ -16,6 +17,7 @@ type BugunDb = Pick<
   | "listPeople"
   | "listInitiatives"
   | "getNote"
+  | "getNoteImage"
 >;
 
 type BugunViewProps = {
@@ -333,7 +335,10 @@ export default function BugunView({
                       }
                       onContextMenu={(event) => openArchiveMenu(event, note)}
                     >
-                      <p>{note.body}</p>
+                      <NoteBodyView
+                        body={note.body}
+                        getNoteImage={(id) => db.getNoteImage(id)}
+                      />
                       <NoteTimestamps note={note} />
                     </li>
                   );

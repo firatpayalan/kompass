@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import LinkedNotes from "../components/LinkedNotes";
+import NoteBodyField from "../components/NoteBodyField";
 import ReminderForm, {
   type ReminderDraft,
 } from "../components/ReminderForm";
@@ -27,6 +28,8 @@ type InitiativeDetailDb = Pick<
   | "listNoteTags"
   | "updateNoteTag"
   | "deleteNoteTag"
+  | "saveNoteImage"
+  | "getNoteImage"
 >;
 
 type InitiativeDetailViewProps = {
@@ -337,10 +340,12 @@ export default function InitiativeDetailView({
       ) : null}
       <h2>Bağlı notlar</h2>
       <LinkedNotes
+        getNoteImage={(id) => db.getNoteImage(id)}
         loading={loading}
         notes={notes}
         onArchiveNote={archiveNote}
         onUpdateNote={updateNote}
+        saveNoteImage={(input) => db.saveNoteImage(input)}
         {...noteTagHandlers}
       />
       <form
@@ -350,26 +355,26 @@ export default function InitiativeDetailView({
           void addNote();
         }}
       >
-        <label>
-          Not ekle
-          <textarea
-            onChange={(event) => setNoteDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing
-              ) {
-                event.preventDefault();
-                if (savingNote) return;
-                void addNote();
-              }
-            }}
-            placeholder={`${current.name} hakkında not…`}
-            rows={3}
-            value={noteDraft}
-          />
-        </label>
+        <NoteBodyField
+          label="Not ekle"
+          onChange={setNoteDraft}
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
+              if (savingNote) return;
+              void addNote();
+            }
+          }}
+          onToast={onToast}
+          placeholder={`${current.name} hakkında not…`}
+          rows={3}
+          saveNoteImage={(input) => db.saveNoteImage(input)}
+          value={noteDraft}
+        />
         <button disabled={savingNote} type="submit">
           {savingNote ? "Kaydediliyor…" : "Not ekle"}
         </button>

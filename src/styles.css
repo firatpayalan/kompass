@@ -1473,3 +1473,33 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.note-body-field__hint {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.note-body-view {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.note-body-view__text {
+  white-space: pre-wrap;
+}
+
+.note-body-view__image {
+  display: block;
+  max-width: min(100%, 28rem);
+  max-height: 20rem;
+  width: auto;
+  height: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #dbe2ea;
+}
+
+.note-body-view__missing {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}

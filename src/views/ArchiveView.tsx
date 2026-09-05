@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "../components/ConfirmDialog";
 import LinkedNotes from "../components/LinkedNotes";
+import NoteBodyView from "../components/NoteBodyView";
 import NoteTagBadges from "../components/NoteTagBadges";
 import PersonLabelBadge from "../components/PersonLabelBadge";
 import type { AppDb } from "../db/appDb";
@@ -19,6 +20,7 @@ type ArchiveDb = Pick<
   | "listDeletedNotes"
   | "restoreNote"
   | "permanentlyDeleteNote"
+  | "getNoteImage"
 >;
 
 type ArchiveViewProps = {
@@ -215,7 +217,11 @@ export default function ArchiveView({
               <ul aria-label="Arşivlenmiş notlar" className="note-list">
                 {notes.map((note) => (
                   <li className="note-list__item" key={note.id}>
-                    <p className="note-editor__preview">{note.body}</p>
+                    <NoteBodyView
+                      body={note.body}
+                      className="note-editor__preview"
+                      getNoteImage={(id) => db.getNoteImage(id)}
+                    />
                     <NoteTagBadges tags={note.tags} />
                     <div className="note-list__meta">
                       <time dateTime={note.deletedAt ?? note.updatedAt}>
@@ -299,6 +305,7 @@ export default function ArchiveView({
                                   </h3>
                                   <LinkedNotes
                                     emptyLabel="Bu konuda not yok."
+                                    getNoteImage={(id) => db.getNoteImage(id)}
                                     label={`${topic.title} notları`}
                                     loading={false}
                                     notes={topic.notes}
@@ -312,6 +319,7 @@ export default function ArchiveView({
                                   </h3>
                                   <LinkedNotes
                                     emptyLabel="Konusuz not yok."
+                                    getNoteImage={(id) => db.getNoteImage(id)}
                                     label="Konusuz notlar"
                                     loading={false}
                                     notes={untopicNotes}
@@ -384,6 +392,7 @@ export default function ArchiveView({
                           ) : (
                             <LinkedNotes
                               emptyLabel="Bu işe ait not yok."
+                              getNoteImage={(id) => db.getNoteImage(id)}
                               label={`${initiative.name} notları`}
                               loading={false}
                               notes={initiativeNotes}

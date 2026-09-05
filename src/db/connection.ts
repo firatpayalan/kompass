@@ -7,6 +7,7 @@ import {
   ensurePersonLabels,
 } from "./personLabelsRepo";
 import { ensureInitiativesArchivedAt, ensureInitiativesSortOrder } from "./initiativesRepo";
+import { ensureNoteImagesTable } from "./noteImagesRepo";
 import { ensureNoteTagsColor } from "./noteTagsRepo";
 import { ensureTopicTagsSchema } from "./topicTagsRepo";
 import schemaSql from "./schema.sql?raw";
@@ -73,5 +74,6 @@ export async function connectAppDatabase(): Promise<AsyncDb> {
   await ensureInitiativesArchivedAt(db);
   await ensureTopicTagsSchema(db);
   await ensureNoteTagsColor(db);
+  await ensureNoteImagesTable(db);
   return db;
 }

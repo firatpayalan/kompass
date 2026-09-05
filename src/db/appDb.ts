@@ -34,6 +34,11 @@ import {
   type UpdateNoteTagPatch,
 } from "./noteTagsRepo";
 import {
+  getNoteImage,
+  saveNoteImage,
+  type SaveNoteImageInput,
+} from "./noteImagesRepo";
+import {
   createNote,
   getNote,
   linkNoteToTopics,
@@ -180,6 +185,11 @@ export type AppDb = {
   advanceOrCompleteReminder(reminder: Reminder, now: Date): Promise<void>;
 
   searchNotes(query: string, opts?: SearchNotesOptions): Promise<Note[]>;
+
+  saveNoteImage(input: SaveNoteImageInput): Promise<void>;
+  getNoteImage(
+    id: string,
+  ): Promise<{ mime: string; bytesBase64: string } | null>;
 };
 
 export function createAppDb(db: AsyncDb): AppDb {
@@ -251,6 +261,9 @@ export function createAppDb(db: AsyncDb): AppDb {
       advanceOrCompleteReminder(db, reminder, now),
 
     searchNotes: (query, opts) => searchNotes(db, query, opts),
+
+    saveNoteImage: (input) => saveNoteImage(db, input),
+    getNoteImage: (id) => getNoteImage(db, id),
   };
 }
 

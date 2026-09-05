@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { Note, NoteTag } from "../lib/types";
 import type { PersonLabelColor } from "../lib/personLabels";
 import NoteArchiveShell from "./NoteArchiveShell";
+import NoteBodyField from "./NoteBodyField";
+import NoteBodyView from "./NoteBodyView";
 import NoteTagBadges from "./NoteTagBadges";
 import NoteTimestamps from "./NoteTimestamps";
 import ReminderForm, { type ReminderDraft } from "./ReminderForm";
@@ -36,6 +38,15 @@ type LinkedNotesProps = {
   topicOptions?: { id: number; title: string }[];
   onMoveToTopic?: (noteId: number, topicId: number) => Promise<void>;
   now?: () => Date;
+  saveNoteImage?: (input: {
+    id: string;
+    mime: string;
+    bytesBase64: string;
+    nowIso: string;
+  }) => Promise<void>;
+  getNoteImage?: (
+    id: string,
+  ) => Promise<{ mime: string; bytesBase64: string } | null>;
 };
 
 export default function LinkedNotes({
@@ -54,6 +65,8 @@ export default function LinkedNotes({
   topicOptions,
   onMoveToTopic,
   now = () => new Date(),
+  saveNoteImage,
+  getNoteImage,
 }: LinkedNotesProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -144,15 +157,27 @@ export default function LinkedNotes({
             >
               {editingId === note.id ? (
                 <div className="linked-note-edit">
-                  <label>
-                    Notu düzenle
-                    <textarea
+                  {saveNoteImage ? (
+                    <NoteBodyField
                       autoFocus
-                      onChange={(event) => setDraft(event.target.value)}
+                      label="Notu düzenle"
+                      onChange={setDraft}
+                      onToast={onToast}
                       rows={3}
+                      saveNoteImage={saveNoteImage}
                       value={draft}
                     />
-                  </label>
+                  ) : (
+                    <label>
+                      Notu düzenle
+                      <textarea
+                        autoFocus
+                        onChange={(event) => setDraft(event.target.value)}
+                        rows={3}
+                        value={draft}
+                      />
+                    </label>
+                  )}
                   <ReminderForm
                     dueAt={dueAt}
                     enabled={reminderEnabled}
@@ -180,7 +205,11 @@ export default function LinkedNotes({
                 </div>
               ) : (
                 <>
-                  <p>{note.body}</p>
+                  {getNoteImage ? (
+                    <NoteBodyView body={note.body} getNoteImage={getNoteImage} />
+                  ) : (
+                    <p>{note.body}</p>
+                  )}
                   {urgencyLabel ? (
                     <p className="linked-note-urgency">{urgencyLabel}</p>
                   ) : null}

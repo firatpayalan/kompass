@@ -32,6 +32,15 @@ type NoteListProps = {
   ) => Promise<void>;
   onDeleteTag?: (id: number) => Promise<void>;
   onToast?: (message: string) => void;
+  saveNoteImage: (input: {
+    id: string;
+    mime: string;
+    bytesBase64: string;
+    nowIso: string;
+  }) => Promise<void>;
+  getNoteImage: (
+    id: string,
+  ) => Promise<{ mime: string; bytesBase64: string } | null>;
 };
 
 export default function NoteList({
@@ -48,6 +57,8 @@ export default function NoteList({
   onUpdateTag,
   onDeleteTag,
   onToast = () => undefined,
+  saveNoteImage,
+  getNoteImage,
 }: NoteListProps) {
   if (notes.length === 0) {
     return <p>Henüz not yok.</p>;
@@ -67,10 +78,13 @@ export default function NoteList({
             >
               <NoteEditor
                 editing={editingNoteId === note.id}
+                getNoteImage={getNoteImage}
                 note={note}
                 onCancel={() => onEdit(null)}
                 onEdit={() => onEdit(note.id)}
                 onSave={(body, reminder) => onSave(note.id, body, reminder)}
+                onToast={onToast}
+                saveNoteImage={saveNoteImage}
               />
               <NoteLinkBadges
                 initiativesById={initiativesById}

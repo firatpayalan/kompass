@@ -3,10 +3,14 @@ import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Note } from "../lib/types";
 import NoteArchiveShell from "../components/NoteArchiveShell";
+import NoteBodyView from "../components/NoteBodyView";
 import NoteTagBadges from "../components/NoteTagBadges";
 import NoteTimestamps from "../components/NoteTimestamps";
 
-type SearchDb = Pick<AppDb, "searchNotes" | "softDeleteNote">;
+type SearchDb = Pick<
+  AppDb,
+  "searchNotes" | "softDeleteNote" | "getNoteImage"
+>;
 
 type SearchViewProps = {
   db?: SearchDb;
@@ -105,7 +109,10 @@ export default function SearchView({
                   key={note.id}
                   onContextMenu={(event) => openArchiveMenu(event, note)}
                 >
-                  <p>{note.body}</p>
+                  <NoteBodyView
+                    body={note.body}
+                    getNoteImage={(id) => db.getNoteImage(id)}
+                  />
                   <NoteTagBadges tags={note.tags} />
                   <NoteTimestamps note={note} />
                 </li>

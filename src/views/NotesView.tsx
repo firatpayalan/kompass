@@ -18,6 +18,8 @@ type NotesDb = Pick<
   | "listNoteTags"
   | "updateNoteTag"
   | "deleteNoteTag"
+  | "saveNoteImage"
+  | "getNoteImage"
 >;
 
 type NotesViewProps = {
@@ -135,6 +137,7 @@ export default function NotesView({
       ) : (
         <NoteList
           editingNoteId={editingNoteId}
+          getNoteImage={(id) => db.getNoteImage(id)}
           initiativesById={initiativesById}
           notes={notes}
           onAddTag={async (noteId, name, color) => {
@@ -153,6 +156,7 @@ export default function NotesView({
           }}
           onSave={saveNote}
           onToast={onToast}
+          saveNoteImage={(input) => db.saveNoteImage(input)}
           onUpdateTag={async (tagId, patch) => {
             await db.updateNoteTag(tagId, patch);
             await loadNotes();

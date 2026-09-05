@@ -3,8 +3,12 @@ import type { AppDb } from "../db/appDb";
 import type { DraftStore } from "../lib/drafts";
 import type { ReminderPeriod } from "../lib/types";
 import ReminderForm from "./ReminderForm";
+import NoteBodyField from "./NoteBodyField";
 
-type QuickNoteDb = Pick<AppDb, "createNote" | "createReminder">;
+type QuickNoteDb = Pick<
+  AppDb,
+  "createNote" | "createReminder" | "saveNoteImage"
+>;
 
 type QuickNoteModalProps = {
   db: QuickNoteDb;
@@ -97,27 +101,27 @@ export default function QuickNoteModal({
         <p className="quick-note-modal__hint">
           Doğrudan Gelen’e kaydedilir. Toplantıdan sonra kişi veya işe taşıyın.
         </p>
-        <label>
-          Not
-          <textarea
-            autoFocus
-            onChange={(event) => setBody(event.target.value)}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing
-              ) {
-                event.preventDefault();
-                if (saving) return;
-                void save();
-              }
-            }}
-            placeholder="Notunuzu yazın…"
-            rows={7}
-            value={body}
-          />
-        </label>
+        <NoteBodyField
+          autoFocus
+          label="Not"
+          onChange={setBody}
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
+              if (saving) return;
+              void save();
+            }
+          }}
+          onToast={onToast}
+          placeholder="Notunuzu yazın…"
+          rows={7}
+          saveNoteImage={(input) => db.saveNoteImage(input)}
+          value={body}
+        />
 
         <ReminderForm
           dueAt={dueAt}

@@ -3,6 +3,8 @@ import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { Initiative, Note, Person } from "../lib/types";
 import NoteArchiveShell from "../components/NoteArchiveShell";
+import NoteBodyField from "../components/NoteBodyField";
+import NoteBodyView from "../components/NoteBodyView";
 import NoteTagBadges from "../components/NoteTagBadges";
 import NoteTimestamps from "../components/NoteTimestamps";
 
@@ -15,6 +17,8 @@ type InboxDb = Pick<
   | "linkNoteToInitiatives"
   | "softDeleteNote"
   | "updateNote"
+  | "saveNoteImage"
+  | "getNoteImage"
 >;
 
 type InboxViewProps = {
@@ -143,26 +147,27 @@ export default function InboxView({
             >
               {organizingId === note.id ? (
                 <div className="inbox-organize">
-                  <label className="inbox-organize__field">
-                    Not metni
-                    <textarea
-                      autoFocus
-                      onChange={(event) => setBody(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key === "Enter" &&
-                          !event.shiftKey &&
-                          !event.nativeEvent.isComposing
-                        ) {
-                          event.preventDefault();
-                          if (saving) return;
-                          void saveOrganize();
-                        }
-                      }}
-                      rows={4}
-                      value={body}
-                    />
-                  </label>
+                  <NoteBodyField
+                    autoFocus
+                    className="inbox-organize__field"
+                    label="Not metni"
+                    onChange={setBody}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        if (saving) return;
+                        void saveOrganize();
+                      }
+                    }}
+                    onToast={onToast}
+                    rows={4}
+                    saveNoteImage={(input) => db.saveNoteImage(input)}
+                    value={body}
+                  />
                   <div className="inbox-organize__targets">
                     <section
                       aria-labelledby={`inbox-people-${note.id}`}
@@ -250,7 +255,11 @@ export default function InboxView({
                 </div>
               ) : (
                 <>
-                  <p className="note-editor__preview">{note.body}</p>
+                  <NoteBodyView
+                    body={note.body}
+                    className="note-editor__preview"
+                    getNoteImage={(id) => db.getNoteImage(id)}
+                  />
                   <NoteTagBadges tags={note.tags} />
                   <div className="note-list__meta">
                     <NoteTimestamps note={note} />

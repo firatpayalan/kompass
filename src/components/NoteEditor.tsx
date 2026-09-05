@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Note, ReminderPeriod } from "../lib/types";
+import NoteBodyField from "./NoteBodyField";
+import NoteBodyView from "./NoteBodyView";
 import ReminderForm, { type ReminderDraft } from "./ReminderForm";
 
 type NoteEditorProps = {
@@ -8,6 +10,16 @@ type NoteEditorProps = {
   onEdit: () => void;
   onSave: (body: string, reminder: ReminderDraft | null) => Promise<void>;
   onCancel: () => void;
+  saveNoteImage: (input: {
+    id: string;
+    mime: string;
+    bytesBase64: string;
+    nowIso: string;
+  }) => Promise<void>;
+  getNoteImage: (
+    id: string,
+  ) => Promise<{ mime: string; bytesBase64: string } | null>;
+  onToast?: (message: string) => void;
 };
 
 export default function NoteEditor({
@@ -16,6 +28,9 @@ export default function NoteEditor({
   onEdit,
   onSave,
   onCancel,
+  saveNoteImage,
+  getNoteImage,
+  onToast,
 }: NoteEditorProps) {
   const [body, setBody] = useState(note.body);
   const [saving, setSaving] = useState(false);
@@ -28,7 +43,7 @@ export default function NoteEditor({
   if (!editing) {
     return (
       <button className="note-editor__preview" onClick={onEdit} type="button">
-        {note.body}
+        <NoteBodyView body={note.body} getNoteImage={getNoteImage} />
       </button>
     );
   }
@@ -44,15 +59,15 @@ export default function NoteEditor({
 
   return (
     <div className="note-editor">
-      <label>
-        Not metni
-        <textarea
-          autoFocus
-          onChange={(event) => setBody(event.target.value)}
-          rows={5}
-          value={body}
-        />
-      </label>
+      <NoteBodyField
+        autoFocus
+        label="Not metni"
+        onChange={setBody}
+        onToast={onToast}
+        rows={5}
+        saveNoteImage={saveNoteImage}
+        value={body}
+      />
       <ReminderForm
         dueAt={dueAt}
         enabled={reminderEnabled}
