@@ -75,6 +75,134 @@ body {
   max-width: 56rem;
 }
 
+.entity-view,
+.detail-view {
+  max-width: 64rem;
+}
+
+.entity-view > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  gap: 2rem;
+  align-items: start;
+}
+
+.entity-view h2,
+.detail-view h2 {
+  margin-top: 2rem;
+}
+
+.entity-form {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.entity-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.entity-form input,
+.entity-form select,
+.entity-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #b9c4d2;
+  border-radius: 0.5rem;
+  color: inherit;
+  background: #ffffff;
+  font: inherit;
+}
+
+.entity-form button {
+  justify-self: end;
+}
+
+.entity-list,
+.linked-note-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.entity-list button {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 1rem;
+  text-align: left;
+}
+
+.entity-list__heading,
+.detail-view__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.status {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.status--aktif {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.status--beklemede {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.status--bitti {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.back-button {
+  margin-bottom: 1.25rem;
+}
+
+.detail-view dl div,
+.linked-note-list li {
+  padding: 1rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.detail-view dt {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.detail-view dd {
+  margin: 0.35rem 0 0;
+}
+
+.linked-note-list p {
+  margin: 0 0 0.75rem;
+  white-space: pre-wrap;
+}
+
+.linked-note-list time {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
 .note-list {
   display: grid;
   gap: 1rem;
@@ -263,7 +391,8 @@ button:disabled {
   }
 
   .quick-note-modal__links,
-  .reminder-form__fields {
+  .reminder-form__fields,
+  .entity-view > header {
     grid-template-columns: 1fr;
   }
 }
