@@ -20,7 +20,8 @@ type PersonLabelPickerProps = {
 
 type MenuState =
   | { kind: "main"; labelId: number; x: number; y: number }
-  | { kind: "color"; labelId: number; x: number; y: number };
+  | { kind: "color"; labelId: number; x: number; y: number }
+  | { kind: "confirm-delete"; labelId: number; x: number; y: number };
 
 export default function PersonLabelPicker({
   labels,
@@ -120,14 +121,6 @@ export default function PersonLabelPicker({
   };
 
   const removeLabel = async (labelId: number) => {
-    const label = labels.find((item) => item.id === labelId);
-    const confirmed = window.confirm(
-      `"${label?.name ?? "Etiket"}" silinsin mi? Bu etiketi kullanan kişiler etiketsiz kalır.`,
-    );
-    if (!confirmed) {
-      setMenu(null);
-      return;
-    }
     try {
       await onDelete(labelId);
       if (value === labelId) {
@@ -304,15 +297,20 @@ export default function PersonLabelPicker({
               </button>
               <button
                 className="person-label-menu__danger"
-                onClick={() => {
-                  void removeLabel(menu.labelId);
-                }}
+                onClick={() =>
+                  setMenu({
+                    kind: "confirm-delete",
+                    labelId: menu.labelId,
+                    x: menu.x,
+                    y: menu.y,
+                  })
+                }
                 type="button"
               >
                 Etiket sil
               </button>
             </>
-          ) : (
+          ) : menu.kind === "color" ? (
             <div className="person-label-menu__swatches">
               {PERSON_LABEL_COLORS.map((token) => (
                 <button
@@ -325,6 +323,29 @@ export default function PersonLabelPicker({
                   type="button"
                 />
               ))}
+            </div>
+          ) : (
+            <div className="person-label-menu__confirm">
+              <p>
+                “
+                {labels.find((item) => item.id === menu.labelId)?.name ??
+                  "Etiket"}
+                ” silinsin mi?
+              </p>
+              <div className="person-label-menu__confirm-actions">
+                <button onClick={() => setMenu(null)} type="button">
+                  Vazgeç
+                </button>
+                <button
+                  className="person-label-menu__danger"
+                  onClick={() => {
+                    void removeLabel(menu.labelId);
+                  }}
+                  type="button"
+                >
+                  Sil
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -914,6 +914,26 @@ button:disabled {
   background: #ffe4e6;
 }
 
+.person-label-menu__confirm {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.35rem 0.45rem 0.45rem;
+  max-width: 14rem;
+}
+
+.person-label-menu__confirm p {
+  margin: 0;
+  color: #1f3a5f;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.person-label-menu__confirm-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
 .person-label-menu__swatches {
   display: flex;
   flex-wrap: wrap;

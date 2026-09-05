@@ -78,10 +78,9 @@ describe("PersonLabelPicker context menu", () => {
     });
   });
 
-  it("deletes a label from the context menu after confirm", async () => {
+  it("deletes a label from the context menu after in-app confirm", async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     const onChange = vi.fn();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(
       <PersonLabelPicker
@@ -97,6 +96,8 @@ describe("PersonLabelPicker context menu", () => {
 
     fireEvent.contextMenu(screen.getByRole("option", { name: "Lider" }));
     fireEvent.click(screen.getByRole("button", { name: "Etiket sil" }));
+    expect(screen.getByText(/silinsin mi/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Sil" }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith(1);
