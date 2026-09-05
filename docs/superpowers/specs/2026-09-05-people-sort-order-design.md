@@ -16,8 +16,8 @@ Users can reorder people by drag-and-drop on **Kişi listesi**. The order is per
 
 - Only **Kişi listesi** supports drag-and-drop (not Inbox checkboxes).
 - Each row: drag handle (⠿) + existing open button.
-- Drag via handle (HTML5 DnD, no new dependency).
-- Drop updates local order immediately, then calls `reorderPeople`; on failure, reload and toast.
+- **Pointer-based reorder** (`pointerdown` / `pointermove` / `pointerup`) — HTML5 DnD does not work in Tauri macOS WKWebView.
+- Live reorder while dragging; persist with `reorderPeople` on pointer up; on failure, reload and toast.
 
 ## Out of scope
 
