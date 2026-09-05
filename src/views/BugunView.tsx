@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
-import type { ReminderTicker } from "../hooks/useReminderTicker";
+import type {
+  BugunReminder,
+  ReminderTicker,
+} from "../hooks/useReminderTicker";
 import type { Note } from "../lib/types";
 import NoteArchiveShell from "../components/NoteArchiveShell";
 import NoteTimestamps from "../components/NoteTimestamps";
@@ -16,6 +19,59 @@ type BugunViewProps = {
 
 const ignoreToast = () => undefined;
 
+type ReminderSectionProps = {
+  empty: string;
+  headingId: string;
+  items: BugunReminder[];
+  loadFailed: boolean;
+  loading: boolean;
+  onComplete: (reminder: BugunReminder) => Promise<void>;
+  title: string;
+};
+
+function ReminderSection({
+  empty,
+  headingId,
+  items,
+  loadFailed,
+  loading,
+  onComplete,
+  title,
+}: ReminderSectionProps) {
+  return (
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId}>{title}</h2>
+      {loading ? (
+        <p>Hatırlatmalar yükleniyor…</p>
+      ) : loadFailed ? (
+        <p>Hatırlatmalar yüklenemedi.</p>
+      ) : items.length === 0 ? (
+        <p>{empty}</p>
+      ) : (
+        <ul className="reminder-list">
+          {items.map((reminder) => (
+            <li key={reminder.id}>
+              <div>
+                <strong>{reminder.title}</strong>
+                <time dateTime={reminder.dueAt}>
+                  {new Date(reminder.dueAt).toLocaleString("tr-TR")}
+                </time>
+              </div>
+              <button
+                aria-label={`Tamamla: ${reminder.title}`}
+                onClick={() => void onComplete(reminder)}
+                type="button"
+              >
+                Tamamla
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function BugunView({
   db = getDb(),
   ticker,
@@ -28,7 +84,9 @@ export default function BugunView({
     loadFailed: remindersLoadFailed,
     loading: remindersLoading,
     permissionDenied,
+    overdueReminders,
     reminders,
+    upcomingReminders,
   } = ticker;
 
   const loadNotes = async () => {
@@ -82,36 +140,33 @@ export default function BugunView({
         </p>
       ) : null}
 
-      <section aria-labelledby="bugun-reminders-heading">
-        <h2 id="bugun-reminders-heading">Hatırlatmalar</h2>
-        {remindersLoading ? (
-          <p>Hatırlatmalar yükleniyor…</p>
-        ) : remindersLoadFailed ? (
-          <p>Hatırlatmalar yüklenemedi.</p>
-        ) : reminders.length === 0 ? (
-          <p>Bugün için hatırlatma yok.</p>
-        ) : (
-          <ul className="reminder-list">
-            {reminders.map((reminder) => (
-              <li key={reminder.id}>
-                <div>
-                  <strong>{reminder.title}</strong>
-                  <time dateTime={reminder.dueAt}>
-                    {new Date(reminder.dueAt).toLocaleString("tr-TR")}
-                  </time>
-                </div>
-                <button
-                  aria-label={`Tamamla: ${reminder.title}`}
-                  onClick={() => void completeReminder(reminder)}
-                  type="button"
-                >
-                  Tamamla
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <ReminderSection
+        empty="Geciken hatırlatma yok."
+        headingId="overdue-reminders-heading"
+        items={overdueReminders}
+        loadFailed={remindersLoadFailed}
+        loading={remindersLoading}
+        onComplete={completeReminder}
+        title="Gecikenler"
+      />
+      <ReminderSection
+        empty="Bugün için hatırlatma yok."
+        headingId="bugun-reminders-heading"
+        items={reminders}
+        loadFailed={remindersLoadFailed}
+        loading={remindersLoading}
+        onComplete={completeReminder}
+        title="Hatırlatmalar"
+      />
+      <ReminderSection
+        empty="Yaklaşan hatırlatma yok."
+        headingId="upcoming-reminders-heading"
+        items={upcomingReminders}
+        loadFailed={remindersLoadFailed}
+        loading={remindersLoading}
+        onComplete={completeReminder}
+        title="Yaklaşanlar"
+      />
 
       <section aria-labelledby="recent-notes-heading">
         <h2 id="recent-notes-heading">Son notlar</h2>

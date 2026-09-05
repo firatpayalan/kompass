@@ -6,6 +6,8 @@ import {
   advanceOrCompleteReminder,
   createReminder,
   listDueRemindersForBugun,
+  listOverdueReminders,
+  listUpcomingReminders,
   markReminderDone,
 } from "../src/db/remindersRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
@@ -38,7 +40,7 @@ describe("remindersRepo", () => {
     db.close();
   });
 
-  it("lists unfinished reminders through the end of the local day with titles", async () => {
+  it("lists unfinished reminders due today only with titles", async () => {
     const db = openTestAsyncDb();
     const now = new Date(2026, 8, 5, 12);
     const note = await createNote(db, {
@@ -67,6 +69,13 @@ describe("remindersRepo", () => {
     await createReminder(db, {
       targetType: "note",
       targetId: note.id,
+      dueAt: new Date(2026, 8, 4, 18).toISOString(),
+      period: "once",
+      nowIso: now.toISOString(),
+    });
+    await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
       dueAt: new Date(2026, 8, 6, 9).toISOString(),
       period: "once",
       nowIso: now.toISOString(),
@@ -75,6 +84,63 @@ describe("remindersRepo", () => {
     expect(await listDueRemindersForBugun(db, now)).toEqual([
       { ...initiativeReminder, title: "Sonbahar lansmanı" },
       { ...noteReminder, title: "Müşteri takip notu" },
+    ]);
+    db.close();
+  });
+
+  it("buckets overdue vs upcoming around local day boundaries", async () => {
+    const db = openTestAsyncDb();
+    const now = new Date(2026, 8, 5, 12);
+    const note = await createNote(db, {
+      body: "Not",
+      nowIso: now.toISOString(),
+    });
+
+    const overdue = await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: new Date(2026, 8, 4, 23, 59, 59, 999).toISOString(),
+      period: "once",
+      nowIso: now.toISOString(),
+    });
+    const today = await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: new Date(2026, 8, 5, 0, 0, 0, 0).toISOString(),
+      period: "once",
+      nowIso: now.toISOString(),
+    });
+    const tomorrow = await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: new Date(2026, 8, 6, 9).toISOString(),
+      period: "once",
+      nowIso: now.toISOString(),
+    });
+    const day7 = await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: new Date(2026, 8, 12, 23, 59, 59, 999).toISOString(),
+      period: "once",
+      nowIso: now.toISOString(),
+    });
+    await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: new Date(2026, 8, 13, 0, 0, 0, 0).toISOString(),
+      period: "once",
+      nowIso: now.toISOString(),
+    });
+
+    expect(await listOverdueReminders(db, now)).toEqual([
+      expect.objectContaining({ id: overdue.id }),
+    ]);
+    expect(await listDueRemindersForBugun(db, now)).toEqual([
+      expect.objectContaining({ id: today.id }),
+    ]);
+    expect((await listUpcomingReminders(db, now)).map((r) => r.id)).toEqual([
+      tomorrow.id,
+      day7.id,
     ]);
     db.close();
   });

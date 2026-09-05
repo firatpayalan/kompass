@@ -51,12 +51,18 @@ function createDb(
   overrides: Partial<AppDb> = {},
 ): Pick<
   AppDb,
-  "advanceOrCompleteReminder" | "listActiveNotes" | "listDueRemindersForBugun"
+  | "advanceOrCompleteReminder"
+  | "listActiveNotes"
+  | "listDueRemindersForBugun"
+  | "listOverdueReminders"
+  | "listUpcomingReminders"
 > {
   return {
     advanceOrCompleteReminder: vi.fn().mockResolvedValue(undefined),
     listActiveNotes: vi.fn().mockResolvedValue([]),
     listDueRemindersForBugun: vi.fn().mockResolvedValue([]),
+    listOverdueReminders: vi.fn().mockResolvedValue([]),
+    listUpcomingReminders: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -64,7 +70,11 @@ function createDb(
 type BugunHarnessProps = {
   db: Pick<
     AppDb,
-    "advanceOrCompleteReminder" | "listActiveNotes" | "listDueRemindersForBugun"
+    | "advanceOrCompleteReminder"
+    | "listActiveNotes"
+    | "listDueRemindersForBugun"
+    | "listOverdueReminders"
+    | "listUpcomingReminders"
   >;
   notify?: ReminderNotifier;
   now?: () => Date;
@@ -77,6 +87,66 @@ function BugunHarness({ db, notify, now }: BugunHarnessProps) {
 }
 
 describe("Task 14 Bugün view", () => {
+  it("shows overdue, today, and upcoming reminder sections", async () => {
+    const overdue = {
+      ...dueReminder,
+      id: 1,
+      title: "Geciken iş",
+      dueAt: "2026-09-04T10:00:00.000Z",
+    };
+    const today = {
+      ...dueReminder,
+      id: 2,
+      title: "Bugünkü iş",
+      dueAt: "2026-09-05T10:00:00.000Z",
+    };
+    const upcoming = {
+      ...dueReminder,
+      id: 3,
+      title: "Yaklaşan iş",
+      dueAt: "2026-09-08T10:00:00.000Z",
+    };
+    const advanceOrCompleteReminder = vi.fn().mockResolvedValue(undefined);
+    const listOverdueReminders = vi
+      .fn()
+      .mockResolvedValueOnce([overdue])
+      .mockResolvedValue([]);
+
+    render(
+      <BugunHarness
+        db={createDb({
+          advanceOrCompleteReminder,
+          listOverdueReminders,
+          listDueRemindersForBugun: vi.fn().mockResolvedValue([today]),
+          listUpcomingReminders: vi.fn().mockResolvedValue([upcoming]),
+        })}
+        now={() => new Date(2026, 8, 5, 12)}
+        notify={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Gecikenler" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Hatırlatmalar" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Yaklaşanlar" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Geciken iş")).toBeTruthy();
+    expect(screen.getByText("Bugünkü iş")).toBeTruthy();
+    expect(screen.getByText("Yaklaşan iş")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Tamamla: Geciken iş" }),
+    );
+    await waitFor(() => {
+      expect(advanceOrCompleteReminder).toHaveBeenCalled();
+      expect(screen.queryByText("Geciken iş")).toBeNull();
+    });
+  });
+
   it("shows today's reminders and only the ten most recent active notes", async () => {
     const notes = Array.from({ length: 12 }, (_, index) => note(12 - index));
     const db = createDb({

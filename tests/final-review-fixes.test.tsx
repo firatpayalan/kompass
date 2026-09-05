@@ -89,6 +89,8 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     listInboxNotes: vi.fn().mockResolvedValue([]),
     listDeletedNotes: vi.fn().mockResolvedValue([]),
     listDueRemindersForBugun: vi.fn().mockResolvedValue([]),
+    listOverdueReminders: vi.fn().mockResolvedValue([]),
+    listUpcomingReminders: vi.fn().mockResolvedValue([]),
     listInitiatives: vi.fn().mockResolvedValue([]),
     listNotesForInitiative: vi.fn().mockResolvedValue([]),
     listNotesForPerson: vi.fn().mockResolvedValue([]),

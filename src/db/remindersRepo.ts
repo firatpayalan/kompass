@@ -61,11 +61,20 @@ export async function createReminder(
   return mapReminder(row);
 }
 
-export async function listDueRemindersForBugun(
-  db: AsyncDb,
-  now: Date,
-): Promise<Array<Reminder & { title: string }>> {
-  const endOfLocalDay = new Date(
+function startOfLocalDay(now: Date): Date {
+  return new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+}
+
+function endOfLocalDay(now: Date): Date {
+  return new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
@@ -74,6 +83,13 @@ export async function listDueRemindersForBugun(
     59,
     999,
   );
+}
+
+async function listRemindersInRange(
+  db: AsyncDb,
+  rangeSql: string,
+  rangeParams: string[],
+): Promise<Array<Reminder & { title: string }>> {
   const rows = await db.select<DueReminderRow>(
     `SELECT reminders.id,
             reminders.target_type,
@@ -95,7 +111,7 @@ export async function listDueRemindersForBugun(
        ON reminders.target_type = 'initiative'
       AND initiatives.id = reminders.target_id
      WHERE reminders.done = 0
-       AND reminders.due_at <= ?
+       AND ${rangeSql}
        AND (
          (reminders.target_type = 'note'
            AND notes.id IS NOT NULL
@@ -105,13 +121,58 @@ export async function listDueRemindersForBugun(
            AND initiatives.id IS NOT NULL)
        )
      ORDER BY reminders.due_at, reminders.id`,
-    [endOfLocalDay.toISOString()],
+    rangeParams,
   );
 
   return rows.map((row) => ({
     ...mapReminder(row),
     title: row.title,
   }));
+}
+
+export function listOverdueReminders(
+  db: AsyncDb,
+  now: Date,
+): Promise<Array<Reminder & { title: string }>> {
+  return listRemindersInRange(db, "reminders.due_at < ?", [
+    startOfLocalDay(now).toISOString(),
+  ]);
+}
+
+export function listDueRemindersForBugun(
+  db: AsyncDb,
+  now: Date,
+): Promise<Array<Reminder & { title: string }>> {
+  return listRemindersInRange(
+    db,
+    "reminders.due_at >= ? AND reminders.due_at <= ?",
+    [
+      startOfLocalDay(now).toISOString(),
+      endOfLocalDay(now).toISOString(),
+    ],
+  );
+}
+
+export function listUpcomingReminders(
+  db: AsyncDb,
+  now: Date,
+): Promise<Array<Reminder & { title: string }>> {
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  const day7 = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 7,
+  );
+
+  return listRemindersInRange(
+    db,
+    "reminders.due_at >= ? AND reminders.due_at <= ?",
+    [startOfLocalDay(tomorrow).toISOString(), endOfLocalDay(day7).toISOString()],
+  );
 }
 
 export function markReminderDone(db: AsyncDb, id: number): Promise<void> {

@@ -73,6 +73,8 @@ import {
   advanceOrCompleteReminder,
   createReminder,
   listDueRemindersForBugun,
+  listOverdueReminders,
+  listUpcomingReminders,
   markReminderDone,
   type CreateReminderInput,
 } from "./remindersRepo";
@@ -168,6 +170,12 @@ export type AppDb = {
   listDueRemindersForBugun(
     now: Date,
   ): Promise<Array<Reminder & { title: string }>>;
+  listOverdueReminders(
+    now: Date,
+  ): Promise<Array<Reminder & { title: string }>>;
+  listUpcomingReminders(
+    now: Date,
+  ): Promise<Array<Reminder & { title: string }>>;
   markReminderDone(id: number): Promise<void>;
   advanceOrCompleteReminder(reminder: Reminder, now: Date): Promise<void>;
 
@@ -236,6 +244,8 @@ export function createAppDb(db: AsyncDb): AppDb {
 
     createReminder: (input) => createReminder(db, input),
     listDueRemindersForBugun: (now) => listDueRemindersForBugun(db, now),
+    listOverdueReminders: (now) => listOverdueReminders(db, now),
+    listUpcomingReminders: (now) => listUpcomingReminders(db, now),
     markReminderDone: (id) => markReminderDone(db, id),
     advanceOrCompleteReminder: (reminder, now) =>
       advanceOrCompleteReminder(db, reminder, now),

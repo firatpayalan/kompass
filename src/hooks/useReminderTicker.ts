@@ -11,7 +11,10 @@ export type ReminderNotifier = (
 
 type ReminderTickerDb = Pick<
   AppDb,
-  "advanceOrCompleteReminder" | "listDueRemindersForBugun"
+  | "advanceOrCompleteReminder"
+  | "listDueRemindersForBugun"
+  | "listOverdueReminders"
+  | "listUpcomingReminders"
 >;
 
 type UseReminderTickerOptions = {
@@ -26,7 +29,9 @@ export type ReminderTicker = {
   loading: boolean;
   permissionDenied: boolean;
   refresh: () => Promise<void>;
+  overdueReminders: BugunReminder[];
   reminders: BugunReminder[];
+  upcomingReminders: BugunReminder[];
 };
 
 const currentTime = () => new Date();
@@ -40,7 +45,11 @@ export function useReminderTicker({
   notify = notifyReminder,
   now = currentTime,
 }: UseReminderTickerOptions): ReminderTicker {
+  const [overdueReminders, setOverdueReminders] = useState<BugunReminder[]>([]);
   const [reminders, setReminders] = useState<BugunReminder[]>([]);
+  const [upcomingReminders, setUpcomingReminders] = useState<BugunReminder[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -50,11 +59,17 @@ export function useReminderTicker({
   const refresh = useCallback(async () => {
     const current = now();
     try {
-      const nextReminders = await db.listDueRemindersForBugun(current);
-      setReminders(nextReminders);
+      const [overdue, today, upcoming] = await Promise.all([
+        db.listOverdueReminders(current),
+        db.listDueRemindersForBugun(current),
+        db.listUpcomingReminders(current),
+      ]);
+      setOverdueReminders(overdue);
+      setReminders(today);
+      setUpcomingReminders(upcoming);
       setLoadFailed(false);
 
-      for (const reminder of nextReminders) {
+      for (const reminder of [...overdue, ...today]) {
         if (notificationsDisabled.current) {
           break;
         }
@@ -113,6 +128,8 @@ export function useReminderTicker({
     loading,
     permissionDenied,
     refresh,
+    overdueReminders,
     reminders,
+    upcomingReminders,
   };
 }
