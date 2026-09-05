@@ -5,6 +5,7 @@ import type {
   PersonLabel,
   Reminder,
   Topic,
+  TopicTag,
 } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
 import { connectAppDatabase } from "./connection";
@@ -65,6 +66,13 @@ import {
   type CreateTopicInput,
   type TopicWithNotes,
 } from "./topicsRepo";
+import {
+  addTagToTopic,
+  deleteTopicTag,
+  updateTopicTag,
+  type AddTopicTagInput,
+  type UpdateTopicTagPatch,
+} from "./topicTagsRepo";
 
 /** Every repo function from tasks 6–9, bound to one live connection. */
 export type AppDb = {
@@ -101,6 +109,9 @@ export type AppDb = {
     topics: TopicWithNotes[];
     untopicNotes: Note[];
   }>;
+  addTagToTopic(topicId: number, input: AddTopicTagInput): Promise<TopicTag>;
+  updateTopicTag(id: number, patch: UpdateTopicTagPatch): Promise<TopicTag>;
+  deleteTopicTag(id: number): Promise<void>;
 
   createInitiative(input: CreateInitiativeInput): Promise<Initiative>;
   listInitiatives(): Promise<Initiative[]>;
@@ -153,6 +164,9 @@ export function createAppDb(db: AsyncDb): AppDb {
     updateTopic: (id, title) => updateTopic(db, id, title),
     listTopicsWithNotesForPerson: (personId) =>
       listTopicsWithNotesForPerson(db, personId),
+    addTagToTopic: (topicId, input) => addTagToTopic(db, topicId, input),
+    updateTopicTag: (id, patch) => updateTopicTag(db, id, patch),
+    deleteTopicTag: (id) => deleteTopicTag(db, id),
 
     createInitiative: (input) => createInitiative(db, input),
     listInitiatives: () => listInitiatives(db),

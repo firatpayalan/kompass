@@ -67,6 +67,7 @@ const topicWithNotes = {
   title: "1:1",
   createdAt: "2026-09-05T09:30:00.000Z",
   notes,
+  tags: [],
 };
 
 describe("Task 13 people and initiatives UI", () => {
@@ -79,6 +80,9 @@ describe("Task 13 people and initiatives UI", () => {
         untopicNotes: [],
       }),
       createTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
       createNote: vi.fn(),
       updateTopic: vi.fn(),
       updateNote: vi.fn(),
@@ -292,6 +296,9 @@ describe("Task 13 people and initiatives UI", () => {
         db={{
           createNote: vi.fn(),
           createTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
           updateNote: vi.fn(),
           updateTopic: vi.fn(),
           updatePerson: vi.fn(),
@@ -355,6 +362,7 @@ describe("Task 13 people and initiatives UI", () => {
             title: "USS Fishkill",
             createdAt: "2026-09-05T12:00:00.000Z",
             notes: [],
+            tags: [],
           },
         ],
         untopicNotes: [],
@@ -366,6 +374,7 @@ describe("Task 13 people and initiatives UI", () => {
             personId: person.id,
             title: "USS Fishkill",
             createdAt: "2026-09-05T12:00:00.000Z",
+            tags: [],
             notes: [
               {
                 id: 99,
@@ -478,6 +487,9 @@ describe("Task 13 people and initiatives UI", () => {
         db={{
           createNote: vi.fn(),
           createTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
           updateNote,
           updateTopic,
           updatePerson: vi.fn(),

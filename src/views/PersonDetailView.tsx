@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import LinkedNotes from "../components/LinkedNotes";
 import PersonLabelBadge from "../components/PersonLabelBadge";
 import PersonLabelPicker from "../components/PersonLabelPicker";
+import TopicTagsEditor from "../components/TopicTagsEditor";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { TopicWithNotes } from "../db/topicsRepo";
@@ -20,6 +21,9 @@ type PersonDetailDb = Pick<
   | "createPersonLabel"
   | "updatePersonLabel"
   | "deletePersonLabel"
+  | "addTagToTopic"
+  | "updateTopicTag"
+  | "deleteTopicTag"
 >;
 
 type PersonDetailViewProps = {
@@ -343,6 +347,25 @@ export default function PersonDetailView({
                     </button>
                   </div>
                 )}
+                <TopicTagsEditor
+                  onAdd={async (tagName, tagColor) => {
+                    await db.addTagToTopic(topic.id, {
+                      name: tagName,
+                      color: tagColor,
+                    });
+                    await load();
+                  }}
+                  onDelete={async (tagId) => {
+                    await db.deleteTopicTag(tagId);
+                    await load();
+                  }}
+                  onToast={onToast}
+                  onUpdate={async (tagId, patch) => {
+                    await db.updateTopicTag(tagId, patch);
+                    await load();
+                  }}
+                  tags={topic.tags}
+                />
                 {expanded ? (
                   <div className="topic-card__body">
                     <LinkedNotes

@@ -995,9 +995,50 @@ button:disabled {
   cursor: pointer;
 }
 
+.person-label-swatch--active,
 .person-label-swatch:has(input:checked) {
   border-color: #172033;
   box-shadow: 0 0 0 2px #ffffff;
+}
+
+.topic-tags-editor {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0 0.85rem 0.85rem;
+}
+
+.topic-tags-editor__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.topic-tags-editor__add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.topic-tags-editor__add input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.5rem;
+  font: inherit;
+  grid-column: 1 / -1;
+}
+
+.topic-tags-editor__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.topic-tags-editor__add > button {
+  justify-self: end;
+  padding: 0.4rem 0.7rem;
 }
 
 .person-label-swatch input {

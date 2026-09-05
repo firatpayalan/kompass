@@ -46,6 +46,13 @@ export interface Topic {
   createdAt: string;
 }
 
+export interface TopicTag {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
 export interface Reminder {
   id: number;
   targetType: ReminderTargetType;

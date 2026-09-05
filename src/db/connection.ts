@@ -6,6 +6,7 @@ import {
   ensurePeopleLabelId,
   ensurePersonLabels,
 } from "./personLabelsRepo";
+import { ensureTopicTagsSchema } from "./topicTagsRepo";
 import schemaSql from "./schema.sql?raw";
 
 const DATABASE_URL = "sqlite:leadership.db";
@@ -65,5 +66,6 @@ export async function connectAppDatabase(): Promise<AsyncDb> {
   await ensurePersonLabels(db);
   await ensurePeopleSortOrder(db);
   await ensurePeopleLabelId(db);
+  await ensureTopicTagsSchema(db);
   return db;
 }

@@ -1,9 +1,10 @@
-import type { Note, Topic } from "../lib/types";
+import type { Note, Topic, TopicTag } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
 import {
   listNotesForTopic,
   listUntopicNotesForPerson,
 } from "./notesRepo";
+import { listTagsForTopic } from "./topicTagsRepo";
 
 type TopicRow = {
   id: number;
@@ -126,7 +127,10 @@ export async function listTopicsForPerson(
   return rows.map(mapTopic);
 }
 
-export type TopicWithNotes = Topic & { notes: Note[] };
+export type TopicWithNotes = Topic & {
+  notes: Note[];
+  tags: TopicTag[];
+};
 
 export async function listTopicsWithNotesForPerson(
   db: AsyncDb,
@@ -137,6 +141,7 @@ export async function listTopicsWithNotesForPerson(
     topics.map(async (topic) => ({
       ...topic,
       notes: await listNotesForTopic(db, topic.id),
+      tags: await listTagsForTopic(db, topic.id),
     })),
   );
   const untopicNotes = await listUntopicNotesForPerson(db, personId);
