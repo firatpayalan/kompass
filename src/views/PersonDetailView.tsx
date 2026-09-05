@@ -404,6 +404,17 @@ export default function PersonDetailView({
                               [topic.id]: event.target.value,
                             }))
                           }
+                          onKeyDown={(event) => {
+                            if (
+                              event.key === "Enter" &&
+                              !event.shiftKey &&
+                              !event.nativeEvent.isComposing
+                            ) {
+                              event.preventDefault();
+                              if (savingTopicId === topic.id) return;
+                              void addNoteToTopic(topic.id);
+                            }
+                          }}
                           placeholder={`${topic.title} hakkında not…`}
                           rows={3}
                           value={noteDrafts[topic.id] ?? ""}
