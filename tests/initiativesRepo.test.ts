@@ -39,6 +39,7 @@ describe("initiativesRepo", () => {
       status: "aktif",
       blockerSummary: "Bütçe",
       createdAt: nowIso,
+      lastActivityAt: nowIso,
       sortOrder: -1,
       archivedAt: null,
     });
@@ -221,6 +222,68 @@ describe("initiativesRepo", () => {
     expect(await listDeletedNotes(db)).toEqual([
       expect.objectContaining({ id: alreadyTrashed.id }),
     ]);
+    db.close();
+  });
+
+  it("uses createdAt as lastActivityAt when there are no linked notes", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-05T10:00:00.000Z";
+    const initiative = await createInitiative(db, {
+      name: "Boş",
+      status: "aktif",
+      nowIso,
+    });
+    expect(initiative.lastActivityAt).toBe(nowIso);
+    expect((await listInitiatives(db))[0].lastActivityAt).toBe(nowIso);
+    db.close();
+  });
+
+  it("uses max active linked note updatedAt as lastActivityAt", async () => {
+    const db = openTestAsyncDb();
+    const createdAt = "2026-09-05T10:00:00.000Z";
+    const initiative = await createInitiative(db, {
+      name: "Aktif iş",
+      status: "aktif",
+      nowIso: createdAt,
+    });
+    const older = await createNote(db, {
+      body: "Eski",
+      nowIso: "2026-09-05T11:00:00.000Z",
+    });
+    const newer = await createNote(db, {
+      body: "Yeni",
+      nowIso: "2026-09-05T12:00:00.000Z",
+    });
+    await linkNoteToInitiatives(db, older.id, [initiative.id]);
+    await linkNoteToInitiatives(db, newer.id, [initiative.id]);
+
+    const [listed] = await listInitiatives(db);
+    expect(listed.lastActivityAt).toBe("2026-09-05T12:00:00.000Z");
+    db.close();
+  });
+
+  it("ignores soft-deleted linked notes for lastActivityAt", async () => {
+    const db = openTestAsyncDb();
+    const createdAt = "2026-09-05T10:00:00.000Z";
+    const initiative = await createInitiative(db, {
+      name: "Silinen notlu",
+      status: "aktif",
+      nowIso: createdAt,
+    });
+    const active = await createNote(db, {
+      body: "Aktif",
+      nowIso: "2026-09-05T11:00:00.000Z",
+    });
+    const deleted = await createNote(db, {
+      body: "Silinmiş",
+      nowIso: "2026-09-05T13:00:00.000Z",
+    });
+    await softDeleteNote(db, deleted.id, "2026-09-05T14:00:00.000Z");
+    await linkNoteToInitiatives(db, active.id, [initiative.id]);
+    await linkNoteToInitiatives(db, deleted.id, [initiative.id]);
+
+    const [listed] = await listInitiatives(db);
+    expect(listed.lastActivityAt).toBe("2026-09-05T11:00:00.000Z");
     db.close();
   });
 });

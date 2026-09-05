@@ -26,6 +26,7 @@ export interface Initiative {
   status: InitiativeStatus;
   blockerSummary: string | null;
   createdAt: string;
+  lastActivityAt: string;
   sortOrder: number;
   archivedAt: string | null;
 }

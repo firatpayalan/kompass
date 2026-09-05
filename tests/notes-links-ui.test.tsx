@@ -24,6 +24,7 @@ const initiative: Initiative = {
   status: "aktif",
   blockerSummary: null,
   createdAt: "2026-09-05T09:00:00.000Z",
+  lastActivityAt: "2026-09-05T09:00:00.000Z",
   sortOrder: 0,
   archivedAt: null,
 };

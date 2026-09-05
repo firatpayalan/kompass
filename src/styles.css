@@ -559,12 +559,37 @@ body {
   text-align: left;
 }
 
-.entity-list__heading,
 .detail-view__heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.entity-list__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.entity-list__heading--activity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7.5rem, auto) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.entity-list__activity {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.entity-list__activity time {
+  color: inherit;
 }
 
 .status {

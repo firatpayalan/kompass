@@ -8,6 +8,7 @@ type InitiativeRow = {
   status: InitiativeStatus;
   blocker_summary: string | null;
   created_at: string;
+  last_activity_at: string;
   sort_order: number;
   archived_at: string | null;
 };
@@ -25,8 +26,20 @@ export type UpdateInitiativePatch = {
   blockerSummary?: string | null;
 };
 
-const INITIATIVE_COLUMNS =
-  "id, name, status, blocker_summary, created_at, sort_order, archived_at";
+const LAST_ACTIVITY_SQL = `COALESCE(
+  (
+    SELECT MAX(notes.updated_at)
+    FROM note_initiatives
+    INNER JOIN notes ON notes.id = note_initiatives.note_id
+    WHERE note_initiatives.initiative_id = initiatives.id
+      AND notes.deleted_at IS NULL
+  ),
+  initiatives.created_at
+)`;
+
+const INITIATIVE_COLUMNS = `id, name, status, blocker_summary, created_at,
+  ${LAST_ACTIVITY_SQL} AS last_activity_at,
+  sort_order, archived_at`;
 
 function mapInitiative(row: InitiativeRow): Initiative {
   return {
@@ -35,6 +48,7 @@ function mapInitiative(row: InitiativeRow): Initiative {
     status: row.status,
     blockerSummary: row.blocker_summary,
     createdAt: row.created_at,
+    lastActivityAt: row.last_activity_at,
     sortOrder: row.sort_order,
     archivedAt: row.archived_at,
   };

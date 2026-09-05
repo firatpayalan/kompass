@@ -131,6 +131,7 @@ describe("Archive notes", () => {
       status: "aktif" as const,
       blockerSummary: null,
       createdAt: "2026-09-05T09:00:00.000Z",
+      lastActivityAt: "2026-09-05T09:00:00.000Z",
       sortOrder: 0,
       archivedAt: "2026-09-05T12:00:00.000Z",
     };

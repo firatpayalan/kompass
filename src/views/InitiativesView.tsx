@@ -3,6 +3,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import InitiativeForm from "../components/InitiativeForm";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import { formatRelativeTr } from "../lib/formatRelativeTr";
 import type { Initiative, InitiativeStatus } from "../lib/types";
 
 type InitiativesDb = Pick<
@@ -283,8 +284,18 @@ export default function InitiativesView({
                 }
                 type="button"
               >
-                <span className="entity-list__heading">
+                <span className="entity-list__heading entity-list__heading--activity">
                   <strong>{initiative.name}</strong>
+                  <span className="entity-list__activity">
+                    <time
+                      dateTime={initiative.lastActivityAt}
+                      title={new Date(
+                        initiative.lastActivityAt,
+                      ).toLocaleString("tr-TR")}
+                    >
+                      {formatRelativeTr(initiative.lastActivityAt)}
+                    </time>
+                  </span>
                   <span className={`status status--${initiative.status}`}>
                     {statusLabels[initiative.status]}
                   </span>
