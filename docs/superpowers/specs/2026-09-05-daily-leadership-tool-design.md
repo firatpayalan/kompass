@@ -45,11 +45,11 @@ Engineering managers juggle 1:1s, stakeholder meetings, team performance feedbac
 ```
 ┌─────────────────────────────────────────┐
 │  Tauri shell (macOS)                    │
-│  · Global / in-app shortcuts            │
+│  · In-app shortcuts (MVP); global       │
+│    hotkeys optional later               │
 │  · Native notifications                 │
-│  · Tray / background scheduler (MVP:    │
-│    while app running or lightweight     │
-│    background as Tauri allows)          │
+│  · Reminder scheduler while app is      │
+│    running (MVP)                        │
 ├─────────────────────────────────────────┤
 │  React UI (Turkish)                     │
 │  · Sidebar navigation                   │
@@ -98,6 +98,7 @@ Phase 2 AI features consume the same note/person/initiative store without changi
 - Duplicate person/initiative names: warn and offer existing record
 - Deleting a person/initiative unlinks notes; note bodies remain
 - Soft-deleted notes keep tags and links; excluded from default lists/search unless viewing Silinenler (search scope: active by default)
+- Soft-deleted notes’ reminders are hidden from Bugün and do not fire OS notifications until the note is restored
 - Reminder without notification permission: Bugün panel still works; one-time prompt to enable notifications
 
 ## Keyboard shortcuts (MVP)
