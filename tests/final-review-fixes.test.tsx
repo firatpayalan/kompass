@@ -95,6 +95,9 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     listUpcomingReminders: vi.fn().mockResolvedValue([]),
     listInitiatives: vi.fn().mockResolvedValue([]),
     listNotesForInitiative: vi.fn().mockResolvedValue([]),
+    listTopicsWithNotesForInitiative: vi
+      .fn()
+      .mockResolvedValue({ topics: [], untopicNotes: [] }),
     listNotesForPerson: vi.fn().mockResolvedValue([]),
     listPeople: vi.fn().mockResolvedValue([]),
     listPersonLabels: vi.fn().mockResolvedValue([]),
@@ -176,22 +179,35 @@ describe("initiative detail editing", () => {
       blockerSummary: "Engel kalmadı",
     });
     const createNote = vi.fn().mockResolvedValue({ id: 50 });
-    const listNotesForInitiative = vi.fn().mockResolvedValue([]);
+    const listTopicsWithNotesForInitiative = vi.fn().mockResolvedValue({
+      topics: [],
+      untopicNotes: [],
+    });
     const onToast = vi.fn();
     render(
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
           createNote,
-          listNotesForInitiative,
+          createTopic: vi.fn(),
+          listTopicsWithNotesForInitiative,
           updateInitiative,
           updateNote: vi.fn(),
           softDeleteNote: vi.fn(),
+          updateTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          linkTagToTopic: vi.fn(),
+          listTopicTags: vi.fn().mockResolvedValue([]),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
+          linkNoteToTopics: vi.fn(),
           addTagToNote: vi.fn(),
           linkTagToNote: vi.fn(),
           listNoteTags: vi.fn().mockResolvedValue([]),
           updateNoteTag: vi.fn(),
           deleteNoteTag: vi.fn(),
+          saveNoteImage: vi.fn(),
+          getNoteImage: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -234,15 +250,28 @@ describe("initiative detail editing", () => {
         db={{
           createReminder,
           createNote: vi.fn(),
-          listNotesForInitiative: vi.fn().mockResolvedValue([]),
+          createTopic: vi.fn(),
+          listTopicsWithNotesForInitiative: vi.fn().mockResolvedValue({
+            topics: [],
+            untopicNotes: [],
+          }),
           updateInitiative: vi.fn(),
           updateNote: vi.fn(),
           softDeleteNote: vi.fn(),
+          updateTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          linkTagToTopic: vi.fn(),
+          listTopicTags: vi.fn().mockResolvedValue([]),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
+          linkNoteToTopics: vi.fn(),
           addTagToNote: vi.fn(),
           linkTagToNote: vi.fn(),
           listNoteTags: vi.fn().mockResolvedValue([]),
           updateNoteTag: vi.fn(),
           deleteNoteTag: vi.fn(),
+          saveNoteImage: vi.fn(),
+          getNoteImage: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -273,40 +302,67 @@ describe("initiative detail editing", () => {
     expect(onToast).toHaveBeenCalledWith("Hatırlatma eklendi");
   });
 
-  it("adds a note under the initiative", async () => {
+  it("adds a note under an initiative topic", async () => {
+    const topic = {
+      id: 10,
+      personId: null,
+      initiativeId: 2,
+      title: "Lansman",
+      createdAt: "2026-09-06T00:00:00.000Z",
+      tags: [],
+      notes: [],
+    };
     const createNote = vi.fn().mockResolvedValue({ id: 51 });
-    const listNotesForInitiative = vi
+    const listTopicsWithNotesForInitiative = vi
       .fn()
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([
-        {
-          id: 51,
-          body: "Yeni iş notu",
-          createdAt: "2026-09-06T00:00:00.000Z",
-          updatedAt: "2026-09-06T00:00:00.000Z",
-          deletedAt: null,
-          tags: [],
-          personIds: [],
-          initiativeIds: [2],
-          topicIds: [],
-          nextReminderDueAt: null,
-        },
-      ]);
+      .mockResolvedValueOnce({ topics: [topic], untopicNotes: [] })
+      .mockResolvedValue({
+        topics: [
+          {
+            ...topic,
+            notes: [
+              {
+                id: 51,
+                body: "Yeni iş notu",
+                createdAt: "2026-09-06T00:00:00.000Z",
+                updatedAt: "2026-09-06T00:00:00.000Z",
+                deletedAt: null,
+                tags: [],
+                personIds: [],
+                initiativeIds: [2],
+                topicIds: [10],
+                nextReminderDueAt: null,
+              },
+            ],
+          },
+        ],
+        untopicNotes: [],
+      });
     const onToast = vi.fn();
     render(
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
           createNote,
-          listNotesForInitiative,
+          createTopic: vi.fn(),
+          listTopicsWithNotesForInitiative,
           updateInitiative: vi.fn(),
           updateNote: vi.fn(),
           softDeleteNote: vi.fn(),
+          updateTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          linkTagToTopic: vi.fn(),
+          listTopicTags: vi.fn().mockResolvedValue([]),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
+          linkNoteToTopics: vi.fn(),
           addTagToNote: vi.fn(),
           linkTagToNote: vi.fn(),
           listNoteTags: vi.fn().mockResolvedValue([]),
           updateNoteTag: vi.fn(),
           deleteNoteTag: vi.fn(),
+          saveNoteImage: vi.fn(),
+          getNoteImage: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -314,7 +370,8 @@ describe("initiative detail editing", () => {
       />,
     );
 
-    fireEvent.change(await screen.findByLabelText("Not ekle"), {
+    fireEvent.click(await screen.findByRole("button", { name: /Lansman/ }));
+    fireEvent.change(screen.getByLabelText("Not ekle"), {
       target: { value: "Yeni iş notu" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Not ekle" }));
@@ -324,6 +381,7 @@ describe("initiative detail editing", () => {
         body: "Yeni iş notu",
         initiativeIds: [2],
         personIds: [],
+        topicIds: [10],
       }),
     );
     expect(onToast).toHaveBeenCalledWith("Not eklendi");

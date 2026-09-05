@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import LinkedNotes from "../components/LinkedNotes";
 import NoteBodyField from "../components/NoteBodyField";
 import ReminderForm, {
   type ReminderDraft,
 } from "../components/ReminderForm";
+import TopicTagsEditor from "../components/TopicTagsEditor";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import type { TopicWithNotes } from "../db/topicsRepo";
 import type { PersonLabelColor } from "../lib/personLabels";
 import type {
   Initiative,
@@ -13,21 +15,30 @@ import type {
   Note,
   NoteTag,
   ReminderPeriod,
+  TopicTag,
 } from "../lib/types";
 
 type InitiativeDetailDb = Pick<
   AppDb,
   | "createReminder"
   | "createNote"
-  | "listNotesForInitiative"
+  | "createTopic"
+  | "listTopicsWithNotesForInitiative"
   | "updateInitiative"
   | "updateNote"
   | "softDeleteNote"
+  | "updateTopic"
+  | "addTagToTopic"
+  | "linkTagToTopic"
+  | "listTopicTags"
+  | "updateTopicTag"
+  | "deleteTopicTag"
   | "addTagToNote"
   | "linkTagToNote"
   | "listNoteTags"
   | "updateNoteTag"
   | "deleteNoteTag"
+  | "linkNoteToTopics"
   | "saveNoteImage"
   | "getNoteImage"
 >;
@@ -53,8 +64,20 @@ export default function InitiativeDetailView({
   onBack,
   onToast = ignore,
 }: InitiativeDetailViewProps) {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [topics, setTopics] = useState<TopicWithNotes[]>([]);
+  const [untopicNotes, setUntopicNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [topicTitle, setTopicTitle] = useState("");
+  const [creatingTopic, setCreatingTopic] = useState(false);
+  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
+  const [savingTopicId, setSavingTopicId] = useState<number | null>(null);
+  const [expandedTopicIds, setExpandedTopicIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const [renamingTopicId, setRenamingTopicId] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [topicTagCatalog, setTopicTagCatalog] = useState<TopicTag[]>([]);
   const [noteTagCatalog, setNoteTagCatalog] = useState<NoteTag[]>([]);
   const [current, setCurrent] = useState(initiative);
   const [status, setStatus] = useState<InitiativeStatus>(initiative.status);
@@ -66,8 +89,6 @@ export default function InitiativeDetailView({
   const [dueAt, setDueAt] = useState("");
   const [period, setPeriod] = useState<ReminderPeriod>("once");
   const [savingReminder, setSavingReminder] = useState(false);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     setCurrent(initiative);
@@ -75,46 +96,28 @@ export default function InitiativeDetailView({
     setBlockerSummary(initiative.blockerSummary ?? "");
   }, [initiative]);
 
-  useEffect(() => {
-    let active = true;
+  const load = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      db.listNotesForInitiative(initiative.id),
-      db.listNoteTags(),
-    ])
-      .then(([loaded, catalog]) => {
-        if (active) {
-          setNotes(loaded);
-          setNoteTagCatalog(catalog);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          onToast("Bağlı notlar yüklenemedi");
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [db, initiative.id, onToast]);
-
-  const reloadNotes = async () => {
     try {
-      const [loaded, catalog] = await Promise.all([
-        db.listNotesForInitiative(initiative.id),
+      const [result, topicCatalog, noteCatalog] = await Promise.all([
+        db.listTopicsWithNotesForInitiative(initiative.id),
+        db.listTopicTags(),
         db.listNoteTags(),
       ]);
-      setNotes(loaded);
-      setNoteTagCatalog(catalog);
+      setTopics(result.topics);
+      setUntopicNotes(result.untopicNotes);
+      setTopicTagCatalog(topicCatalog);
+      setNoteTagCatalog(noteCatalog);
     } catch {
-      onToast("Bağlı notlar yüklenemedi");
+      onToast("Konular yüklenemedi");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [db, initiative.id, onToast]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const saveDetails = async () => {
     setSavingDetails(true);
@@ -135,7 +138,7 @@ export default function InitiativeDetailView({
             initiativeIds: [current.id],
             personIds: [],
           });
-          await reloadNotes();
+          await load();
         } catch {
           onToast("İş güncellendi, engel notu eklenemedi");
           return;
@@ -176,25 +179,90 @@ export default function InitiativeDetailView({
     }
   };
 
-  const addNote = async () => {
-    if (!noteDraft.trim()) {
+  const toggleTopic = (topicId: number) => {
+    setExpandedTopicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) {
+        next.delete(topicId);
+      } else {
+        next.add(topicId);
+      }
+      return next;
+    });
+  };
+
+  const createTopic = async () => {
+    if (!topicTitle.trim()) {
+      onToast("Konu boş olamaz");
+      return;
+    }
+    setCreatingTopic(true);
+    try {
+      const topic = await db.createTopic({
+        initiativeId: initiative.id,
+        title: topicTitle,
+      });
+      setTopicTitle("");
+      setExpandedTopicIds((prev) => new Set(prev).add(topic.id));
+      onToast("Konu eklendi");
+      await load();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Konu kaydedilemedi";
+      onToast(message);
+    } finally {
+      setCreatingTopic(false);
+    }
+  };
+
+  const startRename = (topic: TopicWithNotes, event: MouseEvent) => {
+    event.stopPropagation();
+    setRenamingTopicId(topic.id);
+    setRenameDraft(topic.title);
+    setExpandedTopicIds((prev) => new Set(prev).add(topic.id));
+  };
+
+  const saveRename = async (topicId: number) => {
+    if (!renameDraft.trim()) {
+      onToast("Konu boş olamaz");
+      return;
+    }
+    setRenaming(true);
+    try {
+      await db.updateTopic(topicId, renameDraft);
+      setRenamingTopicId(null);
+      onToast("Konu güncellendi");
+      await load();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Konu güncellenemedi";
+      onToast(message);
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  const addNoteToTopic = async (topicId: number) => {
+    const body = noteDrafts[topicId] ?? "";
+    if (!body.trim()) {
       onToast("Not boş olamaz");
       return;
     }
-    setSavingNote(true);
+    setSavingTopicId(topicId);
     try {
       await db.createNote({
-        body: noteDraft,
-        initiativeIds: [current.id],
+        body,
+        initiativeIds: [initiative.id],
         personIds: [],
+        topicIds: [topicId],
       });
-      setNoteDraft("");
+      setNoteDrafts((prev) => ({ ...prev, [topicId]: "" }));
       onToast("Not eklendi");
-      await reloadNotes();
+      await load();
     } catch {
-      onToast("Not eklenemedi");
+      onToast("Not kaydedilemedi");
     } finally {
-      setSavingNote(false);
+      setSavingTopicId(null);
     }
   };
 
@@ -229,7 +297,7 @@ export default function InitiativeDetailView({
       }
     }
 
-    await reloadNotes();
+    await load();
     if (reminderFailed) {
       onToast("Not kaydedildi, hatırlatma eklenemedi");
     } else {
@@ -241,9 +309,20 @@ export default function InitiativeDetailView({
     try {
       await db.softDeleteNote(noteId, new Date().toISOString());
       onToast("Not arşivlendi");
-      await reloadNotes();
+      await load();
     } catch {
       onToast("Not arşivlenemedi");
+    }
+  };
+
+  const moveNoteToTopic = async (noteId: number, topicId: number) => {
+    try {
+      await db.linkNoteToTopics(noteId, [topicId]);
+      onToast("Nota konu bağlandı");
+      setExpandedTopicIds((prev) => new Set(prev).add(topicId));
+      await load();
+    } catch {
+      onToast("Nota konu bağlanamadı");
     }
   };
 
@@ -255,22 +334,22 @@ export default function InitiativeDetailView({
       color: PersonLabelColor,
     ) => {
       await db.addTagToNote(noteId, { name, color });
-      await reloadNotes();
+      await load();
     },
     onLinkTag: async (noteId: number, tagId: number) => {
       await db.linkTagToNote(noteId, tagId);
-      await reloadNotes();
+      await load();
     },
     onUpdateTag: async (
       id: number,
       patch: { name?: string; color?: PersonLabelColor },
     ) => {
       await db.updateNoteTag(id, patch);
-      await reloadNotes();
+      await load();
     },
     onDeleteTag: async (id: number) => {
       await db.deleteNoteTag(id);
-      await reloadNotes();
+      await load();
     },
     onToast,
   };
@@ -338,47 +417,208 @@ export default function InitiativeDetailView({
           {savingReminder ? "Ekleniyor…" : "Hatırlatmayı kaydet"}
         </button>
       ) : null}
-      <h2>Bağlı notlar</h2>
-      <LinkedNotes
-        getNoteImage={(id) => db.getNoteImage(id)}
-        loading={loading}
-        notes={notes}
-        onArchiveNote={archiveNote}
-        onUpdateNote={updateNote}
-        saveNoteImage={(input) => db.saveNoteImage(input)}
-        {...noteTagHandlers}
-      />
+
       <form
-        className="topic-note-form"
+        className="detail-note-form"
         onSubmit={(event) => {
           event.preventDefault();
-          void addNote();
+          void createTopic();
         }}
       >
-        <NoteBodyField
-          label="Not ekle"
-          onChange={setNoteDraft}
-          onKeyDown={(event) => {
-            if (
-              event.key === "Enter" &&
-              !event.shiftKey &&
-              !event.nativeEvent.isComposing
-            ) {
-              event.preventDefault();
-              if (savingNote) return;
-              void addNote();
-            }
-          }}
-          onToast={onToast}
-          placeholder={`${current.name} hakkında not…`}
-          rows={3}
-          saveNoteImage={(input) => db.saveNoteImage(input)}
-          value={noteDraft}
-        />
-        <button disabled={savingNote} type="submit">
-          {savingNote ? "Kaydediliyor…" : "Not ekle"}
+        <label>
+          Yeni konu
+          <input
+            onChange={(event) => setTopicTitle(event.target.value)}
+            placeholder="Örn. Lansman, RFC, Bütçe"
+            value={topicTitle}
+          />
+        </label>
+        <button disabled={creatingTopic} type="submit">
+          {creatingTopic ? "Ekleniyor…" : "Konu ekle"}
         </button>
       </form>
+
+      <h2>Konular</h2>
+      {loading ? (
+        <p>Konular yükleniyor…</p>
+      ) : topics.length === 0 ? (
+        <p>Henüz konu yok. Yukarıdan bir konu ekleyin.</p>
+      ) : (
+        <div className="topic-list">
+          {topics.map((topic) => {
+            const expanded = expandedTopicIds.has(topic.id);
+            const renamingThis = renamingTopicId === topic.id;
+            return (
+              <article
+                className={`topic-card${expanded ? " topic-card--expanded" : ""}`}
+                key={topic.id}
+              >
+                {renamingThis ? (
+                  <form
+                    className="topic-rename-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void saveRename(topic.id);
+                    }}
+                  >
+                    <label>
+                      Konu adı
+                      <input
+                        autoFocus
+                        onChange={(event) => setRenameDraft(event.target.value)}
+                        value={renameDraft}
+                      />
+                    </label>
+                    <div className="topic-rename-form__actions">
+                      <button
+                        onClick={() => setRenamingTopicId(null)}
+                        type="button"
+                      >
+                        Vazgeç
+                      </button>
+                      <button disabled={renaming} type="submit">
+                        {renaming ? "Kaydediliyor…" : "Kaydet"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="topic-card__header">
+                    <button
+                      aria-expanded={expanded}
+                      className="topic-card__toggle"
+                      onClick={() => toggleTopic(topic.id)}
+                      type="button"
+                    >
+                      <span aria-hidden="true" className="topic-card__chevron">
+                        {expanded ? "▾" : "▸"}
+                      </span>
+                      <span className="topic-card__title">{topic.title}</span>
+                      <span className="topic-card__count">
+                        {topic.notes.length} not
+                      </span>
+                    </button>
+                    <button
+                      className="topic-card__rename"
+                      onClick={(event) => startRename(topic, event)}
+                      type="button"
+                    >
+                      Yeniden adlandır
+                    </button>
+                  </div>
+                )}
+                <TopicTagsEditor
+                  catalog={topicTagCatalog}
+                  colorInputName={`topic-tag-color-${topic.id}`}
+                  onAdd={async (tagName, tagColor) => {
+                    await db.addTagToTopic(topic.id, {
+                      name: tagName,
+                      color: tagColor,
+                    });
+                    await load();
+                  }}
+                  onDelete={async (tagId) => {
+                    await db.deleteTopicTag(tagId);
+                    await load();
+                  }}
+                  onLinkExisting={async (tagId) => {
+                    await db.linkTagToTopic(topic.id, tagId);
+                    await load();
+                  }}
+                  onToast={onToast}
+                  onUpdate={async (tagId, patch) => {
+                    await db.updateTopicTag(tagId, patch);
+                    await load();
+                  }}
+                  tags={topic.tags}
+                />
+                {expanded ? (
+                  <div className="topic-card__body">
+                    <LinkedNotes
+                      emptyLabel="Bu konuda henüz not yok."
+                      getNoteImage={(id) => db.getNoteImage(id)}
+                      label={`${topic.title} notları`}
+                      loading={false}
+                      notes={topic.notes}
+                      onArchiveNote={archiveNote}
+                      onUpdateNote={updateNote}
+                      saveNoteImage={(input) => db.saveNoteImage(input)}
+                      {...noteTagHandlers}
+                    />
+                    <form
+                      className="topic-note-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void addNoteToTopic(topic.id);
+                      }}
+                    >
+                      <NoteBodyField
+                        label="Not ekle"
+                        onChange={(value) =>
+                          setNoteDrafts((prev) => ({
+                            ...prev,
+                            [topic.id]: value,
+                          }))
+                        }
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "Enter" &&
+                            !event.shiftKey &&
+                            !event.nativeEvent.isComposing
+                          ) {
+                            event.preventDefault();
+                            if (savingTopicId === topic.id) return;
+                            void addNoteToTopic(topic.id);
+                          }
+                        }}
+                        onToast={onToast}
+                        placeholder={`${topic.title} hakkında not…`}
+                        rows={3}
+                        saveNoteImage={(input) => db.saveNoteImage(input)}
+                        value={noteDrafts[topic.id] ?? ""}
+                      />
+                      <button
+                        disabled={savingTopicId === topic.id}
+                        type="submit"
+                      >
+                        {savingTopicId === topic.id
+                          ? "Kaydediliyor…"
+                          : "Not ekle"}
+                      </button>
+                    </form>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {untopicNotes.length > 0 ? (
+        <>
+          <h2>Konusuz notlar</h2>
+          <LinkedNotes
+            {...noteTagHandlers}
+            emptyLabel="Konusuz not yok."
+            getNoteImage={(id) => db.getNoteImage(id)}
+            label="Konusuz notlar"
+            loading={false}
+            notes={untopicNotes}
+            onArchiveNote={archiveNote}
+            onMoveToTopic={topics.length > 0 ? moveNoteToTopic : undefined}
+            onToast={onToast}
+            onUpdateNote={updateNote}
+            saveNoteImage={(input) => db.saveNoteImage(input)}
+            topicOptions={
+              topics.length > 0
+                ? topics.map((topic) => ({
+                    id: topic.id,
+                    title: topic.title,
+                  }))
+                : undefined
+            }
+          />
+        </>
+      ) : null}
     </section>
   );
 }

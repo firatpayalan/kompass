@@ -455,6 +455,31 @@ export async function listUntopicNotesForPerson(
   return mapNoteRows(db, rows);
 }
 
+/** Initiative-linked notes that are not under any topic. */
+export async function listUntopicNotesForInitiative(
+  db: AsyncDb,
+  initiativeId: number,
+  options: { includeDeleted?: boolean } = {},
+): Promise<Note[]> {
+  const deletedClause = options.includeDeleted
+    ? ""
+    : "AND notes.deleted_at IS NULL";
+  const rows = await db.select<NoteRow>(
+    `SELECT notes.id, notes.body, notes.created_at, notes.updated_at, notes.deleted_at
+     FROM notes
+     JOIN note_initiatives ON note_initiatives.note_id = notes.id
+     WHERE note_initiatives.initiative_id = ?
+       ${deletedClause}
+       AND NOT EXISTS (
+         SELECT 1 FROM note_topics WHERE note_topics.note_id = notes.id
+       )
+     ORDER BY notes.created_at DESC, notes.id DESC`,
+    [initiativeId],
+  );
+
+  return mapNoteRows(db, rows);
+}
+
 export function softDeleteNote(
   db: AsyncDb,
   id: number,

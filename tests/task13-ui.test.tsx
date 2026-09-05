@@ -68,6 +68,7 @@ const notes: Note[] = [
 const topicWithNotes = {
   id: 5,
   personId: 1,
+  initiativeId: null,
   title: "1:1",
   createdAt: "2026-09-05T09:30:00.000Z",
   notes,
@@ -582,21 +583,43 @@ describe("Task 13 people and initiatives UI", () => {
     });
   });
 
-  it("shows initiative status, blocker, and linked notes", async () => {
+  it("shows initiative status, blocker, and topics", async () => {
+    const initiativeTopic = {
+      id: 5,
+      personId: null,
+      initiativeId: 2,
+      title: "Lansman hazırlık",
+      createdAt: "2026-09-05T09:30:00.000Z",
+      notes,
+      tags: [],
+    };
     render(
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
           createNote: vi.fn(),
-          listNotesForInitiative: vi.fn().mockResolvedValue(notes),
+          createTopic: vi.fn(),
+          listTopicsWithNotesForInitiative: vi.fn().mockResolvedValue({
+            topics: [initiativeTopic],
+            untopicNotes: [],
+          }),
           updateInitiative: vi.fn(),
           updateNote: vi.fn(),
           softDeleteNote: vi.fn(),
+          updateTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          linkTagToTopic: vi.fn(),
+          listTopicTags: vi.fn().mockResolvedValue([]),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
+          linkNoteToTopics: vi.fn(),
           addTagToNote: vi.fn(),
           linkTagToNote: vi.fn(),
           listNoteTags: vi.fn().mockResolvedValue([]),
           updateNoteTag: vi.fn(),
           deleteNoteTag: vi.fn(),
+          saveNoteImage: vi.fn(),
+          getNoteImage: vi.fn(),
         }}
         initiative={initiative}
         onBack={vi.fn()}
@@ -608,8 +631,10 @@ describe("Task 13 people and initiatives UI", () => {
       (screen.getByLabelText("Durum") as HTMLSelectElement).value,
     ).toBe("aktif");
     expect(screen.queryByLabelText("Engel özeti")).toBeNull();
+    expect(await screen.findByText("Lansman hazırlık")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Lansman hazırlık/ }));
     expect(
-      await screen.findByRole("list", { name: "Bağlı notlar" }),
+      await screen.findByRole("list", { name: "Lansman hazırlık notları" }),
     ).toBeTruthy();
   });
 });

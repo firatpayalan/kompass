@@ -87,6 +87,7 @@ import { searchNotes, type SearchNotesOptions } from "./searchRepo";
 import {
   createTopic,
   listTopicsWithNotesForPerson,
+  listTopicsWithNotesForInitiative,
   updateTopic,
   type CreateTopicInput,
   type TopicWithNotes,
@@ -138,6 +139,13 @@ export type AppDb = {
   updateTopic(id: number, title: string): Promise<Topic>;
   listTopicsWithNotesForPerson(
     personId: number,
+    options?: { includeDeletedNotes?: boolean },
+  ): Promise<{
+    topics: TopicWithNotes[];
+    untopicNotes: Note[];
+  }>;
+  listTopicsWithNotesForInitiative(
+    initiativeId: number,
     options?: { includeDeletedNotes?: boolean },
   ): Promise<{
     topics: TopicWithNotes[];
@@ -229,6 +237,8 @@ export function createAppDb(db: AsyncDb): AppDb {
     updateTopic: (id, title) => updateTopic(db, id, title),
     listTopicsWithNotesForPerson: (personId, options) =>
       listTopicsWithNotesForPerson(db, personId, options),
+    listTopicsWithNotesForInitiative: (initiativeId, options) =>
+      listTopicsWithNotesForInitiative(db, initiativeId, options),
     addTagToTopic: (topicId, input) => addTagToTopic(db, topicId, input),
     linkTagToTopic: (topicId, tagId) => linkTagToTopic(db, topicId, tagId),
     listTopicTags: () => listTopicTags(db),

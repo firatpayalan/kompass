@@ -46,10 +46,10 @@ describe("InitiativeDetailView note tags", () => {
       tags: [{ id: 9, name: "rfc", color: "blue" }],
     };
     const addTagToNote = vi.fn().mockResolvedValue(tagged.tags[0]);
-    const listNotesForInitiative = vi
+    const listTopicsWithNotesForInitiative = vi
       .fn()
-      .mockResolvedValueOnce([note])
-      .mockResolvedValue([tagged]);
+      .mockResolvedValueOnce({ topics: [], untopicNotes: [note] })
+      .mockResolvedValue({ topics: [], untopicNotes: [tagged] });
     const listNoteTags = vi
       .fn()
       .mockResolvedValueOnce([])
@@ -58,15 +58,25 @@ describe("InitiativeDetailView note tags", () => {
     const db = {
       createReminder: vi.fn(),
       createNote: vi.fn(),
-      listNotesForInitiative,
+      createTopic: vi.fn(),
+      listTopicsWithNotesForInitiative,
       updateInitiative: vi.fn(),
       updateNote: vi.fn(),
       softDeleteNote: vi.fn(),
+      updateTopic: vi.fn(),
+      addTagToTopic: vi.fn(),
+      linkTagToTopic: vi.fn(),
+      listTopicTags: vi.fn().mockResolvedValue([]),
+      updateTopicTag: vi.fn(),
+      deleteTopicTag: vi.fn(),
+      linkNoteToTopics: vi.fn(),
       addTagToNote,
       linkTagToNote: vi.fn(),
       listNoteTags,
       updateNoteTag: vi.fn(),
       deleteNoteTag: vi.fn(),
+      saveNoteImage: vi.fn(),
+      getNoteImage: vi.fn(),
     } as unknown as AppDb;
 
     render(
@@ -78,7 +88,7 @@ describe("InitiativeDetailView note tags", () => {
       />,
     );
 
-    const list = await screen.findByRole("list", { name: "Bağlı notlar" });
+    const list = await screen.findByRole("list", { name: "Konusuz notlar" });
     fireEvent.change(within(list).getByPlaceholderText("Etiket ekle…"), {
       target: { value: "rfc" },
     });

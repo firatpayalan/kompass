@@ -68,11 +68,23 @@ CREATE TABLE IF NOT EXISTS note_initiatives (
 
 CREATE TABLE IF NOT EXISTS topics (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+  person_id INTEGER REFERENCES people(id) ON DELETE CASCADE,
+  initiative_id INTEGER REFERENCES initiatives(id) ON DELETE CASCADE,
   title TEXT NOT NULL COLLATE NOCASE,
   created_at TEXT NOT NULL,
-  UNIQUE (person_id, title)
+  CHECK (
+    (person_id IS NOT NULL AND initiative_id IS NULL)
+    OR (person_id IS NULL AND initiative_id IS NOT NULL)
+  )
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS topics_person_title_unique
+  ON topics(person_id, title COLLATE NOCASE)
+  WHERE person_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS topics_initiative_title_unique
+  ON topics(initiative_id, title COLLATE NOCASE)
+  WHERE initiative_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS topic_tags (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

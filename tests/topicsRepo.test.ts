@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { createInitiative } from "../src/db/initiativesRepo";
 import { createNote } from "../src/db/notesRepo";
 import { createPerson } from "../src/db/peopleRepo";
 import {
   createTopic,
+  listTopicsWithNotesForInitiative,
   listTopicsWithNotesForPerson,
   updateTopic,
 } from "../src/db/topicsRepo";
@@ -21,6 +23,7 @@ describe("topicsRepo", () => {
       title: "USS Fishkill",
       nowIso: "2026-09-05T10:00:00.000Z",
     });
+    expect(topic.initiativeId).toBeNull();
     const note = await createNote(db, {
       body: "küfür etti",
       personIds: [person.id],
@@ -83,6 +86,48 @@ describe("topicsRepo", () => {
     expect(updated.title).toBe("Yeni ad");
     const listed = await listTopicsWithNotesForPerson(db, person.id);
     expect(listed.topics[0].title).toBe("Yeni ad");
+    db.close();
+  });
+
+  it("creates initiative-scoped topics with untopic notes", async () => {
+    const db = openTestAsyncDb();
+    const initiative = await createInitiative(db, {
+      name: "Lansman",
+      status: "aktif",
+      nowIso: "2026-09-05T09:00:00.000Z",
+    });
+    const topic = await createTopic(db, {
+      initiativeId: initiative.id,
+      title: "Kickoff",
+      nowIso: "2026-09-05T10:00:00.000Z",
+    });
+    expect(topic.personId).toBeNull();
+    expect(topic.initiativeId).toBe(initiative.id);
+
+    const underTopic = await createNote(db, {
+      body: "Konulu",
+      initiativeIds: [initiative.id],
+      topicIds: [topic.id],
+      nowIso: "2026-09-05T10:05:00.000Z",
+    });
+    await createNote(db, {
+      body: "Konusuz iş notu",
+      initiativeIds: [initiative.id],
+      nowIso: "2026-09-05T09:30:00.000Z",
+    });
+
+    const result = await listTopicsWithNotesForInitiative(db, initiative.id);
+    expect(result.topics).toHaveLength(1);
+    expect(result.topics[0].notes.map((n) => n.id)).toEqual([underTopic.id]);
+    expect(result.untopicNotes.map((n) => n.body)).toEqual(["Konusuz iş notu"]);
+
+    await expect(
+      createTopic(db, {
+        initiativeId: initiative.id,
+        title: "Kickoff",
+        nowIso: "2026-09-05T11:00:00.000Z",
+      }),
+    ).rejects.toThrow("Bu isimde konu var");
     db.close();
   });
 });

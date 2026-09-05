@@ -52,7 +52,8 @@ export interface Note {
 
 export interface Topic {
   id: number;
-  personId: number;
+  personId: number | null;
+  initiativeId: number | null;
   title: string;
   createdAt: string;
 }
