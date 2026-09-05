@@ -48,7 +48,8 @@ const note: Note = {
   tags: [],
   personIds: [],
   initiativeIds: [],
-};
+    topicIds: [],
+  };
 
 function createDb(overrides: Partial<AppDb> = {}): AppDb {
   return {
@@ -57,6 +58,7 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     createNote: vi.fn(),
     createPerson: vi.fn(),
     createReminder: vi.fn(),
+    createTopic: vi.fn(),
     deleteInitiative: vi.fn(),
     deletePerson: vi.fn(),
     findPersonByName: vi.fn(),
@@ -71,6 +73,7 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     listNotesForInitiative: vi.fn().mockResolvedValue([]),
     listNotesForPerson: vi.fn().mockResolvedValue([]),
     listPeople: vi.fn().mockResolvedValue([]),
+    listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({ topics: [], untopicNotes: [] }),
     markReminderDone: vi.fn(),
     permanentlyDeleteNote: vi.fn(),
     restoreNote: vi.fn(),

@@ -23,7 +23,8 @@ const deletedNote: Note = {
   tags: ["toplantı"],
   personIds: [],
   initiativeIds: [],
-};
+    topicIds: [],
+  };
 
 function createDb(
   overrides: Partial<

@@ -38,7 +38,8 @@ const inboxNote: Note = {
   tags: [],
   personIds: [],
   initiativeIds: [],
-};
+    topicIds: [],
+  };
 
 describe("InboxView", () => {
   it("moves an inbox note onto a person and removes it from Gelen", async () => {

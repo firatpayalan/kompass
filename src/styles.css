@@ -183,6 +183,71 @@ body {
   cursor: default;
 }
 
+.topic-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.topic-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.topic-card h3 {
+  margin: 0;
+  color: #1f3a5f;
+}
+
+.topic-note-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.topic-note-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.topic-note-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.5rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.topic-note-form button {
+  justify-self: start;
+  padding: 0.5rem 0.85rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #1f3a5f;
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.topic-note-form button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.detail-note-form input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
 .entity-form {
   display: grid;
   gap: 0.8rem;

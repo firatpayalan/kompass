@@ -28,6 +28,7 @@ export type CreateNoteInput = {
   body: string;
   personIds?: number[];
   initiativeIds?: number[];
+  topicIds?: number[];
   nowIso?: string;
 };
 
@@ -57,8 +58,8 @@ function groupByNoteId<Row extends { note_id: number }, Value>(
 
 async function replaceLinks(
   db: AsyncDb,
-  table: "note_people" | "note_initiatives",
-  idColumn: "person_id" | "initiative_id",
+  table: "note_people" | "note_initiatives" | "note_topics",
+  idColumn: "person_id" | "initiative_id" | "topic_id",
   noteId: number,
   linkedIds: number[],
 ): Promise<void> {
@@ -109,8 +110,8 @@ async function getTagsByNote(
 
 async function getLinkedIdsByNote(
   db: AsyncDb,
-  table: "note_people" | "note_initiatives",
-  idColumn: "person_id" | "initiative_id",
+  table: "note_people" | "note_initiatives" | "note_topics",
+  idColumn: "person_id" | "initiative_id" | "topic_id",
   noteIds: number[],
 ): Promise<Map<number, number[]>> {
   const rows = await db.select<LinkRow>(
@@ -133,10 +134,11 @@ export async function mapNoteRows(
   }
 
   const noteIds = rows.map((row) => row.id);
-  const [tags, personIds, initiativeIds] = await Promise.all([
+  const [tags, personIds, initiativeIds, topicIds] = await Promise.all([
     getTagsByNote(db, noteIds),
     getLinkedIdsByNote(db, "note_people", "person_id", noteIds),
     getLinkedIdsByNote(db, "note_initiatives", "initiative_id", noteIds),
+    getLinkedIdsByNote(db, "note_topics", "topic_id", noteIds),
   ]);
 
   return rows.map((row) => ({
@@ -148,6 +150,7 @@ export async function mapNoteRows(
     tags: tags.get(row.id) ?? [],
     personIds: personIds.get(row.id) ?? [],
     initiativeIds: initiativeIds.get(row.id) ?? [],
+    topicIds: topicIds.get(row.id) ?? [],
   }));
 }
 
@@ -204,6 +207,13 @@ export async function createNote(
       await tx.execute(
         "INSERT INTO note_initiatives (note_id, initiative_id) VALUES (?, ?)",
         [insertedNoteId, initiativeId],
+      );
+    }
+
+    for (const topicId of uniqueIds(input.topicIds)) {
+      await tx.execute(
+        "INSERT INTO note_topics (note_id, topic_id) VALUES (?, ?)",
+        [insertedNoteId, topicId],
       );
     }
 
@@ -309,6 +319,14 @@ export function linkNoteToInitiatives(
   );
 }
 
+export function linkNoteToTopics(
+  db: AsyncDb,
+  noteId: number,
+  topicIds: number[],
+): Promise<void> {
+  return replaceLinks(db, "note_topics", "topic_id", noteId, topicIds);
+}
+
 export function listNotesForPerson(
   db: AsyncDb,
   personId: number,
@@ -326,6 +344,43 @@ export function listNotesForInitiative(
     "initiative_id",
     initiativeId,
   );
+}
+
+export async function listNotesForTopic(
+  db: AsyncDb,
+  topicId: number,
+): Promise<Note[]> {
+  const rows = await db.select<NoteRow>(
+    `SELECT notes.id, notes.body, notes.created_at, notes.updated_at, notes.deleted_at
+     FROM notes
+     JOIN note_topics ON note_topics.note_id = notes.id
+     WHERE note_topics.topic_id = ? AND notes.deleted_at IS NULL
+     ORDER BY notes.created_at DESC, notes.id DESC`,
+    [topicId],
+  );
+
+  return mapNoteRows(db, rows);
+}
+
+/** Person-linked notes that are not under any topic. */
+export async function listUntopicNotesForPerson(
+  db: AsyncDb,
+  personId: number,
+): Promise<Note[]> {
+  const rows = await db.select<NoteRow>(
+    `SELECT notes.id, notes.body, notes.created_at, notes.updated_at, notes.deleted_at
+     FROM notes
+     JOIN note_people ON note_people.note_id = notes.id
+     WHERE note_people.person_id = ?
+       AND notes.deleted_at IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM note_topics WHERE note_topics.note_id = notes.id
+       )
+     ORDER BY notes.created_at DESC, notes.id DESC`,
+    [personId],
+  );
+
+  return mapNoteRows(db, rows);
 }
 
 export function softDeleteNote(

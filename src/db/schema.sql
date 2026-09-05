@@ -46,6 +46,20 @@ CREATE TABLE IF NOT EXISTS note_initiatives (
   PRIMARY KEY (note_id, initiative_id)
 );
 
+CREATE TABLE IF NOT EXISTS topics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+  title TEXT NOT NULL COLLATE NOCASE,
+  created_at TEXT NOT NULL,
+  UNIQUE (person_id, title)
+);
+
+CREATE TABLE IF NOT EXISTS note_topics (
+  note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+  topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  PRIMARY KEY (note_id, topic_id)
+);
+
 CREATE TABLE IF NOT EXISTS reminders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   target_type TEXT NOT NULL CHECK (target_type IN ('note', 'initiative')),

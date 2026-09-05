@@ -27,6 +27,14 @@ export interface Note {
   tags: string[];
   personIds: number[];
   initiativeIds: number[];
+  topicIds: number[];
+}
+
+export interface Topic {
+  id: number;
+  personId: number;
+  title: string;
+  createdAt: string;
 }
 
 export interface Reminder {

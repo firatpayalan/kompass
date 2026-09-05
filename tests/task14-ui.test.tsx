@@ -43,6 +43,7 @@ function note(id: number): Note {
     tags: [],
     personIds: [],
     initiativeIds: [],
+    topicIds: [],
   };
 }
 

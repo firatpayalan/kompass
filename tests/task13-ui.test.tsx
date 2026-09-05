@@ -44,6 +44,7 @@ const notes: Note[] = [
     tags: [],
     personIds: [1],
     initiativeIds: [2],
+    topicIds: [5],
   },
   {
     id: 10,
@@ -54,15 +55,29 @@ const notes: Note[] = [
     tags: [],
     personIds: [1],
     initiativeIds: [2],
+    topicIds: [5],
   },
 ];
+
+const topicWithNotes = {
+  id: 5,
+  personId: 1,
+  title: "1:1",
+  createdAt: "2026-09-05T09:30:00.000Z",
+  notes,
+};
 
 describe("Task 13 people and initiatives UI", () => {
   it("navigates from the people list to a person detail view", async () => {
     const db = {
       createPerson: vi.fn(),
       listPeople: vi.fn().mockResolvedValue([person]),
-      listNotesForPerson: vi.fn().mockResolvedValue(notes),
+      listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
+        topics: [topicWithNotes],
+        untopicNotes: [],
+      }),
+      createTopic: vi.fn(),
+      createNote: vi.fn(),
     } as unknown as AppDb;
     render(<App db={db} />);
 
@@ -72,7 +87,7 @@ describe("Task 13 people and initiatives UI", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Ayşe" }),
     ).toBeTruthy();
-    expect(db.listNotesForPerson).toHaveBeenCalledWith(1);
+    expect(db.listTopicsWithNotesForPerson).toHaveBeenCalledWith(1);
   });
 
   it("shows existing people and opens their detail view", async () => {
@@ -157,19 +172,24 @@ describe("Task 13 people and initiatives UI", () => {
     expect(onSelectInitiative).toHaveBeenCalledWith(initiative);
   });
 
-  it("shows a person's linked notes in repository chronology", async () => {
+  it("shows person topics with nested notes", async () => {
     render(
       <PersonDetailView
         db={{
           createNote: vi.fn(),
-          listNotesForPerson: vi.fn().mockResolvedValue(notes),
+          createTopic: vi.fn(),
+          listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
+            topics: [topicWithNotes],
+            untopicNotes: [],
+          }),
         }}
         onBack={vi.fn()}
         person={person}
       />,
     );
 
-    const list = await screen.findByRole("list", { name: "Bağlı notlar" });
+    expect(await screen.findByRole("heading", { level: 3, name: "1:1" })).toBeTruthy();
+    const list = await screen.findByRole("list", { name: "1:1 notları" });
     expect(
       within(list).getAllByRole("listitem").map((item) => item.textContent),
     ).toEqual([
@@ -178,57 +198,98 @@ describe("Task 13 people and initiatives UI", () => {
     ]);
   });
 
-  it("adds a note linked to the person from the detail screen", async () => {
+  it("creates a topic and adds a note under it", async () => {
+    const createTopic = vi.fn().mockResolvedValue({
+      id: 5,
+      personId: person.id,
+      title: "USS Fishkill",
+      createdAt: "2026-09-05T12:00:00.000Z",
+    });
     const createNote = vi.fn().mockResolvedValue({
       id: 99,
-      body: "cartman ile 1:1",
-      createdAt: "2026-09-05T12:00:00.000Z",
-      updatedAt: "2026-09-05T12:00:00.000Z",
+      body: "küfür etti",
+      createdAt: "2026-09-05T12:01:00.000Z",
+      updatedAt: "2026-09-05T12:01:00.000Z",
       deletedAt: null,
       tags: [],
       personIds: [person.id],
       initiativeIds: [],
+      topicIds: [5],
     });
-    const listNotesForPerson = vi
+    const listTopicsWithNotesForPerson = vi
       .fn()
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          id: 99,
-          body: "cartman ile 1:1",
-          createdAt: "2026-09-05T12:00:00.000Z",
-          updatedAt: "2026-09-05T12:00:00.000Z",
-          deletedAt: null,
-          tags: [],
-          personIds: [person.id],
-          initiativeIds: [],
-        },
-      ]);
+      .mockResolvedValueOnce({ topics: [], untopicNotes: [] })
+      .mockResolvedValueOnce({
+        topics: [
+          {
+            id: 5,
+            personId: person.id,
+            title: "USS Fishkill",
+            createdAt: "2026-09-05T12:00:00.000Z",
+            notes: [],
+          },
+        ],
+        untopicNotes: [],
+      })
+      .mockResolvedValueOnce({
+        topics: [
+          {
+            id: 5,
+            personId: person.id,
+            title: "USS Fishkill",
+            createdAt: "2026-09-05T12:00:00.000Z",
+            notes: [
+              {
+                id: 99,
+                body: "küfür etti",
+                createdAt: "2026-09-05T12:01:00.000Z",
+                updatedAt: "2026-09-05T12:01:00.000Z",
+                deletedAt: null,
+                tags: [],
+                personIds: [person.id],
+                initiativeIds: [],
+                topicIds: [5],
+              },
+            ],
+          },
+        ],
+        untopicNotes: [],
+      });
     const onToast = vi.fn();
 
     render(
       <PersonDetailView
-        db={{ createNote, listNotesForPerson }}
+        db={{ createNote, createTopic, listTopicsWithNotesForPerson }}
         onBack={vi.fn()}
         onToast={onToast}
         person={person}
       />,
     );
 
-    await screen.findByText("Henüz bağlı not yok.");
-    fireEvent.change(screen.getByLabelText("Bu kişi hakkında not"), {
-      target: { value: "cartman ile 1:1" },
+    await screen.findByText("Henüz konu yok. Yukarıdan bir konu ekleyin.");
+    fireEvent.change(screen.getByLabelText("Yeni konu"), {
+      target: { value: "USS Fishkill" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Konu ekle" }));
+
+    await screen.findByRole("heading", { level: 3, name: "USS Fishkill" });
+    fireEvent.change(screen.getByLabelText("Not ekle"), {
+      target: { value: "küfür etti" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Not ekle" }));
 
     await waitFor(() => {
+      expect(createTopic).toHaveBeenCalledWith({
+        personId: person.id,
+        title: "USS Fishkill",
+      });
       expect(createNote).toHaveBeenCalledWith({
-        body: "cartman ile 1:1",
+        body: "küfür etti",
         personIds: [person.id],
         initiativeIds: [],
+        topicIds: [5],
       });
-      expect(onToast).toHaveBeenCalledWith("Not eklendi");
-      expect(screen.getByText("cartman ile 1:1")).toBeTruthy();
+      expect(screen.getByText("küfür etti")).toBeTruthy();
     });
   });
 

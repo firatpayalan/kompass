@@ -3,6 +3,7 @@ import type {
   Note,
   Person,
   Reminder,
+  Topic,
 } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
 import { connectAppDatabase } from "./connection";
@@ -45,6 +46,12 @@ import {
   type CreateReminderInput,
 } from "./remindersRepo";
 import { searchNotes, type SearchNotesOptions } from "./searchRepo";
+import {
+  createTopic,
+  listTopicsWithNotesForPerson,
+  type CreateTopicInput,
+  type TopicWithNotes,
+} from "./topicsRepo";
 
 /** Every repo function from tasks 6–9, bound to one live connection. */
 export type AppDb = {
@@ -65,6 +72,12 @@ export type AppDb = {
   findPersonByName(name: string): Promise<Person | null>;
   deletePerson(id: number): Promise<void>;
   listNotesForPerson(personId: number): Promise<Note[]>;
+
+  createTopic(input: CreateTopicInput): Promise<Topic>;
+  listTopicsWithNotesForPerson(personId: number): Promise<{
+    topics: TopicWithNotes[];
+    untopicNotes: Note[];
+  }>;
 
   createInitiative(input: CreateInitiativeInput): Promise<Initiative>;
   listInitiatives(): Promise<Initiative[]>;
@@ -106,6 +119,10 @@ export function createAppDb(db: AsyncDb): AppDb {
     findPersonByName: (name) => findPersonByName(db, name),
     deletePerson: (id) => deletePerson(db, id),
     listNotesForPerson: (personId) => listNotesForPerson(db, personId),
+
+    createTopic: (input) => createTopic(db, input),
+    listTopicsWithNotesForPerson: (personId) =>
+      listTopicsWithNotesForPerson(db, personId),
 
     createInitiative: (input) => createInitiative(db, input),
     listInitiatives: () => listInitiatives(db),

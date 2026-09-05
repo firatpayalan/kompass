@@ -2,9 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import LinkedNotes from "../components/LinkedNotes";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import type { TopicWithNotes } from "../db/topicsRepo";
 import type { Note, Person } from "../lib/types";
 
-type PersonDetailDb = Pick<AppDb, "createNote" | "listNotesForPerson">;
+type PersonDetailDb = Pick<
+  AppDb,
+  "createNote" | "createTopic" | "listTopicsWithNotesForPerson"
+>;
 
 type PersonDetailViewProps = {
   db?: PersonDetailDb;
@@ -21,45 +25,72 @@ export default function PersonDetailView({
   onBack,
   onToast = ignore,
 }: PersonDetailViewProps) {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [topics, setTopics] = useState<TopicWithNotes[]>([]);
+  const [untopicNotes, setUntopicNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
-  const [body, setBody] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [topicTitle, setTopicTitle] = useState("");
+  const [creatingTopic, setCreatingTopic] = useState(false);
+  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
+  const [savingTopicId, setSavingTopicId] = useState<number | null>(null);
 
-  const loadNotes = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      setNotes(await db.listNotesForPerson(person.id));
+      const result = await db.listTopicsWithNotesForPerson(person.id);
+      setTopics(result.topics);
+      setUntopicNotes(result.untopicNotes);
     } catch {
-      onToast("Bağlı notlar yüklenemedi");
+      onToast("Konular yüklenemedi");
     } finally {
       setLoading(false);
     }
   }, [db, onToast, person.id]);
 
   useEffect(() => {
-    void loadNotes();
-  }, [loadNotes]);
+    void load();
+  }, [load]);
 
-  const saveNote = async () => {
+  const createTopic = async () => {
+    if (!topicTitle.trim()) {
+      onToast("Konu boş olamaz");
+      return;
+    }
+    setCreatingTopic(true);
+    try {
+      await db.createTopic({ personId: person.id, title: topicTitle });
+      setTopicTitle("");
+      onToast("Konu eklendi");
+      await load();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Konu kaydedilemedi";
+      onToast(message);
+    } finally {
+      setCreatingTopic(false);
+    }
+  };
+
+  const addNoteToTopic = async (topicId: number) => {
+    const body = noteDrafts[topicId] ?? "";
     if (!body.trim()) {
       onToast("Not boş olamaz");
       return;
     }
-    setSaving(true);
+    setSavingTopicId(topicId);
     try {
       await db.createNote({
         body,
         personIds: [person.id],
         initiativeIds: [],
+    topicIds: [],        topicIds: [topicId],
       });
-      setBody("");
+      setNoteDrafts((prev) => ({ ...prev, [topicId]: "" }));
       onToast("Not eklendi");
-      await loadNotes();
+      await load();
     } catch {
       onToast("Not kaydedilemedi");
     } finally {
-      setSaving(false);
+      setSavingTopicId(null);
     }
   };
 
@@ -75,25 +106,79 @@ export default function PersonDetailView({
         className="detail-note-form"
         onSubmit={(event) => {
           event.preventDefault();
-          void saveNote();
+          void createTopic();
         }}
       >
         <label>
-          Bu kişi hakkında not
-          <textarea
-            onChange={(event) => setBody(event.target.value)}
-            placeholder={`${person.name} hakkında not yazın…`}
-            rows={4}
-            value={body}
+          Yeni konu
+          <input
+            onChange={(event) => setTopicTitle(event.target.value)}
+            placeholder="Örn. USS Fishkill, 1:1, Performans"
+            value={topicTitle}
           />
         </label>
-        <button disabled={saving} type="submit">
-          {saving ? "Kaydediliyor…" : "Not ekle"}
+        <button disabled={creatingTopic} type="submit">
+          {creatingTopic ? "Ekleniyor…" : "Konu ekle"}
         </button>
       </form>
 
-      <h2>Bağlı notlar</h2>
-      <LinkedNotes loading={loading} notes={notes} />
+      <h2>Konular</h2>
+      {loading ? (
+        <p>Konular yükleniyor…</p>
+      ) : topics.length === 0 ? (
+        <p>Henüz konu yok. Yukarıdan bir konu ekleyin.</p>
+      ) : (
+        <div className="topic-list">
+          {topics.map((topic) => (
+            <article className="topic-card" key={topic.id}>
+              <h3>{topic.title}</h3>
+              <LinkedNotes
+                emptyLabel="Bu konuda henüz not yok."
+                label={`${topic.title} notları`}
+                loading={false}
+                notes={topic.notes}
+              />
+              <form
+                className="topic-note-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void addNoteToTopic(topic.id);
+                }}
+              >
+                <label>
+                  Not ekle
+                  <textarea
+                    onChange={(event) =>
+                      setNoteDrafts((prev) => ({
+                        ...prev,
+                        [topic.id]: event.target.value,
+                      }))
+                    }
+                    placeholder={`${topic.title} hakkında not…`}
+                    rows={3}
+                    value={noteDrafts[topic.id] ?? ""}
+                  />
+                </label>
+                <button disabled={savingTopicId === topic.id} type="submit">
+                  {savingTopicId === topic.id ? "Kaydediliyor…" : "Not ekle"}
+                </button>
+              </form>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {untopicNotes.length > 0 ? (
+        <>
+          <h2>Konusuz notlar</h2>
+          <LinkedNotes
+            emptyLabel="Konusuz not yok."
+            label="Konusuz notlar"
+            loading={false}
+            notes={untopicNotes}
+          />
+        </>
+      ) : null}
     </section>
   );
 }

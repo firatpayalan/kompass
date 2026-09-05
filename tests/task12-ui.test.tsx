@@ -134,7 +134,8 @@ describe("Task 12 notes UI", () => {
             tags: [],
             personIds: [],
             initiativeIds: [],
-          }}
+    topicIds: [],
+  }}
           onEdit={() => setEditing(true)}
           onSave={onSave}
           onCancel={() => setEditing(false)}
@@ -167,7 +168,8 @@ describe("Task 12 notes UI", () => {
             tags: [],
             personIds: [],
             initiativeIds: [],
-          },
+    topicIds: [],
+  },
         ]}
         onDelete={onDelete}
         onEdit={vi.fn()}

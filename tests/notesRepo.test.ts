@@ -52,6 +52,7 @@ describe("notesRepo", () => {
       tags: ["aksiyon", "önemli"],
       personIds: [person.id],
       initiativeIds: [initiative.id],
+      topicIds: [],
     });
     expect(await getNote(db, note.id)).toEqual(note);
     expect(await listActiveNotes(db)).toEqual([note]);
