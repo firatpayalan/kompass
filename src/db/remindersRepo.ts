@@ -4,7 +4,7 @@ import type {
   ReminderPeriod,
   ReminderTargetType,
 } from "../lib/types";
-import type { SqlDb } from "./notesRepo";
+import type { AsyncDb } from "./asyncDb";
 
 type ReminderRow = {
   id: number;
@@ -18,10 +18,6 @@ type ReminderRow = {
 
 type DueReminderRow = ReminderRow & {
   title: string;
-};
-
-type InsertResult = {
-  lastInsertRowid: number | bigint;
 };
 
 export type CreateReminderInput = {
@@ -44,43 +40,31 @@ function mapReminder(row: ReminderRow): Reminder {
   };
 }
 
-function getReminder(db: SqlDb, id: number): Reminder | null {
-  const row = db
-    .prepare(
-      `SELECT id, target_type, target_id, due_at, period, done, created_at
-       FROM reminders
-       WHERE id = ?`,
-    )
-    .get(id) as ReminderRow | undefined;
-
-  return row ? mapReminder(row) : null;
-}
-
-export function createReminder(
-  db: SqlDb,
+export async function createReminder(
+  db: AsyncDb,
   input: CreateReminderInput,
-): Reminder {
-  const result = db
-    .prepare(
-      `INSERT INTO reminders
-         (target_type, target_id, due_at, period, done, created_at)
-       VALUES (?, ?, ?, ?, 0, ?)`,
-    )
-    .run(
+): Promise<Reminder> {
+  const [row] = await db.select<ReminderRow>(
+    `INSERT INTO reminders
+       (target_type, target_id, due_at, period, done, created_at)
+     VALUES (?, ?, ?, ?, 0, ?)
+     RETURNING id, target_type, target_id, due_at, period, done, created_at`,
+    [
       input.targetType,
       input.targetId,
       input.dueAt,
       input.period,
       input.nowIso,
-    ) as InsertResult;
+    ],
+  );
 
-  return getReminder(db, Number(result.lastInsertRowid)) as Reminder;
+  return mapReminder(row);
 }
 
-export function listDueRemindersForBugun(
-  db: SqlDb,
+export async function listDueRemindersForBugun(
+  db: AsyncDb,
   now: Date,
-): Array<Reminder & { title: string }> {
+): Promise<Array<Reminder & { title: string }>> {
   const endOfLocalDay = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -90,40 +74,39 @@ export function listDueRemindersForBugun(
     59,
     999,
   );
-  const rows = db
-    .prepare(
-      `SELECT reminders.id,
-              reminders.target_type,
-              reminders.target_id,
-              reminders.due_at,
-              reminders.period,
-              reminders.done,
-              reminders.created_at,
-              CASE
-                WHEN reminders.target_type = 'note'
-                  THEN substr(notes.body, 1, 80)
-                ELSE initiatives.name
-              END AS title
-       FROM reminders
-       LEFT JOIN notes
-         ON reminders.target_type = 'note'
-        AND notes.id = reminders.target_id
-       LEFT JOIN initiatives
-         ON reminders.target_type = 'initiative'
-        AND initiatives.id = reminders.target_id
-       WHERE reminders.done = 0
-         AND reminders.due_at <= ?
-         AND (
-           (reminders.target_type = 'note'
-             AND notes.id IS NOT NULL
-             AND notes.deleted_at IS NULL)
-           OR
-           (reminders.target_type = 'initiative'
-             AND initiatives.id IS NOT NULL)
-         )
-       ORDER BY reminders.due_at, reminders.id`,
-    )
-    .all(endOfLocalDay.toISOString()) as DueReminderRow[];
+  const rows = await db.select<DueReminderRow>(
+    `SELECT reminders.id,
+            reminders.target_type,
+            reminders.target_id,
+            reminders.due_at,
+            reminders.period,
+            reminders.done,
+            reminders.created_at,
+            CASE
+              WHEN reminders.target_type = 'note'
+                THEN substr(notes.body, 1, 80)
+              ELSE initiatives.name
+            END AS title
+     FROM reminders
+     LEFT JOIN notes
+       ON reminders.target_type = 'note'
+      AND notes.id = reminders.target_id
+     LEFT JOIN initiatives
+       ON reminders.target_type = 'initiative'
+      AND initiatives.id = reminders.target_id
+     WHERE reminders.done = 0
+       AND reminders.due_at <= ?
+       AND (
+         (reminders.target_type = 'note'
+           AND notes.id IS NOT NULL
+           AND notes.deleted_at IS NULL)
+         OR
+         (reminders.target_type = 'initiative'
+           AND initiatives.id IS NOT NULL)
+       )
+     ORDER BY reminders.due_at, reminders.id`,
+    [endOfLocalDay.toISOString()],
+  );
 
   return rows.map((row) => ({
     ...mapReminder(row),
@@ -131,23 +114,23 @@ export function listDueRemindersForBugun(
   }));
 }
 
-export function markReminderDone(db: SqlDb, id: number): void {
-  db.prepare("UPDATE reminders SET done = 1 WHERE id = ?").run(id);
+export function markReminderDone(db: AsyncDb, id: number): Promise<void> {
+  return db.execute("UPDATE reminders SET done = 1 WHERE id = ?", [id]);
 }
 
-export function advanceOrCompleteReminder(
-  db: SqlDb,
+export async function advanceOrCompleteReminder(
+  db: AsyncDb,
   reminder: Reminder,
   now: Date,
-): void {
+): Promise<void> {
   const next = nextDueAt(reminder.dueAt, reminder.period, now);
   if (next === null) {
-    markReminderDone(db, reminder.id);
+    await markReminderDone(db, reminder.id);
     return;
   }
 
-  db.prepare("UPDATE reminders SET due_at = ? WHERE id = ?").run(
+  await db.execute("UPDATE reminders SET due_at = ? WHERE id = ?", [
     next,
     reminder.id,
-  );
+  ]);
 }

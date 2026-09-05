@@ -1,9 +1,6 @@
 import type { Initiative, InitiativeStatus } from "../lib/types";
-import {
-  linkNoteToInitiatives,
-  listNotesForInitiative,
-  type SqlDb,
-} from "./notesRepo";
+import type { AsyncDb } from "./asyncDb";
+import { linkNoteToInitiatives, listNotesForInitiative } from "./notesRepo";
 
 type InitiativeRow = {
   id: number;
@@ -11,10 +8,6 @@ type InitiativeRow = {
   status: InitiativeStatus;
   blocker_summary: string | null;
   created_at: string;
-};
-
-type InsertResult = {
-  lastInsertRowid: number | bigint;
 };
 
 export type CreateInitiativeInput = {
@@ -30,6 +23,8 @@ export type UpdateInitiativePatch = {
   blockerSummary?: string | null;
 };
 
+const INITIATIVE_COLUMNS = "id, name, status, blocker_summary, created_at";
+
 function mapInitiative(row: InitiativeRow): Initiative {
   return {
     id: row.id,
@@ -40,103 +35,104 @@ function mapInitiative(row: InitiativeRow): Initiative {
   };
 }
 
-function getInitiative(db: SqlDb, id: number): Initiative | null {
-  const row = db
-    .prepare(
-      `SELECT id, name, status, blocker_summary, created_at
-       FROM initiatives
-       WHERE id = ?`,
-    )
-    .get(id) as InitiativeRow | undefined;
+async function getInitiative(
+  db: AsyncDb,
+  id: number,
+): Promise<Initiative | null> {
+  const [row] = await db.select<InitiativeRow>(
+    `SELECT ${INITIATIVE_COLUMNS}
+     FROM initiatives
+     WHERE id = ?`,
+    [id],
+  );
 
   return row ? mapInitiative(row) : null;
 }
 
-function findInitiativeByName(
-  db: SqlDb,
+async function findInitiativeByName(
+  db: AsyncDb,
   name: string,
-): Initiative | null {
-  const row = db
-    .prepare(
-      `SELECT id, name, status, blocker_summary, created_at
-       FROM initiatives
-       WHERE name = ? COLLATE NOCASE`,
-    )
-    .get(name) as InitiativeRow | undefined;
+): Promise<Initiative | null> {
+  const [row] = await db.select<InitiativeRow>(
+    `SELECT ${INITIATIVE_COLUMNS}
+     FROM initiatives
+     WHERE name = ? COLLATE NOCASE`,
+    [name],
+  );
 
   return row ? mapInitiative(row) : null;
 }
 
-export function createInitiative(
-  db: SqlDb,
+export async function createInitiative(
+  db: AsyncDb,
   input: CreateInitiativeInput,
-): Initiative {
-  if (findInitiativeByName(db, input.name)) {
+): Promise<Initiative> {
+  if (await findInitiativeByName(db, input.name)) {
     throw new Error("Bu isimde kayıt var");
   }
 
-  const result = db
-    .prepare(
-      `INSERT INTO initiatives (name, status, blocker_summary, created_at)
-       VALUES (?, ?, ?, ?)`,
-    )
-    .run(
-      input.name,
-      input.status,
-      input.blockerSummary ?? null,
-      input.nowIso,
-    ) as InsertResult;
+  const [row] = await db.select<InitiativeRow>(
+    `INSERT INTO initiatives (name, status, blocker_summary, created_at)
+     VALUES (?, ?, ?, ?)
+     RETURNING ${INITIATIVE_COLUMNS}`,
+    [input.name, input.status, input.blockerSummary ?? null, input.nowIso],
+  );
 
-  return getInitiative(db, Number(result.lastInsertRowid)) as Initiative;
+  return mapInitiative(row);
 }
 
-export function listInitiatives(db: SqlDb): Initiative[] {
-  const rows = db
-    .prepare(
-      `SELECT id, name, status, blocker_summary, created_at
-       FROM initiatives
-       ORDER BY name COLLATE NOCASE, id`,
-    )
-    .all() as InitiativeRow[];
+export async function listInitiatives(db: AsyncDb): Promise<Initiative[]> {
+  const rows = await db.select<InitiativeRow>(
+    `SELECT ${INITIATIVE_COLUMNS}
+     FROM initiatives
+     ORDER BY name COLLATE NOCASE, id`,
+  );
 
   return rows.map(mapInitiative);
 }
 
-export function updateInitiative(
-  db: SqlDb,
+export async function updateInitiative(
+  db: AsyncDb,
   id: number,
   patch: UpdateInitiativePatch,
-): Initiative {
-  const current = getInitiative(db, id);
+): Promise<Initiative> {
+  const current = await getInitiative(db, id);
   if (!current) {
     throw new Error("Kayıt bulunamadı");
   }
 
   const name = patch.name ?? current.name;
-  const duplicate = findInitiativeByName(db, name);
+  const duplicate = await findInitiativeByName(db, name);
   if (duplicate && duplicate.id !== id) {
     throw new Error("Bu isimde kayıt var");
   }
 
-  db.prepare(
+  const [row] = await db.select<InitiativeRow>(
     `UPDATE initiatives
      SET name = ?, status = ?, blocker_summary = ?
-     WHERE id = ?`,
-  ).run(
-    name,
-    patch.status ?? current.status,
-    patch.blockerSummary === undefined
-      ? current.blockerSummary
-      : patch.blockerSummary,
-    id,
+     WHERE id = ?
+     RETURNING ${INITIATIVE_COLUMNS}`,
+    [
+      name,
+      patch.status ?? current.status,
+      patch.blockerSummary === undefined
+        ? current.blockerSummary
+        : patch.blockerSummary,
+      id,
+    ],
   );
 
-  return getInitiative(db, id) as Initiative;
+  return mapInitiative(row);
 }
 
-export function deleteInitiative(db: SqlDb, id: number): void {
-  db.prepare("DELETE FROM note_initiatives WHERE initiative_id = ?").run(id);
-  db.prepare("DELETE FROM initiatives WHERE id = ?").run(id);
+export async function deleteInitiative(
+  db: AsyncDb,
+  id: number,
+): Promise<void> {
+  await db.execute("DELETE FROM note_initiatives WHERE initiative_id = ?", [
+    id,
+  ]);
+  await db.execute("DELETE FROM initiatives WHERE id = ?", [id]);
 }
 
 export { linkNoteToInitiatives, listNotesForInitiative };

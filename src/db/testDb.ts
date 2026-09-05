@@ -3,15 +3,37 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { AsyncDb } from "./asyncDb";
+
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+
+export type TestAsyncDb = AsyncDb & {
+  close(): void;
+};
+
+export function readSchemaSql(): string {
+  return fs.readFileSync(path.join(currentDirectory, "schema.sql"), "utf8");
+}
 
 export function openTestDb(): Database.Database {
   const db = new Database(":memory:");
-  const schema = fs.readFileSync(
-    path.join(currentDirectory, "schema.sql"),
-    "utf8",
-  );
 
-  db.exec(schema);
+  db.exec(readSchemaSql());
   return db;
+}
+
+export function openTestAsyncDb(): TestAsyncDb {
+  const db = openTestDb();
+
+  return {
+    async execute(sql, bindValues = []) {
+      db.prepare(sql).run(...bindValues);
+    },
+    async select<T>(sql: string, bindValues: unknown[] = []) {
+      return db.prepare(sql).all(...bindValues) as T[];
+    },
+    close() {
+      db.close();
+    },
+  };
 }

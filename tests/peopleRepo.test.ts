@@ -9,14 +9,14 @@ import {
   listNotesForPerson,
   listPeople,
 } from "../src/db/peopleRepo";
-import { openTestDb } from "../src/db/testDb";
+import { openTestAsyncDb } from "../src/db/testDb";
 
 describe("peopleRepo", () => {
-  it("creates, lists, and finds people by case-insensitive name", () => {
-    const db = openTestDb();
+  it("creates, lists, and finds people by case-insensitive name", async () => {
+    const db = openTestAsyncDb();
     const nowIso = "2026-09-05T10:00:00.000Z";
 
-    const person = createPerson(db, {
+    const person = await createPerson(db, {
       name: "Ayşe",
       roleOrNotes: "Satış lideri",
       nowIso,
@@ -28,55 +28,62 @@ describe("peopleRepo", () => {
       roleOrNotes: "Satış lideri",
       createdAt: nowIso,
     });
-    expect(listPeople(db)).toEqual([person]);
-    expect(findPersonByName(db, "ayşe")).toEqual(person);
-    expect(findPersonByName(db, "Kimse")).toBeNull();
+    expect(await listPeople(db)).toEqual([person]);
+    expect(await findPersonByName(db, "ayşe")).toEqual(person);
+    expect(await findPersonByName(db, "Kimse")).toBeNull();
     db.close();
   });
 
-  it("rejects a duplicate name", () => {
-    const db = openTestDb();
+  it("rejects a duplicate name", async () => {
+    const db = openTestAsyncDb();
     const nowIso = "2026-09-05T10:00:00.000Z";
-    createPerson(db, { name: "Ayşe", nowIso });
+    await createPerson(db, { name: "Ayşe", nowIso });
 
-    expect(() => createPerson(db, { name: "ayşe", nowIso })).toThrow(
+    await expect(createPerson(db, { name: "ayşe", nowIso })).rejects.toThrow(
       "Bu isimde kayıt var",
     );
     db.close();
   });
 
-  it("links active notes and replaces duplicate links", () => {
-    const db = openTestDb();
+  it("links active notes and replaces duplicate links", async () => {
+    const db = openTestAsyncDb();
     const nowIso = "2026-09-05T10:00:00.000Z";
-    const person = createPerson(db, { name: "Ayşe", nowIso });
-    const otherPerson = createPerson(db, { name: "Can", nowIso });
-    const active = createNote(db, { body: "Aktif", nowIso });
-    const deleted = createNote(db, { body: "Silinmiş", nowIso });
-    softDeleteNote(db, deleted.id, "2026-09-05T11:00:00.000Z");
+    const person = await createPerson(db, { name: "Ayşe", nowIso });
+    const otherPerson = await createPerson(db, { name: "Can", nowIso });
+    const active = await createNote(db, { body: "Aktif", nowIso });
+    const deleted = await createNote(db, { body: "Silinmiş", nowIso });
+    await softDeleteNote(db, deleted.id, "2026-09-05T11:00:00.000Z");
 
-    linkNoteToPeople(db, active.id, [person.id, person.id, otherPerson.id]);
-    linkNoteToPeople(db, deleted.id, [person.id]);
+    await linkNoteToPeople(db, active.id, [
+      person.id,
+      person.id,
+      otherPerson.id,
+    ]);
+    await linkNoteToPeople(db, deleted.id, [person.id]);
 
-    expect(listNotesForPerson(db, person.id)).toEqual([
-      expect.objectContaining({ id: active.id, personIds: [person.id, otherPerson.id] }),
+    expect(await listNotesForPerson(db, person.id)).toEqual([
+      expect.objectContaining({
+        id: active.id,
+        personIds: [person.id, otherPerson.id],
+      }),
     ]);
     db.close();
   });
 
-  it("deletes only the person and its note links", () => {
-    const db = openTestDb();
+  it("deletes only the person and its note links", async () => {
+    const db = openTestAsyncDb();
     const nowIso = "2026-09-05T10:00:00.000Z";
-    const person = createPerson(db, { name: "Ayşe", nowIso });
-    const note = createNote(db, {
+    const person = await createPerson(db, { name: "Ayşe", nowIso });
+    const note = await createNote(db, {
       body: "Not kalmalı",
       personIds: [person.id],
       nowIso,
     });
 
-    deletePerson(db, person.id);
+    await deletePerson(db, person.id);
 
-    expect(findPersonByName(db, "Ayşe")).toBeNull();
-    expect(getNote(db, note.id)).toEqual(
+    expect(await findPersonByName(db, "Ayşe")).toBeNull();
+    expect(await getNote(db, note.id)).toEqual(
       expect.objectContaining({ id: note.id, personIds: [] }),
     );
     db.close();

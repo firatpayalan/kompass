@@ -1,19 +1,12 @@
 import type { Person } from "../lib/types";
-import {
-  linkNoteToPeople,
-  listNotesForPerson,
-  type SqlDb,
-} from "./notesRepo";
+import type { AsyncDb } from "./asyncDb";
+import { linkNoteToPeople, listNotesForPerson } from "./notesRepo";
 
 type PersonRow = {
   id: number;
   name: string;
   role_or_notes: string | null;
   created_at: string;
-};
-
-type InsertResult = {
-  lastInsertRowid: number | bigint;
 };
 
 export type CreatePersonInput = {
@@ -31,63 +24,51 @@ function mapPerson(row: PersonRow): Person {
   };
 }
 
-function getPerson(db: SqlDb, id: number): Person | null {
-  const row = db
-    .prepare(
-      `SELECT id, name, role_or_notes, created_at
-       FROM people
-       WHERE id = ?`,
-    )
-    .get(id) as PersonRow | undefined;
-
-  return row ? mapPerson(row) : null;
-}
-
-export function createPerson(
-  db: SqlDb,
+export async function createPerson(
+  db: AsyncDb,
   input: CreatePersonInput,
-): Person {
-  if (findPersonByName(db, input.name)) {
+): Promise<Person> {
+  if (await findPersonByName(db, input.name)) {
     throw new Error("Bu isimde kayıt var");
   }
 
-  const result = db
-    .prepare(
-      `INSERT INTO people (name, role_or_notes, created_at)
-       VALUES (?, ?, ?)`,
-    )
-    .run(input.name, input.roleOrNotes ?? null, input.nowIso) as InsertResult;
+  const [row] = await db.select<PersonRow>(
+    `INSERT INTO people (name, role_or_notes, created_at)
+     VALUES (?, ?, ?)
+     RETURNING id, name, role_or_notes, created_at`,
+    [input.name, input.roleOrNotes ?? null, input.nowIso],
+  );
 
-  return getPerson(db, Number(result.lastInsertRowid)) as Person;
+  return mapPerson(row);
 }
 
-export function listPeople(db: SqlDb): Person[] {
-  const rows = db
-    .prepare(
-      `SELECT id, name, role_or_notes, created_at
-       FROM people
-       ORDER BY name COLLATE NOCASE, id`,
-    )
-    .all() as PersonRow[];
+export async function listPeople(db: AsyncDb): Promise<Person[]> {
+  const rows = await db.select<PersonRow>(
+    `SELECT id, name, role_or_notes, created_at
+     FROM people
+     ORDER BY name COLLATE NOCASE, id`,
+  );
 
   return rows.map(mapPerson);
 }
 
-export function findPersonByName(db: SqlDb, name: string): Person | null {
-  const row = db
-    .prepare(
-      `SELECT id, name, role_or_notes, created_at
-       FROM people
-       WHERE name = ? COLLATE NOCASE`,
-    )
-    .get(name) as PersonRow | undefined;
+export async function findPersonByName(
+  db: AsyncDb,
+  name: string,
+): Promise<Person | null> {
+  const [row] = await db.select<PersonRow>(
+    `SELECT id, name, role_or_notes, created_at
+     FROM people
+     WHERE name = ? COLLATE NOCASE`,
+    [name],
+  );
 
   return row ? mapPerson(row) : null;
 }
 
-export function deletePerson(db: SqlDb, id: number): void {
-  db.prepare("DELETE FROM note_people WHERE person_id = ?").run(id);
-  db.prepare("DELETE FROM people WHERE id = ?").run(id);
+export async function deletePerson(db: AsyncDb, id: number): Promise<void> {
+  await db.execute("DELETE FROM note_people WHERE person_id = ?", [id]);
+  await db.execute("DELETE FROM people WHERE id = ?", [id]);
 }
 
 export { linkNoteToPeople, listNotesForPerson };
