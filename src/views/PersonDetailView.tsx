@@ -32,6 +32,9 @@ export default function PersonDetailView({
   const [creatingTopic, setCreatingTopic] = useState(false);
   const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
   const [savingTopicId, setSavingTopicId] = useState<number | null>(null);
+  const [expandedTopicIds, setExpandedTopicIds] = useState<Set<number>>(
+    () => new Set(),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +53,18 @@ export default function PersonDetailView({
     void load();
   }, [load]);
 
+  const toggleTopic = (topicId: number) => {
+    setExpandedTopicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) {
+        next.delete(topicId);
+      } else {
+        next.add(topicId);
+      }
+      return next;
+    });
+  };
+
   const createTopic = async () => {
     if (!topicTitle.trim()) {
       onToast("Konu boş olamaz");
@@ -57,8 +72,12 @@ export default function PersonDetailView({
     }
     setCreatingTopic(true);
     try {
-      await db.createTopic({ personId: person.id, title: topicTitle });
+      const topic = await db.createTopic({
+        personId: person.id,
+        title: topicTitle,
+      });
       setTopicTitle("");
+      setExpandedTopicIds((prev) => new Set(prev).add(topic.id));
       onToast("Konu eklendi");
       await load();
     } catch (error) {
@@ -82,7 +101,7 @@ export default function PersonDetailView({
         body,
         personIds: [person.id],
         initiativeIds: [],
-    topicIds: [],        topicIds: [topicId],
+        topicIds: [topicId],
       });
       setNoteDrafts((prev) => ({ ...prev, [topicId]: "" }));
       onToast("Not eklendi");
@@ -129,42 +148,70 @@ export default function PersonDetailView({
         <p>Henüz konu yok. Yukarıdan bir konu ekleyin.</p>
       ) : (
         <div className="topic-list">
-          {topics.map((topic) => (
-            <article className="topic-card" key={topic.id}>
-              <h3>{topic.title}</h3>
-              <LinkedNotes
-                emptyLabel="Bu konuda henüz not yok."
-                label={`${topic.title} notları`}
-                loading={false}
-                notes={topic.notes}
-              />
-              <form
-                className="topic-note-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void addNoteToTopic(topic.id);
-                }}
+          {topics.map((topic) => {
+            const expanded = expandedTopicIds.has(topic.id);
+            return (
+              <article
+                className={`topic-card${expanded ? " topic-card--expanded" : ""}`}
+                key={topic.id}
               >
-                <label>
-                  Not ekle
-                  <textarea
-                    onChange={(event) =>
-                      setNoteDrafts((prev) => ({
-                        ...prev,
-                        [topic.id]: event.target.value,
-                      }))
-                    }
-                    placeholder={`${topic.title} hakkında not…`}
-                    rows={3}
-                    value={noteDrafts[topic.id] ?? ""}
-                  />
-                </label>
-                <button disabled={savingTopicId === topic.id} type="submit">
-                  {savingTopicId === topic.id ? "Kaydediliyor…" : "Not ekle"}
+                <button
+                  aria-expanded={expanded}
+                  className="topic-card__toggle"
+                  onClick={() => toggleTopic(topic.id)}
+                  type="button"
+                >
+                  <span aria-hidden="true" className="topic-card__chevron">
+                    {expanded ? "▾" : "▸"}
+                  </span>
+                  <span className="topic-card__title">{topic.title}</span>
+                  <span className="topic-card__count">
+                    {topic.notes.length} not
+                  </span>
                 </button>
-              </form>
-            </article>
-          ))}
+                {expanded ? (
+                  <div className="topic-card__body">
+                    <LinkedNotes
+                      emptyLabel="Bu konuda henüz not yok."
+                      label={`${topic.title} notları`}
+                      loading={false}
+                      notes={topic.notes}
+                    />
+                    <form
+                      className="topic-note-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void addNoteToTopic(topic.id);
+                      }}
+                    >
+                      <label>
+                        Not ekle
+                        <textarea
+                          onChange={(event) =>
+                            setNoteDrafts((prev) => ({
+                              ...prev,
+                              [topic.id]: event.target.value,
+                            }))
+                          }
+                          placeholder={`${topic.title} hakkında not…`}
+                          rows={3}
+                          value={noteDrafts[topic.id] ?? ""}
+                        />
+                      </label>
+                      <button
+                        disabled={savingTopicId === topic.id}
+                        type="submit"
+                      >
+                        {savingTopicId === topic.id
+                          ? "Kaydediliyor…"
+                          : "Not ekle"}
+                      </button>
+                    </form>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       )}
 

@@ -188,7 +188,14 @@ describe("Task 13 people and initiatives UI", () => {
       />,
     );
 
-    expect(await screen.findByRole("heading", { level: 3, name: "1:1" })).toBeTruthy();
+    const toggle = await screen.findByRole("button", {
+      name: /1:1/,
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("list", { name: "1:1 notları" })).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
     const list = await screen.findByRole("list", { name: "1:1 notları" });
     expect(
       within(list).getAllByRole("listitem").map((item) => item.textContent),
@@ -272,7 +279,8 @@ describe("Task 13 people and initiatives UI", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Konu ekle" }));
 
-    await screen.findByRole("heading", { level: 3, name: "USS Fishkill" });
+    const toggle = await screen.findByRole("button", { name: /USS Fishkill/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
     fireEvent.change(screen.getByLabelText("Not ekle"), {
       target: { value: "küfür etti" },
     });

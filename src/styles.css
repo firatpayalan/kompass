@@ -189,17 +189,52 @@ body {
 }
 
 .topic-card {
-  display: grid;
-  gap: 0.85rem;
-  padding: 1rem;
   border: 1px solid #dbe2ea;
   border-radius: 0.75rem;
   background: #ffffff;
+  overflow: hidden;
 }
 
-.topic-card h3 {
+.topic-card__toggle {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topic-card__toggle:hover {
+  background: #f4f7fb;
+}
+
+.topic-card__chevron {
+  color: #5b6472;
+  width: 1rem;
+}
+
+.topic-card__title {
   margin: 0;
   color: #1f3a5f;
+  font-weight: 700;
+}
+
+.topic-card__count {
+  color: #5b6472;
+  font-size: 0.85rem;
+}
+
+.topic-card__body {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0 1rem 1rem;
+  border-top: 1px solid #e7edf4;
 }
 
 .topic-note-form {
