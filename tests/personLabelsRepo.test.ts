@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPersonLabel,
   listPersonLabels,
+  updatePersonLabel,
 } from "../src/db/personLabelsRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
@@ -31,6 +32,35 @@ describe("personLabelsRepo", () => {
       color: "rose",
       createdAt: "2026-09-05T12:00:00.000Z",
     });
+    db.close();
+  });
+
+  it("renames and recolors an existing label", async () => {
+    const db = openTestAsyncDb();
+    const [lider] = (await listPersonLabels(db)).filter(
+      (label) => label.name === "Lider",
+    );
+    const renamed = await updatePersonLabel(db, lider.id, {
+      name: "Yönetici",
+      color: "indigo",
+    });
+    expect(renamed).toEqual(
+      expect.objectContaining({
+        id: lider.id,
+        name: "Yönetici",
+        color: "indigo",
+      }),
+    );
+    db.close();
+  });
+
+  it("rejects renaming to a duplicate label name", async () => {
+    const db = openTestAsyncDb();
+    const labels = await listPersonLabels(db);
+    const lider = labels.find((label) => label.name === "Lider")!;
+    await expect(
+      updatePersonLabel(db, lider.id, { name: "Pair" }),
+    ).rejects.toThrow("Bu isimde etiket var");
     db.close();
   });
 });

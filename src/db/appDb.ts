@@ -45,7 +45,9 @@ import {
 import {
   createPersonLabel,
   listPersonLabels,
+  updatePersonLabel,
   type CreatePersonLabelInput,
+  type UpdatePersonLabelPatch,
 } from "./personLabelsRepo";
 import {
   advanceOrCompleteReminder,
@@ -86,6 +88,10 @@ export type AppDb = {
   listNotesForPerson(personId: number): Promise<Note[]>;
   listPersonLabels(): Promise<PersonLabel[]>;
   createPersonLabel(input: CreatePersonLabelInput): Promise<PersonLabel>;
+  updatePersonLabel(
+    id: number,
+    patch: UpdatePersonLabelPatch,
+  ): Promise<PersonLabel>;
 
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: number, title: string): Promise<Topic>;
@@ -138,6 +144,7 @@ export function createAppDb(db: AsyncDb): AppDb {
     listNotesForPerson: (personId) => listNotesForPerson(db, personId),
     listPersonLabels: () => listPersonLabels(db),
     createPersonLabel: (input) => createPersonLabel(db, input),
+    updatePersonLabel: (id, patch) => updatePersonLabel(db, id, patch),
 
     createTopic: (input) => createTopic(db, input),
     updateTopic: (id, title) => updateTopic(db, id, title),

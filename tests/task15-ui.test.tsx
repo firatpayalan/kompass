@@ -69,6 +69,7 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     listPeople: vi.fn().mockResolvedValue([person]),
     listPersonLabels: vi.fn().mockResolvedValue([]),
     createPersonLabel: vi.fn(),
+          updatePersonLabel: vi.fn(),
     updatePerson: vi.fn(),
     listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({ topics: [], untopicNotes: [] }),
     markReminderDone: vi.fn(),

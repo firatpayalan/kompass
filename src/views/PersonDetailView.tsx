@@ -18,6 +18,7 @@ type PersonDetailDb = Pick<
   | "updatePerson"
   | "listPersonLabels"
   | "createPersonLabel"
+  | "updatePersonLabel"
 >;
 
 type PersonDetailViewProps = {
@@ -230,6 +231,14 @@ export default function PersonDetailView({
               color,
             });
             setLabels(await db.listPersonLabels());
+            return label;
+          }}
+          onUpdate={async (id, patch) => {
+            const label = await db.updatePersonLabel(id, patch);
+            setLabels(await db.listPersonLabels());
+            if (person.label?.id === label.id) {
+              onPersonUpdated({ ...person, label });
+            }
             return label;
           }}
           onToast={onToast}

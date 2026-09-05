@@ -12,6 +12,7 @@ type PeopleDb = Pick<
   | "reorderPeople"
   | "listPersonLabels"
   | "createPersonLabel"
+  | "updatePersonLabel"
 >;
 
 
@@ -181,6 +182,7 @@ export default function PeopleView({
           createPerson={db.createPerson}
           createPersonLabel={db.createPersonLabel}
           listPersonLabels={db.listPersonLabels}
+          updatePersonLabel={db.updatePersonLabel}
           onCreated={onSelectPerson}
           onDuplicate={useExisting}
           onToast={onToast}

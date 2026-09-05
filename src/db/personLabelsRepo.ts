@@ -19,6 +19,11 @@ export type CreatePersonLabelInput = {
   nowIso?: string;
 };
 
+export type UpdatePersonLabelPatch = {
+  name?: string;
+  color?: PersonLabelColor;
+};
+
 function mapLabel(row: LabelRow): PersonLabel {
   return {
     id: row.id,
@@ -104,4 +109,52 @@ export async function getPersonLabel(
     [id],
   );
   return row ? mapLabel(row) : null;
+}
+
+export async function updatePersonLabel(
+  db: AsyncDb,
+  id: number,
+  patch: UpdatePersonLabelPatch,
+): Promise<PersonLabel> {
+  const existing = await getPersonLabel(db, id);
+  if (!existing) {
+    throw new Error("Etiket bulunamadı");
+  }
+
+  const nextName =
+    patch.name !== undefined ? patch.name.trim() : existing.name;
+  const nextColor = patch.color ?? existing.color;
+
+  if (!nextName) {
+    throw new Error("Etiket adı boş olamaz");
+  }
+  if (!isPersonLabelColor(nextColor)) {
+    throw new Error("Geçersiz renk");
+  }
+
+  if (
+    nextName.localeCompare(existing.name, "tr", { sensitivity: "base" }) !== 0
+  ) {
+    const [dup] = await db.select<{ id: number }>(
+      `SELECT id FROM person_labels
+       WHERE name = ? COLLATE NOCASE AND id != ?`,
+      [nextName, id],
+    );
+    if (dup) {
+      throw new Error("Bu isimde etiket var");
+    }
+  }
+
+  try {
+    const [row] = await db.select<LabelRow>(
+      `UPDATE person_labels
+       SET name = ?, color = ?
+       WHERE id = ?
+       RETURNING id, name, color, created_at`,
+      [nextName, nextColor, id],
+    );
+    return mapLabel(row);
+  } catch {
+    throw new Error("Bu isimde etiket var");
+  }
 }

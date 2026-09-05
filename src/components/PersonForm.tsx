@@ -8,6 +8,7 @@ type PersonFormProps = {
   createPerson: AppDb["createPerson"];
   listPersonLabels: AppDb["listPersonLabels"];
   createPersonLabel: AppDb["createPersonLabel"];
+  updatePersonLabel: AppDb["updatePersonLabel"];
   onCreated: (person: Person) => void;
   onDuplicate: (name: string) => Promise<Person | null>;
   onToast: (message: string) => void;
@@ -17,6 +18,7 @@ export default function PersonForm({
   createPerson,
   listPersonLabels,
   createPersonLabel,
+  updatePersonLabel,
   onCreated,
   onDuplicate,
   onToast,
@@ -97,6 +99,11 @@ export default function PersonForm({
         onChange={setLabelId}
         onCreate={async (labelName: string, color: PersonLabelColor) => {
           const label = await createPersonLabel({ name: labelName, color });
+          await reloadLabels();
+          return label;
+        }}
+        onUpdate={async (id, patch) => {
+          const label = await updatePersonLabel(id, patch);
           await reloadLabels();
           return label;
         }}
