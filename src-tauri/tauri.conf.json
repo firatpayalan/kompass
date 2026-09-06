@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Daily Leadership Tool",
+  "productName": "Kompass",
   "version": "0.1.0",
   "identifier": "com.dailyleadership.tool",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Daily Leadership Tool",
+        "title": "Kompass",
         "width": 800,
         "height": 600
       }

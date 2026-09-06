@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { coerceModel } from "../src/lib/llmModels";
+import { defaultModel, normalizeModelId } from "../src/lib/llmModels";
 
 describe("llmModels", () => {
-  it("falls back to provider default when model is foreign", () => {
-    expect(coerceModel("openai", "claude-sonnet-4-20250514")).toBe("gpt-4.1");
-    expect(coerceModel("claude", "gpt-4.1")).toBe("claude-sonnet-4-20250514");
+  it("trims free-text model ids", () => {
+    expect(normalizeModelId("  gpt-4.1-mini  ")).toBe("gpt-4.1-mini");
+    expect(normalizeModelId("")).toBe("");
+  });
+
+  it("keeps provider defaults for empty fallbacks", () => {
+    expect(defaultModel("openai")).toBe("gpt-4.1");
+    expect(defaultModel("claude")).toBe("claude-sonnet-4-20250514");
   });
 });

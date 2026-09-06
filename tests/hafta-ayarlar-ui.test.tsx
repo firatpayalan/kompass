@@ -132,7 +132,7 @@ describe("Hafta and Ayarlar UI", () => {
     expect(await screen.findByText("özet metni")).toBeTruthy();
   });
 
-  it("saves Claude key and switches model list with provider", async () => {
+  it("saves Claude key and allows free-text model ids", async () => {
     const saveClaudeApiKey = vi.fn(async () => undefined);
     const setLlmSettings = vi.fn(async () => undefined);
     const llm = mockLlm({
@@ -148,18 +148,29 @@ describe("Hafta and Ayarlar UI", () => {
 
     render(<AyarlarView llm={llm} />);
 
-    expect(await screen.findByText("OpenAI API anahtarı")).toBeTruthy();
-    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
-    expect(modelSelect.value).toBe("gpt-4.1");
+    expect(await screen.findByRole("heading", { name: "Özet sağlayıcısı" })).toBeTruthy();
+    const modelInput = screen.getByLabelText("Model") as HTMLInputElement;
+    expect(modelInput.value).toBe("gpt-4.1");
 
-    const inputs = screen.getAllByLabelText("Yeni anahtar");
-    fireEvent.change(inputs[0], { target: { value: "sk-ant-test" } });
+    fireEvent.change(modelInput, { target: { value: "gpt-4.1-mini" } });
+    fireEvent.blur(modelInput);
+
+    await waitFor(() => {
+      expect(setLlmSettings).toHaveBeenCalledWith({
+        provider: "openai",
+        model: "gpt-4.1-mini",
+      });
+    });
+
+    const keyInput = screen.getByLabelText("Yeni anahtar", {
+      selector: "#claude-api-key",
+    });
+    fireEvent.change(keyInput, { target: { value: "sk-ant-test" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Kaydet" })[0]);
 
     await waitFor(() => {
       expect(saveClaudeApiKey).toHaveBeenCalledWith("sk-ant-test");
     });
-    expect(screen.getAllByText("Anahtar kayıtlı").length).toBeGreaterThanOrEqual(1);
 
     fireEvent.change(screen.getByLabelText("Sağlayıcı"), {
       target: { value: "claude" },

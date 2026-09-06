@@ -36,7 +36,7 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <aside className="sidebar">
-      <div className="sidebar__title">Günlük Liderlik</div>
+      <div className="sidebar__title">Kompass</div>
       <nav aria-label="Ana menü">
         {navigationItems.map(({ view, label }) => (
           <button

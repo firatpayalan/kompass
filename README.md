@@ -1,4 +1,4 @@
-# Daily Leadership Tool
+# Kompass
 
 Yerel çalışan mühendislik yöneticisi masaüstü uygulaması.
 Local-first desktop app for engineering managers.

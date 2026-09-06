@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  coerceModel,
   defaultModel,
   modelsFor,
+  normalizeModelId,
   type LlmProvider,
 } from "../lib/llmModels";
 import {
@@ -18,6 +18,69 @@ type AyarlarViewProps = {
 
 const ignoreToast = () => undefined;
 
+function KeyCard({
+  title,
+  saved,
+  input,
+  onInput,
+  onSave,
+  onClear,
+  inputId,
+}: {
+  title: string;
+  saved: boolean;
+  input: string;
+  onInput: (value: string) => void;
+  onSave: () => void;
+  onClear: () => void;
+  inputId: string;
+}) {
+  return (
+    <section className="ayarlar-card">
+      <div className="ayarlar-card__header">
+        <h2>{title}</h2>
+        <span
+          className={
+            saved
+              ? "ayarlar-card__badge ayarlar-card__badge--ok"
+              : "ayarlar-card__badge"
+          }
+        >
+          {saved ? "Kayıtlı" : "Yok"}
+        </span>
+      </div>
+      <label className="ayarlar-card__field" htmlFor={inputId}>
+        Yeni anahtar
+        <input
+          autoComplete="off"
+          id={inputId}
+          onChange={(event) => onInput(event.target.value)}
+          placeholder="sk-…"
+          type="password"
+          value={input}
+        />
+      </label>
+      <div className="ayarlar-card__actions">
+        <button
+          className="ayarlar-card__btn ayarlar-card__btn--primary"
+          onClick={onSave}
+          type="button"
+        >
+          Kaydet
+        </button>
+        <button
+          className="ayarlar-card__btn"
+          disabled={!saved && !input}
+          onClick={onClear}
+          type="button"
+        >
+          Kaldır
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function AyarlarView({
   onToast = ignoreToast,
   llm = defaultLlmBridge,
@@ -30,6 +93,7 @@ export default function AyarlarView({
     provider: "claude",
     model: defaultModel("claude"),
   });
+  const [modelDraft, setModelDraft] = useState(defaultModel("claude"));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,11 +108,12 @@ export default function AyarlarView({
         if (!active) return;
         setClaudeSaved(hasClaude);
         setOpenaiSaved(hasOpenai);
-        const provider = loaded.provider;
-        setSettings({
-          provider,
-          model: coerceModel(provider, loaded.model),
-        });
+        const next = {
+          provider: loaded.provider,
+          model: normalizeModelId(loaded.model) || defaultModel(loaded.provider),
+        };
+        setSettings(next);
+        setModelDraft(next.model);
       } catch {
         if (active) onToast("Ayarlar yüklenemedi");
       } finally {
@@ -61,11 +126,10 @@ export default function AyarlarView({
   }, [llm, onToast]);
 
   const persistSettings = async (next: LlmSettings) => {
-    const coerced = {
-      provider: next.provider,
-      model: coerceModel(next.provider, next.model),
-    };
+    const model = normalizeModelId(next.model) || defaultModel(next.provider);
+    const coerced = { provider: next.provider, model };
     setSettings(coerced);
+    setModelDraft(model);
     try {
       await llm.setLlmSettings(coerced);
     } catch (error) {
@@ -75,147 +139,117 @@ export default function AyarlarView({
 
   if (loading) {
     return (
-      <section>
+      <section className="ayarlar-view">
         <h1>Ayarlar</h1>
         <p>Yükleniyor…</p>
       </section>
     );
   }
 
-  const modelOptions = modelsFor(settings.provider);
+  const suggestions = modelsFor(settings.provider);
+  const datalistId = `llm-model-suggestions-${settings.provider}`;
 
   return (
     <section className="ayarlar-view">
-      <h1>Ayarlar</h1>
-      <p className="ayarlar-view__privacy">
-        Özetle, not metinlerini seçilen sağlayıcıya (Anthropic veya OpenAI)
-        gönderir.
-      </p>
+      <header className="ayarlar-view__header">
+        <h1>Ayarlar</h1>
+        <p className="ayarlar-view__lede">
+          Özetle, not metinlerini seçilen sağlayıcıya (Anthropic veya OpenAI)
+          gönderir.
+        </p>
+      </header>
 
-      <fieldset className="ayarlar-view__fieldset">
-        <legend>Claude (Anthropic) API anahtarı</legend>
-        {claudeSaved ? (
-          <p>Anahtar kayıtlı</p>
-        ) : (
-          <p>Anahtar yok</p>
-        )}
-        <label>
-          Yeni anahtar
-          <input
-            autoComplete="off"
-            onChange={(event) => setClaudeInput(event.target.value)}
-            type="password"
-            value={claudeInput}
-          />
-        </label>
-        <div className="ayarlar-view__actions">
-          <button
-            onClick={() => {
-              void (async () => {
-                try {
-                  await llm.saveClaudeApiKey(claudeInput);
-                  setClaudeSaved(true);
-                  setClaudeInput("");
-                  onToast("Claude anahtarı kaydedildi");
-                } catch (error) {
-                  onToast(
-                    error instanceof Error
-                      ? error.message
-                      : "Claude anahtarı kaydedilemedi",
-                  );
-                }
-              })();
-            }}
-            type="button"
-          >
-            Kaydet
-          </button>
-          <button
-            onClick={() => {
-              void (async () => {
-                try {
-                  await llm.clearClaudeApiKey();
-                  setClaudeSaved(false);
-                  onToast("Claude anahtarı kaldırıldı");
-                } catch (error) {
-                  onToast(
-                    error instanceof Error
-                      ? error.message
-                      : "Claude anahtarı kaldırılamadı",
-                  );
-                }
-              })();
-            }}
-            type="button"
-          >
-            Kaldır
-          </button>
+      <div className="ayarlar-view__grid">
+        <KeyCard
+          input={claudeInput}
+          inputId="claude-api-key"
+          onClear={() => {
+            void (async () => {
+              try {
+                await llm.clearClaudeApiKey();
+                setClaudeSaved(false);
+                setClaudeInput("");
+                onToast("Claude anahtarı kaldırıldı");
+              } catch (error) {
+                onToast(
+                  error instanceof Error
+                    ? error.message
+                    : "Claude anahtarı kaldırılamadı",
+                );
+              }
+            })();
+          }}
+          onInput={setClaudeInput}
+          onSave={() => {
+            void (async () => {
+              try {
+                await llm.saveClaudeApiKey(claudeInput);
+                setClaudeSaved(true);
+                setClaudeInput("");
+                onToast("Claude anahtarı kaydedildi");
+              } catch (error) {
+                onToast(
+                  error instanceof Error
+                    ? error.message
+                    : "Claude anahtarı kaydedilemedi",
+                );
+              }
+            })();
+          }}
+          saved={claudeSaved}
+          title="Claude (Anthropic)"
+        />
+
+        <KeyCard
+          input={openaiInput}
+          inputId="openai-api-key"
+          onClear={() => {
+            void (async () => {
+              try {
+                await llm.clearOpenaiApiKey();
+                setOpenaiSaved(false);
+                setOpenaiInput("");
+                onToast("OpenAI anahtarı kaldırıldı");
+              } catch (error) {
+                onToast(
+                  error instanceof Error
+                    ? error.message
+                    : "OpenAI anahtarı kaldırılamadı",
+                );
+              }
+            })();
+          }}
+          onInput={setOpenaiInput}
+          onSave={() => {
+            void (async () => {
+              try {
+                await llm.saveOpenaiApiKey(openaiInput);
+                setOpenaiSaved(true);
+                setOpenaiInput("");
+                onToast("OpenAI anahtarı kaydedildi");
+              } catch (error) {
+                onToast(
+                  error instanceof Error
+                    ? error.message
+                    : "OpenAI anahtarı kaydedilemedi",
+                );
+              }
+            })();
+          }}
+          saved={openaiSaved}
+          title="OpenAI"
+        />
+      </div>
+
+      <section className="ayarlar-card ayarlar-card--wide">
+        <div className="ayarlar-card__header">
+          <h2>Özet sağlayıcısı</h2>
         </div>
-      </fieldset>
-
-      <fieldset className="ayarlar-view__fieldset">
-        <legend>OpenAI API anahtarı</legend>
-        {openaiSaved ? <p>Anahtar kayıtlı</p> : <p>Anahtar yok</p>}
-        <label>
-          Yeni anahtar
-          <input
-            autoComplete="off"
-            onChange={(event) => setOpenaiInput(event.target.value)}
-            type="password"
-            value={openaiInput}
-          />
-        </label>
-        <div className="ayarlar-view__actions">
-          <button
-            onClick={() => {
-              void (async () => {
-                try {
-                  await llm.saveOpenaiApiKey(openaiInput);
-                  setOpenaiSaved(true);
-                  setOpenaiInput("");
-                  onToast("OpenAI anahtarı kaydedildi");
-                } catch (error) {
-                  onToast(
-                    error instanceof Error
-                      ? error.message
-                      : "OpenAI anahtarı kaydedilemedi",
-                  );
-                }
-              })();
-            }}
-            type="button"
-          >
-            Kaydet
-          </button>
-          <button
-            onClick={() => {
-              void (async () => {
-                try {
-                  await llm.clearOpenaiApiKey();
-                  setOpenaiSaved(false);
-                  onToast("OpenAI anahtarı kaldırıldı");
-                } catch (error) {
-                  onToast(
-                    error instanceof Error
-                      ? error.message
-                      : "OpenAI anahtarı kaldırılamadı",
-                  );
-                }
-              })();
-            }}
-            type="button"
-          >
-            Kaldır
-          </button>
-        </div>
-      </fieldset>
-
-      <fieldset className="ayarlar-view__fieldset">
-        <legend>Özet sağlayıcısı</legend>
-        <label>
+        <label className="ayarlar-card__field" htmlFor="llm-provider">
           Sağlayıcı
           <select
             aria-label="Sağlayıcı"
+            id="llm-provider"
             onChange={(event) => {
               const provider = event.target.value as LlmProvider;
               void persistSettings({
@@ -233,26 +267,69 @@ export default function AyarlarView({
             </option>
           </select>
         </label>
-        <label>
-          Model
-          <select
+        <label className="ayarlar-card__field" htmlFor="llm-model">
+          Model kimliği
+          <input
             aria-label="Model"
-            onChange={(event) => {
+            autoComplete="off"
+            id="llm-model"
+            list={datalistId}
+            onBlur={() => {
+              if (normalizeModelId(modelDraft) === settings.model) return;
               void persistSettings({
                 provider: settings.provider,
-                model: event.target.value,
+                model: modelDraft,
               });
             }}
-            value={settings.model}
-          >
-            {modelOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(event) => setModelDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              void persistSettings({
+                provider: settings.provider,
+                model: modelDraft,
+              });
+            }}
+            placeholder={defaultModel(settings.provider)}
+            spellCheck={false}
+            type="text"
+            value={modelDraft}
+          />
         </label>
-      </fieldset>
+        <datalist id={datalistId}>
+          {suggestions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </datalist>
+        <p className="ayarlar-card__hint">
+          İstediğin model id’sini yazabilirsin. Öneriler listeden seçilebilir;
+          Enter veya alandan çıkınca kaydedilir.
+        </p>
+        <div className="ayarlar-card__chips" aria-label="Önerilen modeller">
+          {suggestions.map((option) => (
+            <button
+              className={
+                modelDraft === option.id
+                  ? "ayarlar-chip ayarlar-chip--active"
+                  : "ayarlar-chip"
+              }
+              key={option.id}
+              onClick={() => {
+                setModelDraft(option.id);
+                void persistSettings({
+                  provider: settings.provider,
+                  model: option.id,
+                });
+              }}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
     </section>
   );
 }

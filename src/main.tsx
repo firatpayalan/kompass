@@ -19,7 +19,7 @@ initAppDb().then(
   (error: unknown) => {
     root.render(
       <main>
-        <h1>Daily Leadership Tool</h1>
+        <h1>Kompass</h1>
         <p>Veritabanı açılamadı: {String(error)}</p>
       </main>,
     );

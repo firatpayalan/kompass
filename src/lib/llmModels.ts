@@ -22,8 +22,6 @@ export function defaultModel(provider: LlmProvider): string {
   return modelsFor(provider)[0].id;
 }
 
-/** If model not in provider list, fall back to default. */
-export function coerceModel(provider: LlmProvider, model: string): string {
-  const allowed = modelsFor(provider).map((m) => m.id);
-  return allowed.includes(model) ? model : defaultModel(provider);
+export function normalizeModelId(model: string): string {
+  return model.trim();
 }
