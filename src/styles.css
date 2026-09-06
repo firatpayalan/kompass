@@ -1503,3 +1503,72 @@ button:disabled {
   color: #94a3b8;
   font-size: 0.85rem;
 }
+
+.hafta-view__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.hafta-view__nav p {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.hafta-view__counts {
+  color: #64748b;
+}
+
+.hafta-view__ozet pre {
+  white-space: pre-wrap;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem;
+  border-radius: 0.35rem;
+}
+
+.hafta-view__ozet-meta {
+  margin: 0 0 0.35rem;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.hafta-view__privacy,
+.ayarlar-view__privacy {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.hafta-view__section {
+  margin-bottom: 1rem;
+}
+
+.hafta-view__entity {
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #0f172a;
+}
+
+.hafta-view__entity:hover {
+  text-decoration: underline;
+}
+
+.ayarlar-view__fieldset {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.35rem;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ayarlar-view__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+

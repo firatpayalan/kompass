@@ -4,6 +4,8 @@ export type View =
   | "notlar"
   | "kisiler"
   | "isler"
+  | "hafta"
+  | "ayarlar"
   | "arama"
   | "arsiv"
   | "kisi:"
@@ -22,6 +24,8 @@ const navigationItems: Array<{ view: SidebarView; label: string }> = [
   { view: "notlar", label: "Notlar" },
   { view: "kisiler", label: "Kişiler" },
   { view: "isler", label: "İşler" },
+  { view: "hafta", label: "Hafta" },
+  { view: "ayarlar", label: "Ayarlar" },
   { view: "arama", label: "Arama" },
   { view: "arsiv", label: "Arşiv" },
 ];

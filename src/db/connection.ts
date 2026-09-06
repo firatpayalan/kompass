@@ -11,6 +11,7 @@ import { ensureTopicsInitiativeOwner } from "./topicsRepo";
 import { ensureNoteImagesTable } from "./noteImagesRepo";
 import { ensureNoteTagsColor } from "./noteTagsRepo";
 import { ensureTopicTagsSchema } from "./topicTagsRepo";
+import { ensureWeeklySummariesTable } from "./weeklySummariesRepo";
 import schemaSql from "./schema.sql?raw";
 
 const DATABASE_URL = "sqlite:leadership.db";
@@ -67,6 +68,9 @@ function wrapTauriDatabase(database: Database): AsyncDb {
 export async function connectAppDatabase(): Promise<AsyncDb> {
   const db = wrapTauriDatabase(await Database.load(DATABASE_URL));
   await applySchema(db, schemaSql);
+  // Must run before any topics query; schema IF NOT EXISTS leaves legacy tables
+  // without initiative_id, and schema indexes on that column would fail if applied early.
+  await ensureTopicsInitiativeOwner(db);
   await ensurePersonLabels(db);
   await ensurePeopleSortOrder(db);
   await ensurePeopleArchivedAt(db);
@@ -76,6 +80,6 @@ export async function connectAppDatabase(): Promise<AsyncDb> {
   await ensureTopicTagsSchema(db);
   await ensureNoteTagsColor(db);
   await ensureNoteImagesTable(db);
-  await ensureTopicsInitiativeOwner(db);
+  await ensureWeeklySummariesTable(db);
   return db;
 }

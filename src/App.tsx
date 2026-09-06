@@ -16,6 +16,8 @@ import { createDraftStore } from "./lib/drafts";
 import type { Initiative, Person } from "./lib/types";
 import BugunView from "./views/BugunView";
 import ArchiveView from "./views/ArchiveView";
+import AyarlarView from "./views/AyarlarView";
+import HaftaView from "./views/HaftaView";
 import InboxView from "./views/InboxView";
 import InitiativeDetailView from "./views/InitiativeDetailView";
 import InitiativesView from "./views/InitiativesView";
@@ -128,6 +130,18 @@ export default function App({ db, notify, now }: AppProps = {}) {
             onToast={showToast}
           />
         );
+      case "hafta":
+        return (
+          <HaftaView
+            db={appDb}
+            onGoAyarlar={() => changeView("ayarlar")}
+            onOpenInitiative={openInitiative}
+            onOpenPerson={openPerson}
+            onToast={showToast}
+          />
+        );
+      case "ayarlar":
+        return <AyarlarView onToast={showToast} />;
       case "arama":
         return (
           <SearchView

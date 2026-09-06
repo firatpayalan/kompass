@@ -26,6 +26,8 @@ const viewCommands: Array<{ label: string; view: SidebarView }> = [
   { label: "Notlar", view: "notlar" },
   { label: "Kişiler", view: "kisiler" },
   { label: "İşler", view: "isler" },
+  { label: "Hafta", view: "hafta" },
+  { label: "Ayarlar", view: "ayarlar" },
   { label: "Arama", view: "arama" },
   { label: "Arşiv", view: "arsiv" },
 ];

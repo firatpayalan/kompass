@@ -1,10 +1,10 @@
-# Weekly Digest + Optional Claude Summary Implementation Plan
+# Weekly Digest + Optional LLM Summary Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add **Hafta** (week digest by people/initiatives) and **Ayarlar** (optional Claude API key); cache Claude summaries in SQLite.
+**Goal:** Add **Hafta** (week digest by people/initiatives) and **Ayarlar** (optional Claude and/or OpenAI API keys, provider + curated model); cache summaries in SQLite.
 
-**Architecture:** Pure TS week range + note range query + grouping. Summaries in `weekly_summaries`. Claude key file + Anthropic HTTP live in Tauri Rust commands; React calls them via a thin `claudeBridge` (mockable in Vitest). No npm Anthropic SDK.
+**Architecture:** Pure TS week range + note range query + grouping. Summaries in `weekly_summaries` (with `provider`). Keys + `llm_settings.json` on disk; Anthropic **or** OpenAI HTTP in Tauri Rust; React via mockable `llmBridge`. No npm LLM SDKs.
 
 **Tech Stack:** React + TypeScript, Vitest + Testing Library, SQLite (`notesRepo` / new `weeklySummariesRepo`), Tauri 2 Rust commands + `reqwest` (ask user before adding).
 
@@ -15,24 +15,26 @@
 - Do not use `window.confirm`.
 - Commit only when the user explicitly asks (skip commit steps unless requested).
 - Spec: `docs/superpowers/specs/2026-09-06-weekly-digest-claude-design.md`.
+- OpenAI = Platform API key only (not ChatGPT Plus). Model pick = curated `<select>` per provider (no free-text in v1).
 
 ## File map
 
 | File | Responsibility |
 |------|----------------|
 | `src/lib/weekRange.ts` | Local Mon–Sun bounds + `week_start` `YYYY-MM-DD` |
-| `src/lib/weeklyDigest.ts` | Group notes into person/initiative sections; strip `dlt-img` for payload |
-| `src/db/schema.sql` | `weekly_summaries` table |
+| `src/lib/weeklyDigest.ts` | Group notes; strip `dlt-img`; LLM note payload |
+| `src/lib/llmModels.ts` | Curated Claude/OpenAI model lists + defaults |
+| `src/db/schema.sql` | `weekly_summaries` (`provider`, `model`, …) |
 | `src/db/weeklySummariesRepo.ts` | ensure + get + upsert |
 | `src/db/notesRepo.ts` | `listNotesInRange` |
 | `src/db/connection.ts` / `src/db/appDb.ts` | Wire ensure + AppDb methods |
-| `src/lib/claudeBridge.ts` | `invoke` wrappers (key + summarize) |
-| `src-tauri/src/claude.rs` (+ `lib.rs`, `Cargo.toml`) | Key file + Anthropic Messages call |
+| `src/lib/llmBridge.ts` | `invoke` wrappers (keys, settings, summarize) |
+| `src-tauri/src/llm.rs` (+ `lib.rs`, `Cargo.toml`) | Key files, settings JSON, Anthropic + OpenAI HTTP |
 | `src/views/HaftaView.tsx` | Week UI |
-| `src/views/AyarlarView.tsx` | API key save/clear |
+| `src/views/AyarlarView.tsx` | Keys + provider + model selects |
 | `src/components/Sidebar.tsx`, `CommandPalette.tsx`, `App.tsx` | Nav + routes |
 | `src/styles.css` | Minimal layout for Hafta / Ayarlar |
-| `tests/weekRange.test.ts`, `tests/weeklyDigest.test.ts`, `tests/notesRepo.test.ts`, `tests/weeklySummariesRepo.test.ts`, `tests/hafta-ayarlar-ui.test.tsx` | Coverage |
+| `tests/weekRange.test.ts`, `tests/weeklyDigest.test.ts`, `tests/llmModels.test.ts`, `tests/notesRepo.test.ts`, `tests/weeklySummariesRepo.test.ts`, `tests/hafta-ayarlar-ui.test.tsx` | Coverage |
 
 ---
 
@@ -167,10 +169,10 @@ Run: `npx vitest run tests/weekRange.test.ts`
 **Interfaces:**
 - Produces:
   - `listNotesInRange(db, startIso, endIso): Promise<Note[]>`
-  - `WeeklySummary = { weekStart, content, model, createdAt }`
+  - `WeeklySummary = { weekStart, content, provider, model, createdAt }`
   - `ensureWeeklySummariesTable(db)`
   - `getWeeklySummary(db, weekStart)`
-  - `upsertWeeklySummary(db, { weekStart, content, model, createdAt })`
+  - `upsertWeeklySummary(db, { weekStart, content, provider, model, createdAt })`
   - AppDb methods mirroring the above (bound)
 
 - [ ] **Step 1: Failing notes range test**
@@ -266,19 +268,22 @@ describe("weeklySummariesRepo", () => {
     await upsertWeeklySummary(db, {
       weekStart: "2026-09-07",
       content: "ilk",
+      provider: "claude",
       model: "claude-test",
       createdAt: "2026-09-08T10:00:00.000Z",
     });
     await upsertWeeklySummary(db, {
       weekStart: "2026-09-07",
       content: "ikinci",
-      model: "claude-test",
+      provider: "openai",
+      model: "gpt-4.1",
       createdAt: "2026-09-08T11:00:00.000Z",
     });
     expect(await getWeeklySummary(db, "2026-09-07")).toEqual({
       weekStart: "2026-09-07",
       content: "ikinci",
-      model: "claude-test",
+      provider: "openai",
+      model: "gpt-4.1",
       createdAt: "2026-09-08T11:00:00.000Z",
     });
     expect(await getWeeklySummary(db, "2026-08-31")).toBeNull();
@@ -295,6 +300,7 @@ import type { AsyncDb } from "./asyncDb";
 export type WeeklySummary = {
   weekStart: string;
   content: string;
+  provider: "claude" | "openai";
   model: string;
   createdAt: string;
 };
@@ -302,6 +308,7 @@ export type WeeklySummary = {
 type Row = {
   week_start: string;
   content: string;
+  provider: string;
   model: string;
   created_at: string;
 };
@@ -311,6 +318,7 @@ export async function ensureWeeklySummariesTable(db: AsyncDb): Promise<void> {
     CREATE TABLE IF NOT EXISTS weekly_summaries (
       week_start TEXT PRIMARY KEY,
       content TEXT NOT NULL,
+      provider TEXT NOT NULL,
       model TEXT NOT NULL,
       created_at TEXT NOT NULL
     )
@@ -322,7 +330,7 @@ export async function getWeeklySummary(
   weekStart: string,
 ): Promise<WeeklySummary | null> {
   const rows = await db.select<Row>(
-    `SELECT week_start, content, model, created_at
+    `SELECT week_start, content, provider, model, created_at
      FROM weekly_summaries WHERE week_start = ?`,
     [weekStart],
   );
@@ -331,6 +339,7 @@ export async function getWeeklySummary(
   return {
     weekStart: row.week_start,
     content: row.content,
+    provider: row.provider as "claude" | "openai",
     model: row.model,
     createdAt: row.created_at,
   };
@@ -341,13 +350,20 @@ export async function upsertWeeklySummary(
   input: WeeklySummary,
 ): Promise<void> {
   await db.execute(
-    `INSERT INTO weekly_summaries (week_start, content, model, created_at)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO weekly_summaries (week_start, content, provider, model, created_at)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(week_start) DO UPDATE SET
        content = excluded.content,
+       provider = excluded.provider,
        model = excluded.model,
        created_at = excluded.created_at`,
-    [input.weekStart, input.content, input.model, input.createdAt],
+    [
+      input.weekStart,
+      input.content,
+      input.provider,
+      input.model,
+      input.createdAt,
+    ],
   );
 }
 ```
@@ -486,18 +502,18 @@ export function groupNotesForWeek(
   };
 }
 
-export type ClaudeNotePayloadItem = {
+export type LlmNotePayloadItem = {
   createdAt: string;
   body: string;
   people: string[];
   initiatives: string[];
 };
 
-export function buildClaudeNotesPayload(
+export function buildLlmNotesPayload(
   notes: Note[],
   peopleById: Map<number, Person>,
   initiativesById: Map<number, Initiative>,
-): ClaudeNotePayloadItem[] {
+): LlmNotePayloadItem[] {
   return notes
     .filter((n) => n.personIds.length > 0 || n.initiativeIds.length > 0)
     .map((n) => ({
@@ -513,30 +529,66 @@ export function buildClaudeNotesPayload(
 }
 ```
 
-- [ ] **Step 3: Run — expect PASS**
+- [ ] **Step 3: Add `src/lib/llmModels.ts` + test**
 
-Run: `npx vitest run tests/weeklyDigest.test.ts`
+```ts
+export type LlmProvider = "claude" | "openai";
+
+export type LlmModelOption = { id: string; label: string };
+
+export const CLAUDE_MODELS: LlmModelOption[] = [
+  { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
+  { id: "claude-opus-4-20250514", label: "Claude Opus 4" },
+  { id: "claude-haiku-4-20250414", label: "Claude Haiku 4" },
+];
+
+export const OPENAI_MODELS: LlmModelOption[] = [
+  { id: "gpt-4.1", label: "GPT-4.1" },
+  { id: "gpt-4o", label: "GPT-4o" },
+  { id: "o4-mini", label: "o4-mini" },
+];
+
+export function modelsFor(provider: LlmProvider): LlmModelOption[] {
+  return provider === "claude" ? CLAUDE_MODELS : OPENAI_MODELS;
+}
+
+export function defaultModel(provider: LlmProvider): string {
+  return modelsFor(provider)[0].id;
+}
+
+/** If model not in provider list, fall back to default. */
+export function coerceModel(provider: LlmProvider, model: string): string {
+  const allowed = modelsFor(provider).map((m) => m.id);
+  return allowed.includes(model) ? model : defaultModel(provider);
+}
+```
+
+Test: `coerceModel("openai", "claude-sonnet-4-20250514") === "gpt-4.1"`.
+
+- [ ] **Step 4: Run — expect PASS**
+
+Run: `npx vitest run tests/weeklyDigest.test.ts tests/llmModels.test.ts`
 
 ---
 
-### Task 4: Claude bridge (TS) + Rust commands
+### Task 4: LLM bridge (TS) + Rust (Claude + OpenAI)
 
-**Ask the user first:** Add Cargo deps `reqwest` (features: `json`, `rustls-tls`, disable default tls) and ensure `tokio` is available via Tauri. Do not add npm packages.
+**Ask the user first:** Add Cargo dep `reqwest` (features: `json`, `rustls-tls`, default-features false). Do not add npm packages.
 
 **Files:**
-- Create: `src/lib/claudeBridge.ts`
-- Create: `src-tauri/src/claude.rs`
+- Create: `src/lib/llmBridge.ts`
+- Create: `src-tauri/src/llm.rs`
 - Modify: `src-tauri/src/lib.rs`
 - Modify: `src-tauri/Cargo.toml`
-- Create: `tests/claudeBridge.test.ts` (optional thin mock test)
 
 **Interfaces:**
 - Produces (TS):
-  - `hasClaudeApiKey(): Promise<boolean>`
-  - `saveClaudeApiKey(key: string): Promise<void>`
-  - `clearClaudeApiKey(): Promise<void>`
-  - `summarizeWeek(input: { weekStart: string; notes: ClaudeNotePayloadItem[] }): Promise<{ content: string; model: string }>`
-- Produces (Rust commands with same snake_case names for `invoke`)
+  - `hasClaudeApiKey` / `saveClaudeApiKey` / `clearClaudeApiKey`
+  - `hasOpenaiApiKey` / `saveOpenaiApiKey` / `clearOpenaiApiKey`
+  - `getLlmSettings(): Promise<{ provider: LlmProvider; model: string }>`
+  - `setLlmSettings(settings): Promise<void>`
+  - `summarizeWeek({ weekStart, notes }): Promise<{ content, provider, model }>`
+- Rust reads secrets from disk; frontend never passes raw keys into `summarize_week`.
 
 - [ ] **Step 1: After user approves `reqwest`, update `Cargo.toml`**
 
@@ -544,77 +596,27 @@ Run: `npx vitest run tests/weeklyDigest.test.ts`
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 ```
 
-Keep existing `serde` / `serde_json`.
+- [ ] **Step 2: Implement `src-tauri/src/llm.rs`**
 
-- [ ] **Step 2: Implement `src-tauri/src/claude.rs`**
+Config dir files:
+- `claude_api_key`, `openai_api_key`
+- `llm_settings.json` → `{ "provider": "claude"|"openai", "model": "..." }`
 
-Responsibilities:
-- Key path: `app.path().app_config_dir()?.join("claude_api_key")`
-- `has_claude_api_key` → file exists and non-empty after trim
-- `save_claude_api_key(key: String)` → create dir, write trimmed key; reject empty
-- `clear_claude_api_key` → remove file if present
-- `summarize_week(week_start: String, notes_json: String)` → read key from file (not from frontend arg — safer); POST Anthropic Messages:
-  - URL `https://api.anthropic.com/v1/messages`
-  - Headers: `x-api-key`, `anthropic-version: 2023-06-01`, `content-type: application/json`
-  - Model constant e.g. `claude-sonnet-4-20250514` (pin in one `const`)
-  - System/user prompt in Turkish: haftalık liderlik özeti; bölümler Kişiler / İşler / Dikkat; only use provided notes
-  - Parse `content[0].text` from response
-  - Map HTTP 401 → Err("Claude API anahtarı geçersiz")
-  - Other errors → Err with short Turkish message
+Commands: has/save/clear for both keys; get/set settings; `summarize_week(week_start, notes_json)`:
+- Load settings; require matching key present
+- Shared Turkish prompt (Kişiler / İşler / Dikkat)
+- **Claude:** `POST https://api.anthropic.com/v1/messages` (`x-api-key`, `anthropic-version: 2023-06-01`)
+- **OpenAI:** `POST https://api.openai.com/v1/chat/completions` (`Authorization: Bearer …`)
+- Return `{ content, provider, model }`; 401 → Turkish “API anahtarı geçersiz”
 
-Register in `lib.rs`:
+Register all commands in `lib.rs` `invoke_handler`.
 
-```rust
-mod claude;
+- [ ] **Step 3: TS `llmBridge.ts`**
 
-tauri::Builder::default()
-  // …
-  .invoke_handler(tauri::generate_handler![
-    claude::has_claude_api_key,
-    claude::save_claude_api_key,
-    claude::clear_claude_api_key,
-    claude::summarize_week,
-  ])
-```
+Wrap `invoke` for every command above. Align camelCase args with Tauri v2.
 
-Enable path resolver if needed (`tauri` feature `protocol-asset` not required; use `app.path()` from `tauri::Manager` + `tauri::path::BaseDirectory` / `PathResolver`).
+- [ ] **Step 4: `cargo check`**
 
-- [ ] **Step 3: TS bridge**
-
-`src/lib/claudeBridge.ts`:
-
-```ts
-import { invoke } from "@tauri-apps/api/core";
-import type { ClaudeNotePayloadItem } from "./weeklyDigest";
-
-export async function hasClaudeApiKey(): Promise<boolean> {
-  return invoke<boolean>("has_claude_api_key");
-}
-
-export async function saveClaudeApiKey(key: string): Promise<void> {
-  await invoke("save_claude_api_key", { key });
-}
-
-export async function clearClaudeApiKey(): Promise<void> {
-  await invoke("clear_claude_api_key");
-}
-
-export async function summarizeWeek(input: {
-  weekStart: string;
-  notes: ClaudeNotePayloadItem[];
-}): Promise<{ content: string; model: string }> {
-  return invoke("summarize_week", {
-    weekStart: input.weekStart,
-    notesJson: JSON.stringify(input.notes),
-  });
-}
-```
-
-(Match Rust arg names with serde rename if needed — Tauri passes camelCase from JS by default in v2; align deliberately.)
-
-- [ ] **Step 4: Manual smoke (dev)**
-
-With `npm run tauri dev`: Ayarlar not built yet — optional `cargo check` in `src-tauri`.  
 Run: `cd src-tauri && cargo check`  
 Expected: success after deps resolve.
 
@@ -632,79 +634,42 @@ Expected: success after deps resolve.
 - Create: `tests/hafta-ayarlar-ui.test.tsx`
 
 **Interfaces:**
-- Consumes: AppDb range/summary methods; injectable `claudeBridge` for tests
-- Produces: working sidebar routes `hafta` | `ayarlar`
+- Consumes: AppDb + injectable `LlmBridge` for tests
+- Produces: routes `hafta` | `ayarlar`
 
 - [ ] **Step 1: UI tests (fail first)**
 
-`tests/hafta-ayarlar-ui.test.tsx` — follow patterns from `tests/task13-ui.test.tsx` / Bugün tests:
-
-1. Render `HaftaView` with mock db returning one person-linked note in range; assert “Kişiler”, note body, counts.
-2. `hasClaudeApiKey` mock `false` → no “Claude ile özetle” button; see Ayarlar hint text.
-3. `hasClaudeApiKey` mock `true` → button present; click → `summarizeWeek` called → `upsertWeeklySummary` → Özet text shown.
-4. `AyarlarView`: save calls `saveClaudeApiKey`; after save shows “kayıtlı” (not raw key).
-
-Inject bridge via props:
-
-```ts
-type ClaudeBridge = {
-  hasClaudeApiKey: () => Promise<boolean>;
-  saveClaudeApiKey: (key: string) => Promise<void>;
-  clearClaudeApiKey: () => Promise<void>;
-  summarizeWeek: typeof summarizeWeek;
-};
-```
-
-Default props use real `claudeBridge` module exports.
+1. `HaftaView` with person-linked note → Kişiler + counts.
+2. No keys → no **Özetle**; Ayarlar hint.
+3. Claude key + settings → **Özetle** → upsert with `provider: "claude"`.
+4. `AyarlarView`: both key fields; provider select enables only providers with keys; changing provider swaps model `<option>`s via `modelsFor`; save settings calls `setLlmSettings`.
 
 - [ ] **Step 2: Implement `AyarlarView`**
 
-- Title: Ayarlar
-- Label: Claude API anahtarı (opsiyonel)
-- Password/text input + **Kaydet** / **Kaldır**
-- Privacy line: “Özetle, not metinlerini Anthropic’e gönderir.”
-- On load: `hasClaudeApiKey` → show “Anahtar kayıtlı” vs empty form
+- Claude key + OpenAI key (Kaydet / Kaldır each)
+- Sağlayıcı select + Model select (from `llmModels.ts`)
+- Privacy: “Özetle, not metinlerini seçilen sağlayıcıya (Anthropic veya OpenAI) gönderir.”
 
 - [ ] **Step 3: Implement `HaftaView`**
 
-- State: `weekStart` from `getWeekRange(new Date()).weekStart`
-- Load: `rangeFromWeekStart` → `listNotesInRange` + `listPeople` + `listInitiatives` + `getWeeklySummary` + `hasClaudeApiKey`
-- Header: ◀ ▶ + `formatWeekLabel`
-- Counts line
-- Cached **Özet** `<pre>` or paragraphs
-- Summarize button or Ayarlar hint
-- On summarize success: upsert then reload summary; on error toast Turkish message; do not upsert
-- Sections Kişiler / İşler with buttons opening person/initiative via props `onOpenPerson` / `onOpenInitiative`
+- Week nav + load range/summary/settings/key flags
+- **Özetle** when selected provider has a key; else Ayarlar hint
+- Upsert includes `provider` + `model` from summarize result
+- Show cached özet + provider/model caption when present
 
-- [ ] **Step 4: Wire navigation**
-
-`Sidebar.tsx` — extend `View` / `SidebarView` with `"hafta" | "ayarlar"`; insert items after İşler (or before Arama):
-
-```ts
-{ view: "hafta", label: "Hafta" },
-{ view: "ayarlar", label: "Ayarlar" },
-```
-
-`CommandPalette.tsx` — same labels in `viewCommands`.
-
-`App.tsx` — cases for `hafta` / `ayarlar` rendering the new views with `onToast`, open person/initiative handlers.
+- [ ] **Step 4: Wire navigation** (`hafta`, `ayarlar` in Sidebar + CommandPalette + App)
 
 - [ ] **Step 5: Minimal CSS**
 
-Reuse existing list/section patterns from Bugün; add only what is needed (week nav row, summary block). Avoid new design system.
-
-- [ ] **Step 6: Run UI + full suite**
-
-Run: `npx vitest run tests/hafta-ayarlar-ui.test.tsx && npm test`  
-Expected: all PASS
+- [ ] **Step 6: `npx vitest run tests/hafta-ayarlar-ui.test.tsx && npm test`** — all PASS
 
 ---
 
 ### Task 6: Spec self-check + polish
 
-- [ ] Confirm every spec bullet has a task deliverable (nav, range, groups both, inbox excluded, key file not SQLite, UPSERT, privacy copy, image strip).
+- [ ] Spec coverage: dual keys, provider/model selects, curated lists, OpenAI chat completions path, `provider` on cache.
 - [ ] `cargo check` + `npm test` green.
-- [ ] Commit only if user asks; if pushing, include design already on `main` and this feature together only when requested.
+- [ ] Commit only if user asks.
 
 ---
 
@@ -716,10 +681,11 @@ Expected: all PASS
 | Week nav Mon–Sun local | 1, 5 |
 | Counts + sections both ways | 3, 5 |
 | Inbox / deleted excluded | 2, 3 |
-| `weekly_summaries` cache UPSERT | 2, 5 |
-| Key file + optional summarize | 4, 5 |
-| Rust Anthropic + Turkish errors | 4 |
-| Strip `dlt-img` | 3, 4 payload |
+| `weekly_summaries` + provider UPSERT | 2, 5 |
+| Claude + OpenAI keys, settings JSON | 4, 5 |
+| Curated model selects | 3 (`llmModels`), 5 |
+| Rust Anthropic + OpenAI + Turkish errors | 4 |
+| Strip `dlt-img` | 3, 4 |
 | Tests listed in spec | 1–5 |
 
-No OpenAI / self-performance / scheduled digest in plan (out of scope).
+Out of scope remains: ChatGPT Plus session, free-text model ids, other providers, self-performance digests.

@@ -6,7 +6,9 @@ import {
   linkNoteToTopics,
   listActiveNotes,
   listInboxNotes,
+  listNotesInRange,
   linkNoteToPeople,
+  softDeleteNote,
   updateNote,
 } from "../src/db/notesRepo";
 import { createPerson } from "../src/db/peopleRepo";
@@ -195,6 +197,43 @@ describe("notesRepo", () => {
     await markReminderDone(db, doneReminder.id);
 
     expect((await getNote(db, note.id))?.nextReminderDueAt).toBe(earlierDue);
+    db.close();
+  });
+
+  it("lists notes in a half-open created_at range and skips deleted", async () => {
+    const db = openTestAsyncDb();
+    const person = await createPerson(db, {
+      name: "Ali",
+      nowIso: "2026-09-01T00:00:00.000Z",
+    });
+    const inRange = await createNote(db, {
+      body: "içerde",
+      personIds: [person.id],
+      nowIso: "2026-09-08T12:00:00.000Z",
+    });
+    await createNote(db, {
+      body: "önce",
+      personIds: [person.id],
+      nowIso: "2026-09-06T23:59:59.000Z",
+    });
+    await createNote(db, {
+      body: "sonra",
+      personIds: [person.id],
+      nowIso: "2026-09-14T00:00:00.000Z",
+    });
+    const deleted = await createNote(db, {
+      body: "silindi",
+      personIds: [person.id],
+      nowIso: "2026-09-09T10:00:00.000Z",
+    });
+    await softDeleteNote(db, deleted.id, "2026-09-09T11:00:00.000Z");
+
+    const notes = await listNotesInRange(
+      db,
+      "2026-09-07T00:00:00.000Z",
+      "2026-09-14T00:00:00.000Z",
+    );
+    expect(notes.map((n) => n.id)).toEqual([inRange.id]);
     db.close();
   });
 });

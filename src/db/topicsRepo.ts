@@ -40,59 +40,63 @@ export async function ensureTopicsInitiativeOwner(db: AsyncDb): Promise<void> {
   const columns = await db.select<{ name: string; notnull: number }>(
     "PRAGMA table_info(topics)",
   );
+  if (columns.length === 0) {
+    // Table missing — schema apply should create it; still ensure indexes if present later.
+    return;
+  }
+
   const hasInitiative = columns.some((column) => column.name === "initiative_id");
   const personCol = columns.find((column) => column.name === "person_id");
   const personNotNull = personCol?.notnull === 1;
 
-  if (hasInitiative && !personNotNull) {
-    return;
-  }
-
-  await db.execute("PRAGMA foreign_keys = OFF");
-  try {
-    await db.withTransaction(async (tx) => {
-      await tx.execute(`
-        CREATE TABLE topics_new (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          person_id INTEGER REFERENCES people(id) ON DELETE CASCADE,
-          initiative_id INTEGER REFERENCES initiatives(id) ON DELETE CASCADE,
-          title TEXT NOT NULL COLLATE NOCASE,
-          created_at TEXT NOT NULL,
-          CHECK (
-            (person_id IS NOT NULL AND initiative_id IS NULL)
-            OR (person_id IS NULL AND initiative_id IS NOT NULL)
+  if (!hasInitiative || personNotNull) {
+    await db.execute("PRAGMA foreign_keys = OFF");
+    try {
+      await db.withTransaction(async (tx) => {
+        await tx.execute(`
+          CREATE TABLE topics_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            person_id INTEGER REFERENCES people(id) ON DELETE CASCADE,
+            initiative_id INTEGER REFERENCES initiatives(id) ON DELETE CASCADE,
+            title TEXT NOT NULL COLLATE NOCASE,
+            created_at TEXT NOT NULL,
+            CHECK (
+              (person_id IS NOT NULL AND initiative_id IS NULL)
+              OR (person_id IS NULL AND initiative_id IS NOT NULL)
+            )
           )
-        )
-      `);
-
-      if (hasInitiative) {
-        await tx.execute(`
-          INSERT INTO topics_new (id, person_id, initiative_id, title, created_at)
-          SELECT id, person_id, initiative_id, title, created_at FROM topics
         `);
-      } else {
-        await tx.execute(`
-          INSERT INTO topics_new (id, person_id, initiative_id, title, created_at)
-          SELECT id, person_id, NULL, title, created_at FROM topics
-        `);
-      }
 
-      await tx.execute("DROP TABLE topics");
-      await tx.execute("ALTER TABLE topics_new RENAME TO topics");
-      await tx.execute(`
-        CREATE UNIQUE INDEX IF NOT EXISTS topics_person_title_unique
-          ON topics(person_id, title COLLATE NOCASE)
-          WHERE person_id IS NOT NULL
-      `);
-      await tx.execute(`
-        CREATE UNIQUE INDEX IF NOT EXISTS topics_initiative_title_unique
-          ON topics(initiative_id, title COLLATE NOCASE)
-          WHERE initiative_id IS NOT NULL
-      `);
-    });
-  } finally {
-    await db.execute("PRAGMA foreign_keys = ON");
+        if (hasInitiative) {
+          await tx.execute(`
+            INSERT INTO topics_new (id, person_id, initiative_id, title, created_at)
+            SELECT id, person_id, initiative_id, title, created_at FROM topics
+          `);
+        } else {
+          await tx.execute(`
+            INSERT INTO topics_new (id, person_id, initiative_id, title, created_at)
+            SELECT id, person_id, NULL, title, created_at FROM topics
+          `);
+        }
+
+        await tx.execute("DROP TABLE topics");
+        await tx.execute("ALTER TABLE topics_new RENAME TO topics");
+      });
+    } finally {
+      await db.execute("PRAGMA foreign_keys = ON");
+    }
   }
+
+  await db.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS topics_person_title_unique
+      ON topics(person_id, title COLLATE NOCASE)
+      WHERE person_id IS NOT NULL
+  `);
+  await db.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS topics_initiative_title_unique
+      ON topics(initiative_id, title COLLATE NOCASE)
+      WHERE initiative_id IS NOT NULL
+  `);
 }
 
 export async function findTopicByTitleForPerson(
@@ -167,8 +171,8 @@ export async function createTopic(
 
   return {
     id: inserted.id,
-    personId,
-    initiativeId,
+    personId: personId ?? null,
+    initiativeId: initiativeId ?? null,
     title,
     createdAt: nowIso,
   };

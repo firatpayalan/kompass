@@ -316,6 +316,23 @@ export function listActiveNotes(db: AsyncDb): Promise<Note[]> {
   return listNotes(db, false);
 }
 
+export async function listNotesInRange(
+  db: AsyncDb,
+  startIso: string,
+  endIso: string,
+): Promise<Note[]> {
+  const rows = await db.select<NoteRow>(
+    `SELECT id, body, created_at, updated_at, deleted_at
+     FROM notes
+     WHERE deleted_at IS NULL
+       AND created_at >= ?
+       AND created_at < ?
+     ORDER BY created_at DESC, id DESC`,
+    [startIso, endIso],
+  );
+  return mapNoteRows(db, rows);
+}
+
 export async function listDeletedNotes(db: AsyncDb): Promise<Note[]> {
   const rows = await db.select<NoteRow>(
     `SELECT id, body, created_at, updated_at, deleted_at

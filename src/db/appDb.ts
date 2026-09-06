@@ -45,12 +45,18 @@ import {
   listActiveNotes,
   listDeletedNotes,
   listInboxNotes,
+  listNotesInRange,
   permanentlyDeleteNote,
   restoreNote,
   softDeleteNote,
   updateNote,
   type CreateNoteInput,
 } from "./notesRepo";
+import {
+  getWeeklySummary,
+  upsertWeeklySummary,
+  type WeeklySummary,
+} from "./weeklySummariesRepo";
 import {
   archivePerson,
   createPerson,
@@ -108,6 +114,7 @@ export type AppDb = {
   updateNote(id: number, body: string): Promise<Note>;
   getNote(id: number): Promise<Note | null>;
   listActiveNotes(): Promise<Note[]>;
+  listNotesInRange(startIso: string, endIso: string): Promise<Note[]>;
   listInboxNotes(): Promise<Note[]>;
   listDeletedNotes(): Promise<Note[]>;
   softDeleteNote(id: number, nowIso: string): Promise<void>;
@@ -116,6 +123,9 @@ export type AppDb = {
   linkNoteToPeople(noteId: number, personIds: number[]): Promise<void>;
   linkNoteToInitiatives(noteId: number, initiativeIds: number[]): Promise<void>;
   linkNoteToTopics(noteId: number, topicIds: number[]): Promise<void>;
+
+  getWeeklySummary(weekStart: string): Promise<WeeklySummary | null>;
+  upsertWeeklySummary(input: WeeklySummary): Promise<void>;
 
   createPerson(input: CreatePersonInput): Promise<Person>;
   updatePerson(id: number, patch: UpdatePersonPatch): Promise<Person>;
@@ -206,6 +216,8 @@ export function createAppDb(db: AsyncDb): AppDb {
     updateNote: (id, body) => updateNote(db, id, body),
     getNote: (id) => getNote(db, id),
     listActiveNotes: () => listActiveNotes(db),
+    listNotesInRange: (startIso, endIso) =>
+      listNotesInRange(db, startIso, endIso),
     listInboxNotes: () => listInboxNotes(db),
     listDeletedNotes: () => listDeletedNotes(db),
     softDeleteNote: (id, nowIso) => softDeleteNote(db, id, nowIso),
@@ -217,6 +229,9 @@ export function createAppDb(db: AsyncDb): AppDb {
       linkNoteToInitiatives(db, noteId, initiativeIds),
     linkNoteToTopics: (noteId, topicIds) =>
       linkNoteToTopics(db, noteId, topicIds),
+
+    getWeeklySummary: (weekStart) => getWeeklySummary(db, weekStart),
+    upsertWeeklySummary: (input) => upsertWeeklySummary(db, input),
 
     createPerson: (input) => createPerson(db, input),
     updatePerson: (id, patch) => updatePerson(db, id, patch),
