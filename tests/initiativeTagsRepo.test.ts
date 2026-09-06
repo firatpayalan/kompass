@@ -94,4 +94,23 @@ describe("initiativeTagsRepo", () => {
     expect(await listTagsForInitiative(db, first.id)).toHaveLength(1);
     db.close();
   });
+
+  it("listInitiatives includes tags on each initiative", async () => {
+    const db = openTestAsyncDb();
+    await ensureInitiativeTagsSchema(db);
+    const initiative = await createInitiative(db, {
+      name: "Gamma",
+      status: "aktif",
+      nowIso: "2026-09-06T11:00:00.000Z",
+    });
+    await addTagToInitiative(db, initiative.id, {
+      name: "platform",
+      color: "sky",
+    });
+
+    const listed = await listInitiatives(db);
+    const row = listed.find((item) => item.id === initiative.id)!;
+    expect(row.tags.map((tag) => tag.name)).toEqual(["platform"]);
+    db.close();
+  });
 });

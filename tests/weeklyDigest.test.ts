@@ -40,6 +40,7 @@ describe("weeklyDigest", () => {
         lastActivityAt: "2026-09-01T00:00:00.000Z",
         sortOrder: 0,
         archivedAt: null,
+        tags: [],
       },
     ];
     const notes = [

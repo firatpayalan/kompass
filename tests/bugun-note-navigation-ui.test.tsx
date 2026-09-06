@@ -43,6 +43,7 @@ const initiative: Initiative = {
   lastActivityAt: "2026-09-05T09:00:00.000Z",
   sortOrder: 0,
   archivedAt: null,
+  tags: [],
 };
 
 function makeNote(partial: Partial<Note> & Pick<Note, "id" | "body">): Note {

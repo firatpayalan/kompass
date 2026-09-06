@@ -1,5 +1,6 @@
 import type { Initiative, InitiativeStatus } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
+import { listTagsForInitiative } from "./initiativeTagsRepo";
 import { linkNoteToInitiatives, listNotesForInitiative } from "./notesRepo";
 
 type InitiativeRow = {
@@ -55,6 +56,16 @@ function mapInitiative(row: InitiativeRow): Initiative {
   };
 }
 
+async function withTags(
+  db: AsyncDb,
+  initiative: Initiative,
+): Promise<Initiative> {
+  return {
+    ...initiative,
+    tags: await listTagsForInitiative(db, initiative.id),
+  };
+}
+
 /** Adds sort_order for DBs created before the column existed. */
 export async function ensureInitiativesSortOrder(db: AsyncDb): Promise<void> {
   const columns = await db.select<{ name: string }>(
@@ -100,7 +111,7 @@ async function getInitiative(
     [id],
   );
 
-  return row ? mapInitiative(row) : null;
+  return row ? withTags(db, mapInitiative(row)) : null;
 }
 
 async function findInitiativeByName(
@@ -153,10 +164,13 @@ export async function createInitiative(
       throw new Error("İş kaydı oluşturulamadı");
     }
 
-    return mapInitiative({
-      ...row,
-      last_activity_at: row.created_at,
-    });
+    return withTags(
+      tx,
+      mapInitiative({
+        ...row,
+        last_activity_at: row.created_at,
+      }),
+    );
   });
 }
 
@@ -168,7 +182,7 @@ export async function listInitiatives(db: AsyncDb): Promise<Initiative[]> {
      ORDER BY sort_order ASC, id ASC`,
   );
 
-  return rows.map(mapInitiative);
+  return Promise.all(rows.map((row) => withTags(db, mapInitiative(row))));
 }
 
 export async function listArchivedInitiatives(
@@ -181,7 +195,7 @@ export async function listArchivedInitiatives(
      ORDER BY archived_at DESC, id DESC`,
   );
 
-  return rows.map(mapInitiative);
+  return Promise.all(rows.map((row) => withTags(db, mapInitiative(row))));
 }
 
 export async function reorderInitiatives(

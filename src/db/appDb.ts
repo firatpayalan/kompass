@@ -1,5 +1,6 @@
 import type {
   Initiative,
+  InitiativeTag,
   Note,
   NoteTag,
   Person,
@@ -24,6 +25,16 @@ import {
   type CreateInitiativeInput,
   type UpdateInitiativePatch,
 } from "./initiativesRepo";
+import {
+  addTagToInitiative,
+  deleteInitiativeTag,
+  linkTagToInitiative,
+  listInitiativeTags,
+  removeTagFromInitiative,
+  updateInitiativeTag,
+  type AddInitiativeTagInput,
+  type UpdateInitiativeTagPatch,
+} from "./initiativeTagsRepo";
 import {
   addTagToNote,
   deleteNoteTag,
@@ -167,6 +178,25 @@ export type AppDb = {
   updateTopicTag(id: number, patch: UpdateTopicTagPatch): Promise<TopicTag>;
   deleteTopicTag(id: number): Promise<void>;
 
+  addTagToInitiative(
+    initiativeId: number,
+    input: AddInitiativeTagInput,
+  ): Promise<InitiativeTag>;
+  linkTagToInitiative(
+    initiativeId: number,
+    tagId: number,
+  ): Promise<InitiativeTag>;
+  listInitiativeTags(): Promise<InitiativeTag[]>;
+  updateInitiativeTag(
+    id: number,
+    patch: UpdateInitiativeTagPatch,
+  ): Promise<InitiativeTag>;
+  deleteInitiativeTag(id: number): Promise<void>;
+  removeTagFromInitiative(
+    initiativeId: number,
+    tagId: number,
+  ): Promise<void>;
+
   addTagToNote(noteId: number, input: AddNoteTagInput): Promise<NoteTag>;
   linkTagToNote(noteId: number, tagId: number): Promise<NoteTag>;
   listNoteTags(): Promise<NoteTag[]>;
@@ -259,6 +289,16 @@ export function createAppDb(db: AsyncDb): AppDb {
     listTopicTags: () => listTopicTags(db),
     updateTopicTag: (id, patch) => updateTopicTag(db, id, patch),
     deleteTopicTag: (id) => deleteTopicTag(db, id),
+
+    addTagToInitiative: (initiativeId, input) =>
+      addTagToInitiative(db, initiativeId, input),
+    linkTagToInitiative: (initiativeId, tagId) =>
+      linkTagToInitiative(db, initiativeId, tagId),
+    listInitiativeTags: () => listInitiativeTags(db),
+    updateInitiativeTag: (id, patch) => updateInitiativeTag(db, id, patch),
+    deleteInitiativeTag: (id) => deleteInitiativeTag(db, id),
+    removeTagFromInitiative: (initiativeId, tagId) =>
+      removeTagFromInitiative(db, initiativeId, tagId),
 
     addTagToNote: (noteId, input) => addTagToNote(db, noteId, input),
     linkTagToNote: (noteId, tagId) => linkTagToNote(db, noteId, tagId),

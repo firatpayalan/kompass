@@ -15,6 +15,7 @@ const initiative: Initiative = {
   lastActivityAt: "2026-09-06T11:48:00.000Z",
   sortOrder: 0,
   archivedAt: null,
+  tags: [],
 };
 
 describe("initiative list last activity", () => {

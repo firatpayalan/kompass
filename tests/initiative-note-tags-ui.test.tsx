@@ -24,6 +24,7 @@ const initiative: Initiative = {
   lastActivityAt: "2026-09-06T09:00:00.000Z",
   sortOrder: 0,
   archivedAt: null,
+  tags: [],
 };
 
 const note: Note = {
@@ -69,6 +70,12 @@ describe("InitiativeDetailView note tags", () => {
       listTopicTags: vi.fn().mockResolvedValue([]),
       updateTopicTag: vi.fn(),
       deleteTopicTag: vi.fn(),
+      addTagToInitiative: vi.fn(),
+      linkTagToInitiative: vi.fn(),
+      listInitiativeTags: vi.fn(async () => []),
+      updateInitiativeTag: vi.fn(),
+      deleteInitiativeTag: vi.fn(),
+      removeTagFromInitiative: vi.fn(),
       linkNoteToTopics: vi.fn(),
       addTagToNote,
       linkTagToNote: vi.fn(),

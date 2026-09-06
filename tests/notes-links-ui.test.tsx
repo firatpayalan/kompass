@@ -27,6 +27,7 @@ const initiative: Initiative = {
   lastActivityAt: "2026-09-05T09:00:00.000Z",
   sortOrder: 0,
   archivedAt: null,
+  tags: [],
 };
 
 const linkedNote: Note = {

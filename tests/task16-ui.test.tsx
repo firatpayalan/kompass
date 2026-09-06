@@ -134,6 +134,7 @@ describe("Archive notes", () => {
       lastActivityAt: "2026-09-05T09:00:00.000Z",
       sortOrder: 0,
       archivedAt: "2026-09-05T12:00:00.000Z",
+      tags: [],
     };
     const listArchivedInitiatives = vi
       .fn()

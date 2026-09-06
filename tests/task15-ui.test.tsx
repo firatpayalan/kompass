@@ -34,6 +34,7 @@ const initiative: Initiative = {
   lastActivityAt: "2026-09-05T09:00:00.000Z",
   sortOrder: 0,
   archivedAt: null,
+  tags: [],
 };
 
 const resultNote: Note = {
@@ -62,6 +63,12 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
           listTopicTags: vi.fn().mockResolvedValue([]),
           updateTopicTag: vi.fn(),
           deleteTopicTag: vi.fn(),
+          addTagToInitiative: vi.fn(),
+          linkTagToInitiative: vi.fn(),
+          listInitiativeTags: vi.fn(async () => []),
+          updateInitiativeTag: vi.fn(),
+          deleteInitiativeTag: vi.fn(),
+          removeTagFromInitiative: vi.fn(),
           addTagToNote: vi.fn(),
           linkTagToNote: vi.fn(),
           listNoteTags: vi.fn().mockResolvedValue([]),
