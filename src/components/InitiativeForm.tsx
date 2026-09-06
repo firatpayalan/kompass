@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { AppDb } from "../db/appDb";
+import { formatError, isDuplicateNameError } from "../lib/formatError";
 import type { Initiative, InitiativeStatus } from "../lib/types";
 
 type InitiativeFormProps = {
@@ -21,12 +22,16 @@ export default function InitiativeForm({
   const [status, setStatus] = useState<InitiativeStatus>("aktif");
   const [blockerSummary, setBlockerSummary] = useState("");
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = name.trim();
+    setFormError(null);
     if (!trimmedName) {
-      onToast("İş adı boş olamaz");
+      const message = "İş adı boş olamaz";
+      setFormError(message);
+      onToast(message);
       return;
     }
 
@@ -47,8 +52,13 @@ export default function InitiativeForm({
             initiativeIds: [initiative.id],
             personIds: [],
           });
-        } catch {
-          onToast("İş eklendi, engel notu eklenemedi");
+        } catch (noteError) {
+          const message = formatError(
+            noteError,
+            "İş eklendi, engel notu eklenemedi",
+          );
+          setFormError(message);
+          onToast(message);
           setName("");
           setStatus("aktif");
           setBlockerSummary("");
@@ -59,16 +69,21 @@ export default function InitiativeForm({
       setName("");
       setStatus("aktif");
       setBlockerSummary("");
+      setFormError(null);
       onCreated(initiative);
     } catch (error) {
-      if (error instanceof Error && error.message === "Bu isimde kayıt var") {
-        onToast(error.message);
+      if (isDuplicateNameError(error)) {
+        const message = "Bu isimde kayıt var";
+        setFormError(message);
+        onToast(message);
         const existing = await onDuplicate(trimmedName);
         if (existing) {
           onCreated(existing);
         }
       } else {
-        onToast("İş eklenemedi");
+        const message = formatError(error, "İş eklenemedi");
+        setFormError(message);
+        onToast(message);
       }
     } finally {
       setSaving(false);
@@ -77,6 +92,11 @@ export default function InitiativeForm({
 
   return (
     <form className="entity-form" onSubmit={submit}>
+      {formError ? (
+        <p className="form-error" role="alert">
+          {formError}
+        </p>
+      ) : null}
       <label>
         İş adı
         <input

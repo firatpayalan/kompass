@@ -137,10 +137,17 @@ export async function createPerson(
       ],
     );
 
+    if (!row) {
+      throw new Error("Kişi kaydı oluşturulamadı");
+    }
+
     const [joined] = await tx.select<PersonRow>(
       `${PERSON_SELECT} WHERE people.id = ?`,
       [row.id],
     );
+    if (!joined) {
+      throw new Error("Kişi kaydı okunamadı");
+    }
     return mapPerson(joined);
   });
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { AppDb } from "../db/appDb";
+import { formatError, isDuplicateNameError } from "../lib/formatError";
 import type { Person, PersonLabel } from "../lib/types";
 import type { PersonLabelColor } from "../lib/personLabels";
 import PersonLabelPicker from "./PersonLabelPicker";
@@ -30,12 +31,15 @@ export default function PersonForm({
   const [labelId, setLabelId] = useState<number | null>(null);
   const [labels, setLabels] = useState<PersonLabel[]>([]);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const reloadLabels = async () => {
     try {
       setLabels(await listPersonLabels());
-    } catch {
-      onToast("Etiketler yüklenemedi");
+    } catch (error) {
+      const message = formatError(error, "Etiketler yüklenemedi");
+      setFormError(message);
+      onToast(message);
     }
   };
 
@@ -46,8 +50,11 @@ export default function PersonForm({
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = name.trim();
+    setFormError(null);
     if (!trimmedName) {
-      onToast("Ad boş olamaz");
+      const message = "Ad boş olamaz";
+      setFormError(message);
+      onToast(message);
       return;
     }
 
@@ -62,16 +69,21 @@ export default function PersonForm({
       setName("");
       setRoleOrNotes("");
       setLabelId(null);
+      setFormError(null);
       onCreated(person);
     } catch (error) {
-      if (error instanceof Error && error.message === "Bu isimde kayıt var") {
-        onToast(error.message);
+      if (isDuplicateNameError(error)) {
+        const message = "Bu isimde kayıt var";
+        setFormError(message);
+        onToast(message);
         const existing = await onDuplicate(trimmedName);
         if (existing) {
           onCreated(existing);
         }
       } else {
-        onToast("Kişi eklenemedi");
+        const message = formatError(error, "Kişi eklenemedi");
+        setFormError(message);
+        onToast(message);
       }
     } finally {
       setSaving(false);
@@ -80,6 +92,11 @@ export default function PersonForm({
 
   return (
     <form className="entity-form" onSubmit={submit}>
+      {formError ? (
+        <p className="form-error" role="alert">
+          {formError}
+        </p>
+      ) : null}
       <label>
         Ad
         <input

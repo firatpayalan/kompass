@@ -3,6 +3,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import InitiativeForm from "../components/InitiativeForm";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import { formatError } from "../lib/formatError";
 import { formatRelativeTr } from "../lib/formatRelativeTr";
 import type { Initiative, InitiativeStatus } from "../lib/types";
 
@@ -68,6 +69,7 @@ export default function InitiativesView({
 }: InitiativesViewProps) {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<number | null>(null);
   const [menu, setMenu] = useState<{
     initiativeId: number;
@@ -95,9 +97,12 @@ export default function InitiativesView({
     try {
       const loaded = await db.listInitiatives();
       setInitiatives(loaded);
+      setLoadError(null);
       return loaded;
-    } catch {
-      onToast("İşler yüklenemedi");
+    } catch (error) {
+      const message = formatError(error, "İşler yüklenemedi");
+      setLoadError(message);
+      onToast(message);
       return [];
     } finally {
       setLoading(false);
@@ -243,6 +248,11 @@ export default function InitiativesView({
           onToast={onToast}
         />
       </header>
+      {loadError ? (
+        <p className="form-error" role="alert">
+          {loadError}
+        </p>
+      ) : null}
       <h2>İş listesi</h2>
       {loading ? (
         <p>İşler yükleniyor…</p>

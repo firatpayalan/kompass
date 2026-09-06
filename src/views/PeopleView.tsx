@@ -4,6 +4,7 @@ import PersonForm from "../components/PersonForm";
 import PersonLabelBadge from "../components/PersonLabelBadge";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import { formatError } from "../lib/formatError";
 import type { Person } from "../lib/types";
 
 type PeopleDb = Pick<
@@ -66,6 +67,7 @@ export default function PeopleView({
 }: PeopleViewProps) {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<number | null>(null);
   const [menu, setMenu] = useState<{
     personId: number;
@@ -92,9 +94,12 @@ export default function PeopleView({
     try {
       const loaded = await db.listPeople();
       setPeople(loaded);
+      setLoadError(null);
       return loaded;
-    } catch {
-      onToast("Kişiler yüklenemedi");
+    } catch (error) {
+      const message = formatError(error, "Kişiler yüklenemedi");
+      setLoadError(message);
+      onToast(message);
       return [];
     } finally {
       setLoading(false);
@@ -234,6 +239,11 @@ export default function PeopleView({
           onToast={onToast}
         />
       </header>
+      {loadError ? (
+        <p className="form-error" role="alert">
+          {loadError}
+        </p>
+      ) : null}
       <h2>Kişi listesi</h2>
       {loading ? (
         <p>Kişiler yükleniyor…</p>

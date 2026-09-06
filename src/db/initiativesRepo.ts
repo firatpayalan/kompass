@@ -126,7 +126,15 @@ export async function createInitiative(
       throw new Error("Bu isimde kayıt var");
     }
 
-    const [row] = await tx.select<InitiativeRow>(
+    const [row] = await tx.select<{
+      id: number;
+      name: string;
+      status: InitiativeStatus;
+      blocker_summary: string | null;
+      created_at: string;
+      sort_order: number;
+      archived_at: string | null;
+    }>(
       `INSERT INTO initiatives (name, status, blocker_summary, created_at, sort_order, archived_at)
        VALUES (
          ?,
@@ -136,11 +144,18 @@ export async function createInitiative(
          COALESCE((SELECT MIN(sort_order) FROM initiatives WHERE archived_at IS NULL), 0) - 1,
          NULL
        )
-       RETURNING ${INITIATIVE_COLUMNS}`,
+       RETURNING id, name, status, blocker_summary, created_at, sort_order, archived_at`,
       [input.name, input.status, input.blockerSummary ?? null, input.nowIso],
     );
 
-    return mapInitiative(row);
+    if (!row) {
+      throw new Error("İş kaydı oluşturulamadı");
+    }
+
+    return mapInitiative({
+      ...row,
+      last_activity_at: row.created_at,
+    });
   });
 }
 
@@ -264,11 +279,10 @@ export async function updateInitiative(
       throw new Error("Bu isimde kayıt var");
     }
 
-    const [row] = await tx.select<InitiativeRow>(
+    await tx.execute(
       `UPDATE initiatives
        SET name = ?, status = ?, blocker_summary = ?
-       WHERE id = ?
-       RETURNING ${INITIATIVE_COLUMNS}`,
+       WHERE id = ?`,
       [
         name,
         patch.status ?? current.status,
@@ -279,7 +293,11 @@ export async function updateInitiative(
       ],
     );
 
-    return mapInitiative(row);
+    const updated = await getInitiative(tx, id);
+    if (!updated) {
+      throw new Error("Kayıt bulunamadı");
+    }
+    return updated;
   });
 }
 
