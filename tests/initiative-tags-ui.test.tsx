@@ -247,4 +247,62 @@ describe("initiative tags UI", () => {
     expect(screen.getByText("Bu etiketlere uyan iş yok.")).toBeTruthy();
     expect(screen.queryByText("Henüz iş yok.")).toBeNull();
   });
+
+  it("does not allow reorder while a tag filter is active", async () => {
+    const reorderInitiatives = vi.fn();
+    const tag: InitiativeTag = {
+      id: 1,
+      name: "acil",
+      color: "rose",
+      createdAt: "2026-09-06T10:00:00.000Z",
+    };
+    const first: Initiative = {
+      ...baseInitiative,
+      id: 1,
+      name: "Atlas",
+      sortOrder: 0,
+      tags: [tag],
+    };
+    const second: Initiative = {
+      ...baseInitiative,
+      id: 2,
+      name: "Orbit",
+      sortOrder: 1,
+      tags: [tag],
+    };
+
+    render(
+      <InitiativesView
+        db={
+          {
+            listInitiatives: vi.fn(async () => [first, second]),
+            listInitiativeTags: vi.fn(async () => [tag]),
+            createInitiative: vi.fn(),
+            createNote: vi.fn(),
+            reorderInitiatives,
+            archiveInitiative: vi.fn(),
+          } as never
+        }
+      />,
+    );
+
+    await screen.findByRole("button", { name: "Atlas" });
+    const filter = screen.getByRole("group", { name: "Etiket filtresi" });
+    fireEvent.click(within(filter).getByRole("button", { name: "acil" }));
+
+    const handle = screen.getByRole("button", {
+      name: "Atlas sırasını değiştir",
+    });
+    expect(
+      handle.hasAttribute("disabled") ||
+        handle.getAttribute("aria-disabled") === "true",
+    ).toBe(true);
+
+    fireEvent.pointerDown(handle, { button: 0, clientY: 40 });
+    fireEvent.pointerMove(window, { clientY: 50 });
+    fireEvent.pointerMove(window, { clientY: 130 });
+    fireEvent.pointerUp(window);
+
+    expect(reorderInitiatives).not.toHaveBeenCalled();
+  });
 });

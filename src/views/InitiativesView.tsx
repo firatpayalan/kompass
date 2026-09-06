@@ -190,6 +190,7 @@ export default function InitiativesView({
   }, []);
 
   const startPointerDrag = (initiativeId: number, clientY: number) => {
+    if (selectedTagIds.length > 0) return;
     dragRef.current = {
       id: initiativeId,
       startY: clientY,
@@ -327,7 +328,9 @@ export default function InitiativesView({
               <button
                 aria-label={`${initiative.name} sırasını değiştir`}
                 className="entity-list__handle"
+                disabled={selectedTagIds.length > 0}
                 onPointerDown={(event) => {
+                  if (selectedTagIds.length > 0) return;
                   if (event.button !== 0) return;
                   event.preventDefault();
                   startPointerDrag(initiative.id, event.clientY);
