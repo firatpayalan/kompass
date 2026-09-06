@@ -12,6 +12,7 @@ import type { PersonLabelColor } from "../lib/personLabels";
 import type {
   Initiative,
   InitiativeStatus,
+  InitiativeTag,
   Note,
   NoteTag,
   ReminderPeriod,
@@ -33,6 +34,12 @@ type InitiativeDetailDb = Pick<
   | "listTopicTags"
   | "updateTopicTag"
   | "deleteTopicTag"
+  | "addTagToInitiative"
+  | "linkTagToInitiative"
+  | "listInitiativeTags"
+  | "updateInitiativeTag"
+  | "deleteInitiativeTag"
+  | "removeTagFromInitiative"
   | "addTagToNote"
   | "linkTagToNote"
   | "listNoteTags"
@@ -79,6 +86,9 @@ export default function InitiativeDetailView({
   const [renaming, setRenaming] = useState(false);
   const [topicTagCatalog, setTopicTagCatalog] = useState<TopicTag[]>([]);
   const [noteTagCatalog, setNoteTagCatalog] = useState<NoteTag[]>([]);
+  const [initiativeTagCatalog, setInitiativeTagCatalog] = useState<
+    InitiativeTag[]
+  >([]);
   const [current, setCurrent] = useState(initiative);
   const [status, setStatus] = useState<InitiativeStatus>(initiative.status);
   const [blockerSummary, setBlockerSummary] = useState(
@@ -99,15 +109,18 @@ export default function InitiativeDetailView({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [result, topicCatalog, noteCatalog] = await Promise.all([
-        db.listTopicsWithNotesForInitiative(initiative.id),
-        db.listTopicTags(),
-        db.listNoteTags(),
-      ]);
+      const [result, topicCatalog, noteCatalog, initiativeCatalog] =
+        await Promise.all([
+          db.listTopicsWithNotesForInitiative(initiative.id),
+          db.listTopicTags(),
+          db.listNoteTags(),
+          db.listInitiativeTags(),
+        ]);
       setTopics(result.topics);
       setUntopicNotes(result.untopicNotes);
       setTopicTagCatalog(topicCatalog);
       setNoteTagCatalog(noteCatalog);
+      setInitiativeTagCatalog(initiativeCatalog);
     } catch {
       onToast("Konular yüklenemedi");
     } finally {
@@ -403,6 +416,53 @@ export default function InitiativeDetailView({
         <button disabled={savingDetails} onClick={saveDetails} type="button">
           {savingDetails ? "Kaydediliyor…" : "Değişiklikleri kaydet"}
         </button>
+      </div>
+      <div className="person-label-editor">
+        <p className="person-label-picker__title">Etiketler</p>
+        <TopicTagsEditor
+          catalog={initiativeTagCatalog}
+          colorInputName="initiative-tag-color"
+          onAdd={async (name, color) => {
+            const tag = await db.addTagToInitiative(current.id, { name, color });
+            setCurrent((prev) => ({
+              ...prev,
+              tags: prev.tags.some((item) => item.id === tag.id)
+                ? prev.tags
+                : [...prev.tags, tag],
+            }));
+            await load();
+          }}
+          onLinkExisting={async (tagId) => {
+            const tag = await db.linkTagToInitiative(current.id, tagId);
+            setCurrent((prev) => ({
+              ...prev,
+              tags: prev.tags.some((item) => item.id === tag.id)
+                ? prev.tags
+                : [...prev.tags, tag],
+            }));
+            await load();
+          }}
+          onUpdate={async (tagId, patch) => {
+            const tag = await db.updateInitiativeTag(tagId, patch);
+            setCurrent((prev) => ({
+              ...prev,
+              tags: prev.tags.map((item) =>
+                item.id === tag.id ? tag : item,
+              ),
+            }));
+            await load();
+          }}
+          onDelete={async (tagId) => {
+            await db.deleteInitiativeTag(tagId);
+            setCurrent((prev) => ({
+              ...prev,
+              tags: prev.tags.filter((item) => item.id !== tagId),
+            }));
+            await load();
+          }}
+          onToast={onToast}
+          tags={current.tags}
+        />
       </div>
       <ReminderForm
         dueAt={dueAt}
