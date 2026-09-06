@@ -42,6 +42,7 @@ describe("initiativesRepo", () => {
       lastActivityAt: nowIso,
       sortOrder: -1,
       archivedAt: null,
+      tags: [],
     });
     expect(await listInitiatives(db)).toEqual([initiative]);
     db.close();

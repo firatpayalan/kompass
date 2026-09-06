@@ -29,6 +29,7 @@ export interface Initiative {
   lastActivityAt: string;
   sortOrder: number;
   archivedAt: string | null;
+  tags: InitiativeTag[];
 }
 
 export interface NoteTag {
@@ -59,6 +60,13 @@ export interface Topic {
 }
 
 export interface TopicTag {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+export interface InitiativeTag {
   id: number;
   name: string;
   color: string;

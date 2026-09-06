@@ -10,6 +10,7 @@ import { ensureInitiativesArchivedAt, ensureInitiativesSortOrder } from "./initi
 import { ensureTopicsInitiativeOwner } from "./topicsRepo";
 import { ensureNoteImagesTable } from "./noteImagesRepo";
 import { ensureNoteTagsColor } from "./noteTagsRepo";
+import { ensureInitiativeTagsSchema } from "./initiativeTagsRepo";
 import { ensureTopicTagsSchema } from "./topicTagsRepo";
 import { ensureWeeklySummariesTable } from "./weeklySummariesRepo";
 import schemaSql from "./schema.sql?raw";
@@ -78,6 +79,7 @@ export async function connectAppDatabase(): Promise<AsyncDb> {
   await ensureInitiativesSortOrder(db);
   await ensureInitiativesArchivedAt(db);
   await ensureTopicTagsSchema(db);
+  await ensureInitiativeTagsSchema(db);
   await ensureNoteTagsColor(db);
   await ensureNoteImagesTable(db);
   await ensureWeeklySummariesTable(db);

@@ -51,6 +51,7 @@ function mapInitiative(row: InitiativeRow): Initiative {
     lastActivityAt: row.last_activity_at,
     sortOrder: row.sort_order,
     archivedAt: row.archived_at,
+    tags: [],
   };
 }
 

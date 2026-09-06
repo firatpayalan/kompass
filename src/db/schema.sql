@@ -91,6 +91,19 @@ CREATE TABLE IF NOT EXISTS topic_tag_links (
   PRIMARY KEY (topic_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS initiative_tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+  color TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS initiative_tag_links (
+  initiative_id INTEGER NOT NULL REFERENCES initiatives(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES initiative_tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (initiative_id, tag_id)
+);
+
 CREATE TABLE IF NOT EXISTS note_topics (
   note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
   topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
