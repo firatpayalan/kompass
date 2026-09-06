@@ -17,3 +17,4 @@ src-tauri/gen/schemas/
 
 # Local-only product notes
 requirements.md
+.worktrees/

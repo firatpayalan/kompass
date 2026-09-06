@@ -8,6 +8,7 @@ import TopicTagsEditor from "../components/TopicTagsEditor";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { TopicWithNotes } from "../db/topicsRepo";
+import { formatError } from "../lib/formatError";
 import type { PersonLabelColor } from "../lib/personLabels";
 import type {
   Initiative,
@@ -54,6 +55,7 @@ type InitiativeDetailViewProps = {
   db?: InitiativeDetailDb;
   initiative: Initiative;
   onBack: () => void;
+  onInitiativeUpdated?: (initiative: Initiative) => void;
   onToast?: (message: string) => void;
 };
 
@@ -69,6 +71,7 @@ export default function InitiativeDetailView({
   db = getDb(),
   initiative,
   onBack,
+  onInitiativeUpdated = ignore,
   onToast = ignore,
 }: InitiativeDetailViewProps) {
   const [topics, setTopics] = useState<TopicWithNotes[]>([]);
@@ -90,11 +93,13 @@ export default function InitiativeDetailView({
     InitiativeTag[]
   >([]);
   const [current, setCurrent] = useState(initiative);
+  const [name, setName] = useState(initiative.name);
   const [status, setStatus] = useState<InitiativeStatus>(initiative.status);
   const [blockerSummary, setBlockerSummary] = useState(
     initiative.blockerSummary ?? "",
   );
   const [savingDetails, setSavingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [dueAt, setDueAt] = useState("");
   const [period, setPeriod] = useState<ReminderPeriod>("once");
@@ -102,8 +107,10 @@ export default function InitiativeDetailView({
 
   useEffect(() => {
     setCurrent(initiative);
+    setName(initiative.name);
     setStatus(initiative.status);
     setBlockerSummary(initiative.blockerSummary ?? "");
+    setDetailsError(null);
   }, [initiative]);
 
   const load = useCallback(async () => {
@@ -133,16 +140,28 @@ export default function InitiativeDetailView({
   }, [load]);
 
   const saveDetails = async () => {
+    const trimmedName = name.trim();
+    setDetailsError(null);
+    if (!trimmedName) {
+      const message = "İş adı boş olamaz";
+      setDetailsError(message);
+      onToast(message);
+      return;
+    }
+
     setSavingDetails(true);
     try {
       const nextBlocker =
         status === "beklemede" ? blockerSummary.trim() || null : null;
       const previousBlocker = current.blockerSummary?.trim() || null;
       const updated = await db.updateInitiative(current.id, {
+        name: trimmedName,
         status,
         blockerSummary: nextBlocker,
       });
       setCurrent(updated);
+      setName(updated.name);
+      onInitiativeUpdated(updated);
 
       if (nextBlocker && nextBlocker !== previousBlocker) {
         try {
@@ -152,15 +171,22 @@ export default function InitiativeDetailView({
             personIds: [],
           });
           await load();
-        } catch {
-          onToast("İş güncellendi, engel notu eklenemedi");
+        } catch (noteError) {
+          const message = formatError(
+            noteError,
+            "İş güncellendi, engel notu eklenemedi",
+          );
+          setDetailsError(message);
+          onToast(message);
           return;
         }
       }
 
       onToast("İş güncellendi");
-    } catch {
-      onToast("İş güncellenemedi");
+    } catch (error) {
+      const message = formatError(error, "İş güncellenemedi");
+      setDetailsError(message);
+      onToast(message);
     } finally {
       setSavingDetails(false);
     }
@@ -379,6 +405,19 @@ export default function InitiativeDetailView({
         </span>
       </div>
       <div className="entity-form">
+        {detailsError ? (
+          <p className="form-error" role="alert">
+            {detailsError}
+          </p>
+        ) : null}
+        <label>
+          İş adı
+          <input
+            autoComplete="off"
+            onChange={(event) => setName(event.target.value)}
+            value={name}
+          />
+        </label>
         <label>
           Durum
           <select

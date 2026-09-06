@@ -1,6 +1,6 @@
 [package]
 name = "daily-leadership-tool"
-version = "0.1.1"
+version = "0.1.2"
 description = "Kompass — desktop app for daily leadership practice"
 authors = ["Kompass"]
 edition = "2021"

@@ -50,18 +50,14 @@ function wrapTauriDatabase(database: Database): AsyncDb {
     select(sql, bindValues = []) {
       return enqueue(() => transactionDb.select(sql, bindValues));
     },
+    // Do NOT issue BEGIN/COMMIT/ROLLBACK via separate plugin-sql execute()
+    // calls. sqlx pools each statement onto its own connection, so those
+    // commands often land on different connections and fail with
+    // "cannot commit - no transaction is active" (and can leave an orphaned
+    // write lock). Serialize work on the JS queue instead until the plugin
+    // exposes a real transaction API or SQLite is pinned to max_connections(1).
     withTransaction<T>(fn: (tx: AsyncDb) => Promise<T>): Promise<T> {
-      return enqueue(async () => {
-        await database.execute("BEGIN");
-        try {
-          const result = await fn(transactionDb);
-          await database.execute("COMMIT");
-          return result;
-        } catch (error) {
-          await database.execute("ROLLBACK");
-          throw error;
-        }
-      });
+      return enqueue(() => fn(transactionDb));
     },
   };
 }

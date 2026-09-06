@@ -240,6 +240,7 @@ describe("initiative detail editing", () => {
 
     await waitFor(() =>
       expect(updateInitiative).toHaveBeenCalledWith(2, {
+        name: "Lansman",
         status: "beklemede",
         blockerSummary: "Engel kalmadı",
       }),
@@ -253,6 +254,69 @@ describe("initiative detail editing", () => {
     expect(
       await screen.findByText("Beklemede", { selector: "span" }),
     ).toBeTruthy();
+  });
+
+  it("renames an initiative from the detail form", async () => {
+    const updateInitiative = vi.fn().mockResolvedValue({
+      ...initiative,
+      name: "Yeni Lansman",
+    });
+    const onInitiativeUpdated = vi.fn();
+    const onToast = vi.fn();
+    render(
+      <InitiativeDetailView
+        db={{
+          createReminder: vi.fn(),
+          createNote: vi.fn(),
+          createTopic: vi.fn(),
+          listTopicsWithNotesForInitiative: vi.fn().mockResolvedValue({
+            topics: [],
+            untopicNotes: [],
+          }),
+          updateInitiative,
+          updateNote: vi.fn(),
+          softDeleteNote: vi.fn(),
+          updateTopic: vi.fn(),
+          addTagToTopic: vi.fn(),
+          linkTagToTopic: vi.fn(),
+          listTopicTags: vi.fn().mockResolvedValue([]),
+          updateTopicTag: vi.fn(),
+          deleteTopicTag: vi.fn(),
+          linkNoteToTopics: vi.fn(),
+          addTagToNote: vi.fn(),
+          linkTagToNote: vi.fn(),
+          listNoteTags: vi.fn().mockResolvedValue([]),
+          updateNoteTag: vi.fn(),
+          deleteNoteTag: vi.fn(),
+          saveNoteImage: vi.fn(),
+          getNoteImage: vi.fn(),
+        }}
+        initiative={initiative}
+        onBack={vi.fn()}
+        onInitiativeUpdated={onInitiativeUpdated}
+        onToast={onToast}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("İş adı"), {
+      target: { value: "Yeni Lansman" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Değişiklikleri kaydet" }),
+    );
+
+    await waitFor(() =>
+      expect(updateInitiative).toHaveBeenCalledWith(2, {
+        name: "Yeni Lansman",
+        status: "aktif",
+        blockerSummary: null,
+      }),
+    );
+    expect(onInitiativeUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Yeni Lansman" }),
+    );
+    expect(onToast).toHaveBeenCalledWith("İş güncellendi");
+    expect(await screen.findByRole("heading", { name: "Yeni Lansman" })).toBeTruthy();
   });
 
   it("attaches a reminder to an existing initiative", async () => {

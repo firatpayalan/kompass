@@ -174,6 +174,7 @@ export default function App({ db, notify, now }: AppProps = {}) {
             db={appDb}
             initiative={selectedInitiative}
             onBack={() => setActiveView("isler")}
+            onInitiativeUpdated={setSelectedInitiative}
             onToast={showToast}
           />
         ) : (

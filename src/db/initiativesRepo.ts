@@ -288,7 +288,10 @@ export async function updateInitiative(
       throw new Error("Kayıt bulunamadı");
     }
 
-    const name = patch.name ?? current.name;
+    const name = (patch.name ?? current.name).trim();
+    if (!name) {
+      throw new Error("İş adı boş olamaz");
+    }
     const duplicate = await findInitiativeByName(tx, name);
     if (duplicate && duplicate.id !== id) {
       throw new Error("Bu isimde kayıt var");
