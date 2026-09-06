@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppDb } from "../src/db/appDb";
 import type { Initiative, InitiativeTag } from "../src/lib/types";
 import InitiativeDetailView from "../src/views/InitiativeDetailView";
+import InitiativesView from "../src/views/InitiativesView";
 
 afterEach(() => {
   cleanup();
@@ -101,5 +102,149 @@ describe("initiative tags UI", () => {
         color: expect.any(String),
       });
     });
+  });
+
+  it("filters initiatives list by selected tags with AND", async () => {
+    const listInitiatives = vi.fn(async () => initiatives);
+    const initiatives: Initiative[] = [
+      {
+        ...baseInitiative,
+        id: 1,
+        name: "Sadece acil",
+        tags: [
+          {
+            id: 1,
+            name: "acil",
+            color: "rose",
+            createdAt: "2026-09-06T10:00:00.000Z",
+          },
+        ],
+      },
+      {
+        ...baseInitiative,
+        id: 2,
+        name: "Acil ve q3",
+        tags: [
+          {
+            id: 1,
+            name: "acil",
+            color: "rose",
+            createdAt: "2026-09-06T10:00:00.000Z",
+          },
+          {
+            id: 2,
+            name: "q3",
+            color: "teal",
+            createdAt: "2026-09-06T10:00:00.000Z",
+          },
+        ],
+      },
+    ];
+
+    render(
+      <InitiativesView
+        db={
+          {
+            listInitiatives,
+            listInitiativeTags: vi.fn(async () => [
+              {
+                id: 1,
+                name: "acil",
+                color: "rose",
+                createdAt: "2026-09-06T10:00:00.000Z",
+              },
+              {
+                id: 2,
+                name: "q3",
+                color: "teal",
+                createdAt: "2026-09-06T10:00:00.000Z",
+              },
+            ]),
+            createInitiative: vi.fn(),
+            createNote: vi.fn(),
+            reorderInitiatives: vi.fn(),
+            archiveInitiative: vi.fn(),
+          } as never
+        }
+      />,
+    );
+
+    await screen.findByRole("button", { name: "Sadece acil" });
+    expect(listInitiatives).toHaveBeenCalled();
+
+    const acilRow = screen.getByRole("button", { name: "Sadece acil" });
+    expect(
+      within(acilRow).getByText("acil", { selector: ".person-label-badge" }),
+    ).toBeTruthy();
+
+    const filter = screen.getByRole("group", { name: "Etiket filtresi" });
+    expect(
+      within(filter).getByRole("button", { name: "Tümü" }).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+
+    fireEvent.click(within(filter).getByRole("button", { name: "acil" }));
+    fireEvent.click(within(filter).getByRole("button", { name: "q3" }));
+
+    expect(screen.queryByRole("button", { name: "Sadece acil" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Acil ve q3" })).toBeTruthy();
+
+    fireEvent.click(within(filter).getByRole("button", { name: "Tümü" }));
+
+    expect(screen.getByRole("button", { name: "Sadece acil" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Acil ve q3" })).toBeTruthy();
+  });
+
+  it("shows empty filter state when no initiative matches", async () => {
+    render(
+      <InitiativesView
+        db={
+          {
+            listInitiatives: vi.fn(async () => [
+              {
+                ...baseInitiative,
+                name: "Sadece acil",
+                tags: [
+                  {
+                    id: 1,
+                    name: "acil",
+                    color: "rose",
+                    createdAt: "2026-09-06T10:00:00.000Z",
+                  },
+                ],
+              },
+            ]),
+            listInitiativeTags: vi.fn(async () => [
+              {
+                id: 1,
+                name: "acil",
+                color: "rose",
+                createdAt: "2026-09-06T10:00:00.000Z",
+              },
+              {
+                id: 2,
+                name: "q3",
+                color: "teal",
+                createdAt: "2026-09-06T10:00:00.000Z",
+              },
+            ]),
+            createInitiative: vi.fn(),
+            createNote: vi.fn(),
+            reorderInitiatives: vi.fn(),
+            archiveInitiative: vi.fn(),
+          } as never
+        }
+      />,
+    );
+
+    await screen.findByRole("button", { name: "Sadece acil" });
+
+    const filter = screen.getByRole("group", { name: "Etiket filtresi" });
+    fireEvent.click(within(filter).getByRole("button", { name: "q3" }));
+
+    expect(screen.queryByRole("button", { name: "Sadece acil" })).toBeNull();
+    expect(screen.getByText("Bu etiketlere uyan iş yok.")).toBeTruthy();
+    expect(screen.queryByText("Henüz iş yok.")).toBeNull();
   });
 });

@@ -605,6 +605,21 @@ body {
   color: inherit;
 }
 
+.initiative-tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0 0 1rem;
+}
+
+.initiative-list__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
 .status {
   padding: 0.2rem 0.55rem;
   border-radius: 999px;

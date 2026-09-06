@@ -292,7 +292,9 @@ describe("Task 13 people and initiatives UI", () => {
           createInitiative,
           createNote,
           listInitiatives: vi.fn().mockResolvedValue([]),
+          listInitiativeTags: vi.fn().mockResolvedValue([]),
           reorderInitiatives: vi.fn(),
+          archiveInitiative: vi.fn(),
         }}
         onSelectInitiative={onSelectInitiative}
         onToast={vi.fn()}

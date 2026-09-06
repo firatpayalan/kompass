@@ -5,13 +5,15 @@ import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import { formatError } from "../lib/formatError";
 import { formatRelativeTr } from "../lib/formatRelativeTr";
-import type { Initiative, InitiativeStatus } from "../lib/types";
+import { initiativeMatchesTagFilter } from "../lib/initiativeTagFilter";
+import type { Initiative, InitiativeStatus, InitiativeTag } from "../lib/types";
 
 type InitiativesDb = Pick<
   AppDb,
   | "createInitiative"
   | "createNote"
   | "listInitiatives"
+  | "listInitiativeTags"
   | "reorderInitiatives"
   | "archiveInitiative"
 >;
@@ -68,6 +70,8 @@ export default function InitiativesView({
   onToast = ignore,
 }: InitiativesViewProps) {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [catalog, setCatalog] = useState<InitiativeTag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<number | null>(null);
@@ -95,8 +99,12 @@ export default function InitiativesView({
 
   const loadInitiatives = useCallback(async () => {
     try {
-      const loaded = await db.listInitiatives();
+      const [loaded, tags] = await Promise.all([
+        db.listInitiatives(),
+        db.listInitiativeTags(),
+      ]);
       setInitiatives(loaded);
+      setCatalog(tags);
       setLoadError(null);
       return loaded;
     } catch (error) {
@@ -233,6 +241,10 @@ export default function InitiativesView({
     return loaded.find((item) => namesMatch(item.name, name)) ?? null;
   };
 
+  const visible = initiatives.filter((item) =>
+    initiativeMatchesTagFilter(item, selectedTagIds),
+  );
+
   return (
     <section className="entity-view">
       <header>
@@ -253,14 +265,53 @@ export default function InitiativesView({
           {loadError}
         </p>
       ) : null}
+      {catalog.length > 0 ? (
+        <div
+          className="initiative-tag-filter"
+          role="group"
+          aria-label="Etiket filtresi"
+        >
+          <button
+            aria-pressed={selectedTagIds.length === 0}
+            onClick={() => setSelectedTagIds([])}
+            type="button"
+          >
+            Tümü
+          </button>
+          {catalog.map((tag) => {
+            const pressed = selectedTagIds.includes(tag.id);
+            return (
+              <button
+                aria-pressed={pressed}
+                className={`person-label-chip person-label--${tag.color}${
+                  pressed ? " person-label-chip--selected" : ""
+                }`}
+                key={tag.id}
+                onClick={() => {
+                  setSelectedTagIds((prev) =>
+                    prev.includes(tag.id)
+                      ? prev.filter((id) => id !== tag.id)
+                      : [...prev, tag.id],
+                  );
+                }}
+                type="button"
+              >
+                {tag.name}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       <h2>İş listesi</h2>
       {loading ? (
         <p>İşler yükleniyor…</p>
       ) : initiatives.length === 0 ? (
         <p>Henüz iş yok.</p>
+      ) : visible.length === 0 ? (
+        <p>Bu etiketlere uyan iş yok.</p>
       ) : (
         <ul className="entity-list" ref={listRef}>
-          {initiatives.map((initiative) => (
+          {visible.map((initiative) => (
             <li
               className={
                 dragId === initiative.id
@@ -310,6 +361,18 @@ export default function InitiativesView({
                     {statusLabels[initiative.status]}
                   </span>
                 </span>
+                {initiative.tags.length > 0 ? (
+                  <span className="initiative-list__tags">
+                    {initiative.tags.map((tag) => (
+                      <span
+                        className={`person-label-badge person-label--${tag.color}`}
+                        key={tag.id}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
                 {initiative.status === "beklemede" &&
                 initiative.blockerSummary ? (
                   <span>Engel: {initiative.blockerSummary}</span>

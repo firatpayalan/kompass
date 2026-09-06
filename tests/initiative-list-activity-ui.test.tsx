@@ -29,6 +29,7 @@ describe("initiative list last activity", () => {
           createInitiative: vi.fn(),
           createNote: vi.fn(),
           listInitiatives: vi.fn().mockResolvedValue([initiative]),
+          listInitiativeTags: vi.fn().mockResolvedValue([]),
           reorderInitiatives: vi.fn(),
           archiveInitiative: vi.fn(),
         }}

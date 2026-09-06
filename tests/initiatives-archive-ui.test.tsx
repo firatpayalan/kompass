@@ -40,6 +40,7 @@ describe("InitiativesView archive", () => {
       createInitiative: vi.fn(),
       createNote: vi.fn(),
       listInitiatives,
+      listInitiativeTags: vi.fn().mockResolvedValue([]),
       reorderInitiatives: vi.fn(),
       archiveInitiative,
     } as unknown as AppDb;
@@ -70,6 +71,7 @@ describe("InitiativesView archive", () => {
       createInitiative: vi.fn(),
       createNote: vi.fn(),
       listInitiatives: vi.fn().mockResolvedValue([initiative]),
+      listInitiativeTags: vi.fn().mockResolvedValue([]),
       reorderInitiatives: vi.fn(),
       archiveInitiative,
     } as unknown as AppDb;
