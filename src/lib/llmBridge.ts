@@ -5,6 +5,7 @@ import type { LlmNotePayloadItem } from "./weeklyDigest";
 export type LlmSettings = {
   provider: LlmProvider;
   model: string;
+  baseUrl?: string;
 };
 
 export type SummarizeWeekResult = {

@@ -17,9 +17,12 @@ pub enum LlmProvider {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LlmSettings {
     pub provider: LlmProvider,
     pub model: String,
+    #[serde(default)]
+    pub base_url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,7 +80,43 @@ fn default_settings() -> LlmSettings {
     LlmSettings {
         provider: LlmProvider::Claude,
         model: DEFAULT_CLAUDE_MODEL.to_string(),
+        base_url: String::new(),
     }
+}
+
+fn normalize_base_url(raw: &str) -> String {
+    let trimmed = raw.trim();
+    trimmed.strip_suffix('/').unwrap_or(trimmed).to_string()
+}
+
+fn validate_base_url(raw: &str) -> Result<String, String> {
+    let normalized = normalize_base_url(raw);
+    if normalized.is_empty() {
+        return Ok(normalized);
+    }
+    if !(normalized.starts_with("http://") || normalized.starts_with("https://")) {
+        return Err("API taban adresi http veya https olmalı".into());
+    }
+    Ok(normalized)
+}
+
+fn resolve_endpoint(provider: &LlmProvider, base_url: &str) -> String {
+    let base = {
+        let n = normalize_base_url(base_url);
+        if n.is_empty() {
+            match provider {
+                LlmProvider::Claude => "https://api.anthropic.com".to_string(),
+                LlmProvider::Openai => "https://api.openai.com".to_string(),
+            }
+        } else {
+            n
+        }
+    };
+    let path = match provider {
+        LlmProvider::Claude => "/v1/messages",
+        LlmProvider::Openai => "/v1/chat/completions",
+    };
+    format!("{base}{path}")
 }
 
 fn read_settings(app: &AppHandle) -> Result<LlmSettings, String> {
@@ -133,7 +172,15 @@ pub fn get_llm_settings(app: AppHandle) -> Result<LlmSettings, String> {
 
 #[tauri::command]
 pub fn set_llm_settings(app: AppHandle, settings: LlmSettings) -> Result<(), String> {
-    write_settings(&app, &settings)
+    let base_url = validate_base_url(&settings.base_url)?;
+    write_settings(
+        &app,
+        &LlmSettings {
+            provider: settings.provider,
+            model: settings.model,
+            base_url,
+        },
+    )
 }
 
 fn build_prompt(week_start: &str, notes_json: &str) -> String {
@@ -153,7 +200,12 @@ Notlar (JSON):
     )
 }
 
-async fn call_claude(api_key: &str, model: &str, prompt: &str) -> Result<String, String> {
+async fn call_claude(
+    api_key: &str,
+    model: &str,
+    prompt: &str,
+    endpoint: &str,
+) -> Result<String, String> {
     let client = reqwest::Client::new();
     let body = serde_json::json!({
         "model": model,
@@ -161,7 +213,7 @@ async fn call_claude(api_key: &str, model: &str, prompt: &str) -> Result<String,
         "messages": [{ "role": "user", "content": prompt }]
     });
     let response = client
-        .post("https://api.anthropic.com/v1/messages")
+        .post(endpoint)
         .header("x-api-key", api_key)
         .header("anthropic-version", "2023-06-01")
         .header("content-type", "application/json")
@@ -193,7 +245,12 @@ async fn call_claude(api_key: &str, model: &str, prompt: &str) -> Result<String,
         .ok_or_else(|| "Claude yanıtında metin yok".into())
 }
 
-async fn call_openai(api_key: &str, model: &str, prompt: &str) -> Result<String, String> {
+async fn call_openai(
+    api_key: &str,
+    model: &str,
+    prompt: &str,
+    endpoint: &str,
+) -> Result<String, String> {
     let client = reqwest::Client::new();
     let body = serde_json::json!({
         "model": model,
@@ -203,7 +260,7 @@ async fn call_openai(api_key: &str, model: &str, prompt: &str) -> Result<String,
         ]
     });
     let response = client
-        .post("https://api.openai.com/v1/chat/completions")
+        .post(endpoint)
         .bearer_auth(api_key)
         .header("content-type", "application/json")
         .json(&body)
@@ -242,6 +299,7 @@ pub async fn summarize_week(
 ) -> Result<SummarizeResult, String> {
     let settings = read_settings(&app)?;
     let prompt = build_prompt(&week_start, &notes_json);
+    let endpoint = resolve_endpoint(&settings.provider, &settings.base_url);
 
     let (content, model) = match settings.provider {
         LlmProvider::Claude => {
@@ -252,7 +310,7 @@ pub async fn summarize_week(
             } else {
                 settings.model.clone()
             };
-            let content = call_claude(&key, &model, &prompt).await?;
+            let content = call_claude(&key, &model, &prompt, &endpoint).await?;
             (content, model)
         }
         LlmProvider::Openai => {
@@ -263,7 +321,7 @@ pub async fn summarize_week(
             } else {
                 settings.model.clone()
             };
-            let content = call_openai(&key, &model, &prompt).await?;
+            let content = call_openai(&key, &model, &prompt, &endpoint).await?;
             (content, model)
         }
     };
