@@ -133,6 +133,34 @@ describe("Hafta and Ayarlar UI", () => {
     expect(await screen.findByText("özet metni")).toBeTruthy();
   });
 
+  it("shows the full summarize error message from a string reject", async () => {
+    const weekNote = noteInCurrentWeek();
+    const onToast = vi.fn();
+    const db = {
+      listNotesInRange: vi.fn(async () => [weekNote]),
+      listPeople: vi.fn(async () => [person]),
+      listInitiatives: vi.fn(async () => [initiative]),
+      getWeeklySummary: vi.fn(async () => null),
+      upsertWeeklySummary: vi.fn(async () => undefined),
+      getNoteImage: vi.fn(async () => null),
+    } as unknown as AppDb;
+    const detail =
+      "Claude API 401: {\"type\":\"error\",\"error\":{\"message\":\"invalid x-api-key\"}}";
+    const llm = mockLlm({
+      hasClaudeApiKey: vi.fn(async () => true),
+      summarizeWeek: vi.fn(async () => {
+        throw detail;
+      }),
+    });
+
+    render(<HaftaView db={db} llm={llm} onToast={onToast} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Özetle" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe(detail);
+    expect(onToast).toHaveBeenCalledWith(detail);
+  });
+
   it("saves Claude key and allows free-text model ids", async () => {
     const saveClaudeApiKey = vi.fn(async () => undefined);
     const setLlmSettings = vi.fn(async () => undefined);

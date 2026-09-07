@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { WeeklySummary } from "../db/weeklySummariesRepo";
+import { formatError } from "../lib/formatError";
 import {
   defaultLlmBridge,
   type LlmBridge,
@@ -62,6 +63,7 @@ export default function HaftaView({
   const [canSummarize, setCanSummarize] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,6 +100,7 @@ export default function HaftaView({
 
   const onSummarize = async () => {
     setBusy(true);
+    setSummarizeError(null);
     try {
       const peopleById = new Map(people.map((p) => [p.id, p]));
       const initiativesById = new Map(initiatives.map((i) => [i.id, i]));
@@ -123,7 +126,9 @@ export default function HaftaView({
       });
       onToast("Özet kaydedildi");
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Özetleme başarısız");
+      const message = formatError(error, "Özetleme başarısız");
+      setSummarizeError(message);
+      onToast(message);
     } finally {
       setBusy(false);
     }
@@ -187,6 +192,11 @@ export default function HaftaView({
               .
             </p>
           )}
+          {summarizeError ? (
+            <p className="form-error" role="alert">
+              {summarizeError}
+            </p>
+          ) : null}
           <p className="hafta-view__privacy">
             Özetle, not metinlerini seçilen sağlayıcıya gönderir.
           </p>

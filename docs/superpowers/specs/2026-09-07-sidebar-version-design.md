@@ -1,13 +1,13 @@
-# App version in sidebar
+# App version under sidebar brand
 
 ## Goal
 
-Show the running app version at the bottom of the sidebar so users can confirm which build they have installed.
+Show the running app version under the **Kompass** title in the sidebar so users can confirm which build they have installed.
 
 ## UI
 
-- Placement: bottom of the sidebar, below primary navigation
-- Copy: `v{version}` (e.g. `v0.1.2`), muted secondary text
+- Placement: directly under `Kompass`, above the primary navigation
+- Copy: `v{version}` (e.g. `v0.1.2`), muted smaller text
 - Not clickable; no changelog
 
 ## Version source
@@ -18,4 +18,5 @@ Show the running app version at the bottom of the sidebar so users can confirm w
 ## Out of scope
 
 - Version on Ayarlar
+- Version pinned to sidebar footer
 - Update checks / release notes link
