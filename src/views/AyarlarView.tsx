@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
+import { formatError } from "../lib/formatError";
+import { normalizeBaseUrl, validateBaseUrl } from "../lib/llmBaseUrl";
+import {
+  defaultLlmBridge,
+  type LlmBridge,
+  type LlmSettings,
+} from "../lib/llmBridge";
 import {
   defaultModel,
   modelsFor,
   normalizeModelId,
   type LlmProvider,
 } from "../lib/llmModels";
-import {
-  defaultLlmBridge,
-  type LlmBridge,
-  type LlmSettings,
-} from "../lib/llmBridge";
 
 type AyarlarViewProps = {
   onToast?: (message: string) => void;
@@ -92,8 +94,11 @@ export default function AyarlarView({
   const [settings, setSettings] = useState<LlmSettings>({
     provider: "claude",
     model: defaultModel("claude"),
+    baseUrl: "",
   });
   const [modelDraft, setModelDraft] = useState(defaultModel("claude"));
+  const [baseUrlDraft, setBaseUrlDraft] = useState("");
+  const [baseUrlError, setBaseUrlError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -111,9 +116,11 @@ export default function AyarlarView({
         const next = {
           provider: loaded.provider,
           model: normalizeModelId(loaded.model) || defaultModel(loaded.provider),
+          baseUrl: loaded.baseUrl ?? "",
         };
         setSettings(next);
         setModelDraft(next.model);
+        setBaseUrlDraft(next.baseUrl);
       } catch {
         if (active) onToast("Ayarlar yüklenemedi");
       } finally {
@@ -127,13 +134,22 @@ export default function AyarlarView({
 
   const persistSettings = async (next: LlmSettings) => {
     const model = normalizeModelId(next.model) || defaultModel(next.provider);
-    const coerced = { provider: next.provider, model };
+    const baseUrl = normalizeBaseUrl(next.baseUrl ?? "");
+    const error = validateBaseUrl(baseUrl);
+    if (error) {
+      setBaseUrlError(error);
+      onToast(error);
+      return;
+    }
+    setBaseUrlError(null);
+    const coerced = { provider: next.provider, model, baseUrl };
     setSettings(coerced);
     setModelDraft(model);
+    setBaseUrlDraft(baseUrl);
     try {
       await llm.setLlmSettings(coerced);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Ayarlar kaydedilemedi");
+      onToast(formatError(error, "Ayarlar kaydedilemedi"));
     }
   };
 
@@ -253,8 +269,10 @@ export default function AyarlarView({
             onChange={(event) => {
               const provider = event.target.value as LlmProvider;
               void persistSettings({
+                ...settings,
                 provider,
                 model: defaultModel(provider),
+                baseUrl: baseUrlDraft,
               });
             }}
             value={settings.provider}
@@ -277,8 +295,9 @@ export default function AyarlarView({
             onBlur={() => {
               if (normalizeModelId(modelDraft) === settings.model) return;
               void persistSettings({
-                provider: settings.provider,
+                ...settings,
                 model: modelDraft,
+                baseUrl: baseUrlDraft,
               });
             }}
             onChange={(event) => setModelDraft(event.target.value)}
@@ -286,8 +305,9 @@ export default function AyarlarView({
               if (event.key !== "Enter") return;
               event.preventDefault();
               void persistSettings({
-                provider: settings.provider,
+                ...settings,
                 model: modelDraft,
+                baseUrl: baseUrlDraft,
               });
             }}
             placeholder={defaultModel(settings.provider)}
@@ -307,6 +327,36 @@ export default function AyarlarView({
           İstediğin model id’sini yazabilirsin. Öneriler listeden seçilebilir;
           Enter veya alandan çıkınca kaydedilir.
         </p>
+        <label className="ayarlar-card__field" htmlFor="llm-base-url">
+          API taban adresi
+          <input
+            autoComplete="off"
+            id="llm-base-url"
+            onBlur={() => {
+              void persistSettings({
+                ...settings,
+                model: modelDraft,
+                baseUrl: baseUrlDraft,
+              });
+            }}
+            onChange={(event) => {
+              setBaseUrlDraft(event.target.value);
+              setBaseUrlError(null);
+            }}
+            placeholder="Boş = resmi API (Anthropic / OpenAI)"
+            spellCheck={false}
+            value={baseUrlDraft}
+          />
+        </label>
+        {baseUrlError ? (
+          <p className="form-error" role="alert">
+            {baseUrlError}
+          </p>
+        ) : null}
+        <p className="ayarlar-card__hint">
+          Şirket adresi yazabilirsin (path prefix dahil). /v1/... yolunu ekleme;
+          seçilen sağlayıcıya göre uygulama ekler.
+        </p>
         <div className="ayarlar-card__chips" aria-label="Önerilen modeller">
           {suggestions.map((option) => (
             <button
@@ -319,8 +369,9 @@ export default function AyarlarView({
               onClick={() => {
                 setModelDraft(option.id);
                 void persistSettings({
-                  provider: settings.provider,
+                  ...settings,
                   model: option.id,
+                  baseUrl: baseUrlDraft,
                 });
               }}
               type="button"

@@ -68,6 +68,7 @@ function mockLlm(partial: Partial<LlmBridge> = {}): LlmBridge {
     getLlmSettings: vi.fn(async () => ({
       provider: "claude",
       model: "claude-sonnet-4-20250514",
+      baseUrl: "",
     })),
     setLlmSettings: vi.fn(async () => undefined),
     summarizeWeek: vi.fn(async () => ({
@@ -188,6 +189,7 @@ describe("Hafta and Ayarlar UI", () => {
       expect(setLlmSettings).toHaveBeenCalledWith({
         provider: "openai",
         model: "gpt-4.1-mini",
+        baseUrl: "",
       });
     });
 
@@ -208,7 +210,58 @@ describe("Hafta and Ayarlar UI", () => {
       expect(setLlmSettings).toHaveBeenCalledWith({
         provider: "claude",
         model: "claude-sonnet-4-20250514",
+        baseUrl: "",
       });
     });
+  });
+
+  it("persists API base URL with settings", async () => {
+    const setLlmSettings = vi.fn(async () => undefined);
+    const llm = mockLlm({
+      hasClaudeApiKey: vi.fn(async () => true),
+      setLlmSettings,
+      getLlmSettings: vi.fn(async () => ({
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        baseUrl: "",
+      })),
+    });
+
+    render(<AyarlarView llm={llm} />);
+
+    const input = (await screen.findByLabelText(
+      "API taban adresi",
+    )) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { value: "https://llm.sirket.internal/api/v2/proxy/" },
+    });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(setLlmSettings).toHaveBeenCalledWith({
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        baseUrl: "https://llm.sirket.internal/api/v2/proxy",
+      });
+    });
+  });
+
+  it("shows validation error for invalid base URL", async () => {
+    const setLlmSettings = vi.fn(async () => undefined);
+    const llm = mockLlm({
+      hasClaudeApiKey: vi.fn(async () => true),
+      setLlmSettings,
+    });
+
+    render(<AyarlarView llm={llm} />);
+
+    const input = await screen.findByLabelText("API taban adresi");
+    fireEvent.change(input, { target: { value: "not-a-url" } });
+    fireEvent.blur(input);
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(
+      /geçersiz|http/i,
+    );
+    expect(setLlmSettings).not.toHaveBeenCalled();
   });
 });
