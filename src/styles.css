@@ -781,6 +781,12 @@ body {
   font-size: 0.85rem;
 }
 
+.note-list__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .note-list__tags {
   display: flex;
   flex-wrap: wrap;

@@ -263,15 +263,17 @@ export default function InboxView({
                   <NoteTagBadges tags={note.tags} />
                   <div className="note-list__meta">
                     <NoteTimestamps note={note} />
-                    <button
-                      onClick={() => startOrganize(note)}
-                      type="button"
-                    >
-                      Taşı
-                    </button>
-                    <button onClick={() => deleteNote(note.id)} type="button">
-                      Sil
-                    </button>
+                    <div className="note-list__actions">
+                      <button
+                        onClick={() => startOrganize(note)}
+                        type="button"
+                      >
+                        Taşı
+                      </button>
+                      <button onClick={() => deleteNote(note.id)} type="button">
+                        Sil
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
