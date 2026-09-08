@@ -6,6 +6,7 @@ import {
   createPerson,
   deletePerson,
   findPersonByName,
+  getPerson,
   linkNoteToPeople,
   listArchivedPeople,
   listNotesForPerson,
@@ -197,6 +198,42 @@ describe("peopleRepo", () => {
     expect(await listDeletedNotes(db)).toEqual([
       expect.objectContaining({ id: alreadyTrashed.id }),
     ]);
+    db.close();
+  });
+
+  it("renames a person", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-08T10:00:00.000Z";
+    const person = await createPerson(db, { name: "Ayşe", nowIso });
+
+    const updated = await updatePerson(db, person.id, { name: "Ayşe Yılmaz" });
+    expect(updated.name).toBe("Ayşe Yılmaz");
+    expect(await getPerson(db, person.id)).toEqual(
+      expect.objectContaining({ id: person.id, name: "Ayşe Yılmaz" }),
+    );
+    db.close();
+  });
+
+  it("rejects renaming to a duplicate active name", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-08T10:00:00.000Z";
+    await createPerson(db, { name: "Ayşe", nowIso });
+    const other = await createPerson(db, { name: "Can", nowIso });
+
+    await expect(
+      updatePerson(db, other.id, { name: "ayşe" }),
+    ).rejects.toThrow("Bu isimde kayıt var");
+    db.close();
+  });
+
+  it("rejects empty rename", async () => {
+    const db = openTestAsyncDb();
+    const nowIso = "2026-09-08T10:00:00.000Z";
+    const person = await createPerson(db, { name: "Ayşe", nowIso });
+
+    await expect(updatePerson(db, person.id, { name: "   " })).rejects.toThrow(
+      "İsim boş olamaz",
+    );
     db.close();
   });
 });

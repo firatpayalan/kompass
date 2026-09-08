@@ -575,6 +575,21 @@ body {
   cursor: pointer;
 }
 
+.entity-list__rename {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0.35rem 0.75rem 0.35rem 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #c9d3df;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  user-select: text;
+}
+
 .entity-list button {
   display: grid;
   gap: 0.45rem;

@@ -25,6 +25,7 @@ export type CreatePersonInput = {
 
 export type UpdatePersonPatch = {
   labelId?: number | null;
+  name?: string;
 };
 
 function mapLabelFromRow(row: PersonRow): PersonLabel | null {
@@ -157,23 +158,44 @@ export async function updatePerson(
   id: number,
   patch: UpdatePersonPatch,
 ): Promise<Person> {
-  if (!("labelId" in patch)) {
-    const person = await getPerson(db, id);
-    if (!person) {
-      throw new Error("Kayıt bulunamadı");
-    }
-    return person;
+  const existing = await getPerson(db, id);
+  if (!existing) {
+    throw new Error("Kayıt bulunamadı");
   }
 
-  if (patch.labelId != null) {
-    const label = await getPersonLabel(db, patch.labelId);
-    if (!label) {
-      throw new Error("Etiket bulunamadı");
-    }
+  const hasName = "name" in patch;
+  const hasLabel = "labelId" in patch;
+  if (!hasName && !hasLabel) {
+    return existing;
   }
 
-  await db.execute("UPDATE people SET label_id = ? WHERE id = ?", [
-    patch.labelId ?? null,
+  let nextName = existing.name;
+  if (hasName) {
+    const trimmed = (patch.name ?? "").trim();
+    if (!trimmed) {
+      throw new Error("İsim boş olamaz");
+    }
+    const clash = await findPersonByName(db, trimmed);
+    if (clash && clash.id !== id) {
+      throw new Error("Bu isimde kayıt var");
+    }
+    nextName = trimmed;
+  }
+
+  let nextLabelId = existing.label?.id ?? null;
+  if (hasLabel) {
+    if (patch.labelId != null) {
+      const label = await getPersonLabel(db, patch.labelId);
+      if (!label) {
+        throw new Error("Etiket bulunamadı");
+      }
+    }
+    nextLabelId = patch.labelId ?? null;
+  }
+
+  await db.execute("UPDATE people SET name = ?, label_id = ? WHERE id = ?", [
+    nextName,
+    nextLabelId,
     id,
   ]);
 

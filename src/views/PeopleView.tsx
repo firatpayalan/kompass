@@ -13,6 +13,7 @@ type PeopleDb = Pick<
   | "listPeople"
   | "reorderPeople"
   | "archivePerson"
+  | "updatePerson"
   | "listPersonLabels"
   | "createPersonLabel"
   | "updatePersonLabel"
@@ -75,6 +76,8 @@ export default function PeopleView({
     y: number;
   } | null>(null);
   const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const listRef = useRef<HTMLUListElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const peopleRef = useRef(people);
@@ -87,6 +90,7 @@ export default function PeopleView({
   const persistOrderRef = useRef<(next: Person[]) => Promise<void>>(
     async () => undefined,
   );
+  const skipRenameBlurRef = useRef(false);
 
   peopleRef.current = people;
 
@@ -209,6 +213,48 @@ export default function PeopleView({
     setMenu({ personId, x: event.clientX, y: event.clientY });
   };
 
+  const startRename = (personId: number) => {
+    const target = people.find((person) => person.id === personId);
+    if (!target) return;
+    skipRenameBlurRef.current = false;
+    setMenu(null);
+    setRenamingId(personId);
+    setRenameDraft(target.name);
+  };
+
+  const cancelRename = () => {
+    skipRenameBlurRef.current = true;
+    setRenamingId(null);
+    setRenameDraft("");
+  };
+
+  const saveRename = async () => {
+    if (renamingId === null) return;
+    const current = people.find((person) => person.id === renamingId);
+    if (!current) {
+      cancelRename();
+      return;
+    }
+    const trimmed = renameDraft.trim();
+    if (!trimmed) {
+      onToast("İsim boş olamaz");
+      return;
+    }
+    if (namesMatch(trimmed, current.name)) {
+      cancelRename();
+      return;
+    }
+    try {
+      const updated = await db.updatePerson(renamingId, { name: trimmed });
+      setPeople((prev) =>
+        prev.map((person) => (person.id === updated.id ? updated : person)),
+      );
+      cancelRename();
+    } catch (error) {
+      onToast(formatError(error, "İsim güncellenemedi"));
+    }
+  };
+
   const confirmArchivePerson = async () => {
     if (!personToDelete) return;
     try {
@@ -274,21 +320,53 @@ export default function PeopleView({
               >
                 ⠿
               </button>
-              <button
-                aria-label={person.name}
-                className="entity-list__open"
-                onClick={() => onSelectPerson(person)}
-                onContextMenu={(event) => openPersonMenu(event, person.id)}
-                type="button"
-              >
-                <span className="entity-list__heading">
-                  <strong>{person.name}</strong>
-                  {person.label ? (
-                    <PersonLabelBadge label={person.label} />
-                  ) : null}
-                </span>
-                {person.roleOrNotes ? <span>{person.roleOrNotes}</span> : null}
-              </button>
+              {renamingId === person.id ? (
+                <input
+                  aria-label="Kişi adını düzenle"
+                  autoFocus
+                  className="entity-list__rename"
+                  onBlur={() => {
+                    if (skipRenameBlurRef.current) {
+                      skipRenameBlurRef.current = false;
+                      return;
+                    }
+                    void saveRename();
+                  }}
+                  onChange={(event) => setRenameDraft(event.target.value)}
+                  onClick={(event) => event.stopPropagation()}
+                  onFocus={(event) => {
+                    event.currentTarget.select();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void saveRename();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  value={renameDraft}
+                />
+              ) : (
+                <button
+                  aria-label={person.name}
+                  className="entity-list__open"
+                  onClick={() => onSelectPerson(person)}
+                  onContextMenu={(event) => openPersonMenu(event, person.id)}
+                  type="button"
+                >
+                  <span className="entity-list__heading">
+                    <strong>{person.name}</strong>
+                    {person.label ? (
+                      <PersonLabelBadge label={person.label} />
+                    ) : null}
+                  </span>
+                  {person.roleOrNotes ? <span>{person.roleOrNotes}</span> : null}
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -299,6 +377,12 @@ export default function PeopleView({
           ref={menuRef}
           style={{ left: menu.x, top: menu.y }}
         >
+          <button
+            onClick={() => startRename(menu.personId)}
+            type="button"
+          >
+            İsmi değiştir
+          </button>
           <button
             className="person-label-menu__danger"
             onClick={() => {
