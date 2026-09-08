@@ -28,3 +28,19 @@ export function nextDueAt(
   }
   return cursor.toISOString();
 }
+
+/**
+ * Next due after the user marks this occurrence complete.
+ * Always skips the current dueAt (even if it is still in the future).
+ */
+export function advanceDueAtAfterCompletion(
+  dueAtIso: string,
+  period: Exclude<ReminderPeriod, "once">,
+  now: Date,
+): string {
+  let cursor = addPeriod(new Date(dueAtIso), period);
+  while (cursor.getTime() <= now.getTime()) {
+    cursor = addPeriod(cursor, period);
+  }
+  return cursor.toISOString();
+}

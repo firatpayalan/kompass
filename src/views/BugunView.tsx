@@ -5,6 +5,7 @@ import type {
   BugunReminder,
   ReminderTicker,
 } from "../hooks/useReminderTicker";
+import { formatError } from "../lib/formatError";
 import type { Initiative, Note, Person } from "../lib/types";
 import NoteArchiveShell from "../components/NoteArchiveShell";
 import NoteBodyView from "../components/NoteBodyView";
@@ -261,6 +262,14 @@ export default function BugunView({
     }
   };
 
+  const handleCompleteReminder = async (reminder: BugunReminder) => {
+    try {
+      await completeReminder(reminder);
+    } catch (error) {
+      onToast(formatError(error, "Hatırlatma tamamlanamadı"));
+    }
+  };
+
   return (
     <section className="bugun-view">
       <h1>Bugün</h1>
@@ -277,7 +286,7 @@ export default function BugunView({
         items={overdueReminders}
         loadFailed={remindersLoadFailed}
         loading={remindersLoading}
-        onComplete={completeReminder}
+        onComplete={handleCompleteReminder}
         onOpenReminder={(event, reminder) => {
           void openReminderLinkMenu(event, reminder);
         }}
@@ -289,7 +298,7 @@ export default function BugunView({
         items={reminders}
         loadFailed={remindersLoadFailed}
         loading={remindersLoading}
-        onComplete={completeReminder}
+        onComplete={handleCompleteReminder}
         onOpenReminder={(event, reminder) => {
           void openReminderLinkMenu(event, reminder);
         }}
@@ -301,7 +310,7 @@ export default function BugunView({
         items={upcomingReminders}
         loadFailed={remindersLoadFailed}
         loading={remindersLoading}
-        onComplete={completeReminder}
+        onComplete={handleCompleteReminder}
         onOpenReminder={(event, reminder) => {
           void openReminderLinkMenu(event, reminder);
         }}

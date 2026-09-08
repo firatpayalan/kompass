@@ -223,6 +223,30 @@ describe("remindersRepo", () => {
     db.close();
   });
 
+  it("completes a one-time reminder even when dueAt is still in the future", async () => {
+    const db = openTestAsyncDb();
+    const reminder = await createReminder(db, {
+      targetType: "note",
+      targetId: 1,
+      dueAt: "2026-09-05T18:00:00.000Z",
+      period: "once",
+      nowIso: "2026-09-05T08:00:00.000Z",
+    });
+
+    await advanceOrCompleteReminder(
+      db,
+      reminder,
+      new Date("2026-09-05T10:00:00.000Z"),
+    );
+
+    expect(
+      await db.select("SELECT done FROM reminders WHERE id = ?", [
+        reminder.id,
+      ]),
+    ).toEqual([{ done: 1 }]);
+    db.close();
+  });
+
   it("advances a recurring reminder using nextDueAt", async () => {
     const db = openTestAsyncDb();
     const reminder = await createReminder(db, {
@@ -244,6 +268,30 @@ describe("remindersRepo", () => {
         reminder.id,
       ]),
     ).toEqual([{ due_at: "2026-09-08T10:00:00.000Z", done: 0 }]);
+    db.close();
+  });
+
+  it("skips a future recurring occurrence in Yaklaşanlar on complete", async () => {
+    const db = openTestAsyncDb();
+    const reminder = await createReminder(db, {
+      targetType: "initiative",
+      targetId: 1,
+      dueAt: "2026-09-08T10:00:00.000Z",
+      period: "weekly",
+      nowIso: "2026-09-05T08:00:00.000Z",
+    });
+
+    await advanceOrCompleteReminder(
+      db,
+      reminder,
+      new Date("2026-09-05T12:00:00.000Z"),
+    );
+
+    expect(
+      await db.select("SELECT due_at, done FROM reminders WHERE id = ?", [
+        reminder.id,
+      ]),
+    ).toEqual([{ due_at: "2026-09-15T10:00:00.000Z", done: 0 }]);
     db.close();
   });
 });

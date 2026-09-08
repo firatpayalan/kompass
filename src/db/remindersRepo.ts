@@ -1,4 +1,4 @@
-import { nextDueAt } from "../lib/reminders";
+import { advanceDueAtAfterCompletion } from "../lib/reminders";
 import type {
   Reminder,
   ReminderPeriod,
@@ -184,11 +184,19 @@ export async function advanceOrCompleteReminder(
   reminder: Reminder,
   now: Date,
 ): Promise<void> {
-  const next = nextDueAt(reminder.dueAt, reminder.period, now);
-  if (next === null) {
+  // Explicit user completion always finishes one-shot reminders, even if
+  // dueAt is still in the future (e.g. later today / Yaklaşanlar).
+  if (reminder.period === "once") {
     await markReminderDone(db, reminder.id);
     return;
   }
+
+  // Recurring: skip this occurrence even when dueAt is still upcoming.
+  const next = advanceDueAtAfterCompletion(
+    reminder.dueAt,
+    reminder.period,
+    now,
+  );
 
   await db.execute("UPDATE reminders SET due_at = ? WHERE id = ?", [
     next,
