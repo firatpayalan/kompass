@@ -1737,6 +1737,12 @@ button:disabled {
   font-weight: 400;
 }
 
+.ayarlar-card__divider {
+  height: 1px;
+  background: #dbe2ea;
+  margin: 0.15rem 0;
+}
+
 .ayarlar-card__chips {
   display: flex;
   flex-wrap: wrap;

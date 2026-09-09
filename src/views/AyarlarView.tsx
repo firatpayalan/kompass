@@ -1,4 +1,9 @@
 import { useEffect, useState } from "react";
+import ConfirmDialog from "../components/ConfirmDialog";
+import {
+  defaultBackupBridge,
+  type BackupBridge,
+} from "../lib/backupBridge";
 import { formatError } from "../lib/formatError";
 import { normalizeBaseUrl, validateBaseUrl } from "../lib/llmBaseUrl";
 import {
@@ -16,6 +21,7 @@ import {
 type AyarlarViewProps = {
   onToast?: (message: string) => void;
   llm?: LlmBridge;
+  backup?: BackupBridge;
 };
 
 const ignoreToast = () => undefined;
@@ -86,6 +92,7 @@ function KeyCard({
 export default function AyarlarView({
   onToast = ignoreToast,
   llm = defaultLlmBridge,
+  backup = defaultBackupBridge,
 }: AyarlarViewProps) {
   const [claudeSaved, setClaudeSaved] = useState(false);
   const [openaiSaved, setOpenaiSaved] = useState(false);
@@ -100,6 +107,11 @@ export default function AyarlarView({
   const [baseUrlDraft, setBaseUrlDraft] = useState("");
   const [baseUrlError, setBaseUrlError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportPassword, setExportPassword] = useState("");
+  const [exportPasswordConfirm, setExportPasswordConfirm] = useState("");
+  const [importPassword, setImportPassword] = useState("");
+  const [importPath, setImportPath] = useState<string | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -150,6 +162,76 @@ export default function AyarlarView({
       await llm.setLlmSettings(coerced);
     } catch (error) {
       onToast(formatError(error, "Ayarlar kaydedilemedi"));
+    }
+  };
+
+  const exportYedek = async () => {
+    if (!exportPassword) {
+      onToast("Parola boş olamaz");
+      return;
+    }
+    if (exportPassword !== exportPasswordConfirm) {
+      onToast("Parolalar eşleşmiyor");
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      await backup.checkpointDb();
+      const destPath = await backup.pickExportPath();
+      if (!destPath) return;
+      await backup.exportBackup(exportPassword, destPath);
+      setExportPassword("");
+      setExportPasswordConfirm("");
+      onToast("Yedek kaydedildi");
+    } catch (error) {
+      onToast(formatError(error, "Yedek kaydedilemedi"));
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const startImportYedek = async () => {
+    if (!importPassword) {
+      onToast("Parola boş olamaz");
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      const sourcePath = await backup.pickImportPath();
+      if (!sourcePath) return;
+      setImportPath(sourcePath);
+    } catch (error) {
+      onToast(formatError(error, "Yedek dosyası seçilemedi"));
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const confirmImportYedek = async () => {
+    const sourcePath = importPath;
+    if (!sourcePath) return;
+    setImportPath(null);
+    setBackupBusy(true);
+    let closed = false;
+    try {
+      await backup.verifyBackupPassword(importPassword, sourcePath);
+      await backup.closeLiveDb();
+      closed = true;
+      await backup.importBackup(importPassword, sourcePath);
+      onToast("Yedek içe aktarıldı");
+      await backup.resetAfterImport();
+    } catch (error) {
+      onToast(formatError(error, "Yedek içe aktarılamadı"));
+      if (closed) {
+        try {
+          await backup.reconnectDb();
+          backup.reloadApp();
+        } catch (reconnectError) {
+          onToast(formatError(reconnectError, "Veritabanı yeniden açılamadı"));
+        }
+      }
+    } finally {
+      setBackupBusy(false);
     }
   };
 
@@ -381,6 +463,83 @@ export default function AyarlarView({
           ))}
         </div>
       </section>
+
+      <section className="ayarlar-card ayarlar-card--wide">
+        <div className="ayarlar-card__header">
+          <h2>Yedek</h2>
+        </div>
+        <p className="ayarlar-card__hint">
+          Yedek şifreli .kompass dosyasıdır; notları, ayarları ve API
+          anahtarlarını da içerir.
+        </p>
+        <label className="ayarlar-card__field" htmlFor="backup-export-password">
+          Yedek parolası
+          <input
+            aria-label="Yedek parolası"
+            autoComplete="new-password"
+            id="backup-export-password"
+            onChange={(event) => setExportPassword(event.target.value)}
+            type="password"
+            value={exportPassword}
+          />
+        </label>
+        <label
+          className="ayarlar-card__field"
+          htmlFor="backup-export-password-confirm"
+        >
+          Yedek parolası (tekrar)
+          <input
+            aria-label="Yedek parolası (tekrar)"
+            autoComplete="new-password"
+            id="backup-export-password-confirm"
+            onChange={(event) => setExportPasswordConfirm(event.target.value)}
+            type="password"
+            value={exportPasswordConfirm}
+          />
+        </label>
+        <div className="ayarlar-card__actions">
+          <button
+            className="ayarlar-card__btn ayarlar-card__btn--primary"
+            disabled={backupBusy}
+            onClick={() => void exportYedek()}
+            type="button"
+          >
+            Dışa aktar
+          </button>
+        </div>
+        <div className="ayarlar-card__divider" />
+        <label className="ayarlar-card__field" htmlFor="backup-import-password">
+          İçe aktarım parolası
+          <input
+            aria-label="İçe aktarım parolası"
+            autoComplete="off"
+            id="backup-import-password"
+            onChange={(event) => setImportPassword(event.target.value)}
+            type="password"
+            value={importPassword}
+          />
+        </label>
+        <div className="ayarlar-card__actions">
+          <button
+            className="ayarlar-card__btn ayarlar-card__btn--primary"
+            disabled={backupBusy}
+            onClick={() => void startImportYedek()}
+            type="button"
+          >
+            İçe aktar
+          </button>
+        </div>
+      </section>
+
+      {importPath ? (
+        <ConfirmDialog
+          confirmLabel="İçe aktar"
+          message="Bu makinedeki mevcut veriler ve ayarlar yedektekiyle değiştirilecek."
+          onCancel={() => setImportPath(null)}
+          onConfirm={() => void confirmImportYedek()}
+          title="Yedeği içe aktar"
+        />
+      ) : null}
     </section>
   );
 }

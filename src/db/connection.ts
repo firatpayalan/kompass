@@ -15,7 +15,28 @@ import { ensureTopicTagsSchema } from "./topicTagsRepo";
 import { ensureWeeklySummariesTable } from "./weeklySummariesRepo";
 import schemaSql from "./schema.sql?raw";
 
-const DATABASE_URL = "sqlite:leadership.db";
+/** plugin-sql stores this file under `app_config_dir()` as `leadership.db`. */
+export const DATABASE_URL = "sqlite:leadership.db";
+
+let pluginDatabase: Database | null = null;
+let liveDb: AsyncDb | null = null;
+
+/** Flush WAL into `leadership.db` before Rust copies file bytes for export. */
+export async function checkpointAppDatabase(db?: AsyncDb): Promise<void> {
+  const target = db ?? liveDb;
+  if (!target) {
+    throw new Error("Veritabanı hazır değil");
+  }
+  await target.execute("PRAGMA wal_checkpoint(FULL);");
+}
+
+/** Close the plugin-sql pool so import can replace `leadership.db` on disk. */
+export async function closeAppDatabase(): Promise<void> {
+  if (!pluginDatabase) return;
+  await pluginDatabase.close();
+  pluginDatabase = null;
+  liveDb = null;
+}
 
 function wrapTauriDatabase(database: Database): AsyncDb {
   let operationQueue = Promise.resolve();
@@ -63,7 +84,10 @@ function wrapTauriDatabase(database: Database): AsyncDb {
 }
 
 export async function connectAppDatabase(): Promise<AsyncDb> {
-  const db = wrapTauriDatabase(await Database.load(DATABASE_URL));
+  const database = await Database.load(DATABASE_URL);
+  pluginDatabase = database;
+  const db = wrapTauriDatabase(database);
+  liveDb = db;
   await applySchema(db, schemaSql);
   // Must run before any topics query; schema IF NOT EXISTS leaves legacy tables
   // without initiative_id, and schema indexes on that column would fail if applied early.

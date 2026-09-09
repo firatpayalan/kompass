@@ -10,7 +10,7 @@ import type {
   TopicTag,
 } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
-import { connectAppDatabase } from "./connection";
+import { closeAppDatabase, connectAppDatabase } from "./connection";
 import {
   archiveInitiative,
   createInitiative,
@@ -356,4 +356,11 @@ export function getDb(): AppDb {
   }
 
   return appDb;
+}
+
+export async function resetAppDb(): Promise<void> {
+  await closeAppDatabase();
+  appDb = null;
+  pendingInit = null;
+  await initAppDb();
 }
