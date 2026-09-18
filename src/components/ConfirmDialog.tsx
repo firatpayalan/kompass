@@ -2,6 +2,7 @@ type ConfirmDialogProps = {
   title?: string;
   message: string;
   confirmLabel?: string;
+  confirmDisabled?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -10,6 +11,7 @@ export default function ConfirmDialog({
   title = "Kalıcı silme onayı",
   message,
   confirmLabel = "Kalıcı olarak sil",
+  confirmDisabled = false,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -27,7 +29,11 @@ export default function ConfirmDialog({
           <button onClick={onCancel} type="button">
             Vazgeç
           </button>
-          <button onClick={onConfirm} type="button">
+          <button
+            disabled={confirmDisabled}
+            onClick={onConfirm}
+            type="button"
+          >
             {confirmLabel}
           </button>
         </footer>

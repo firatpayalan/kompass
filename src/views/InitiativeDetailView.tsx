@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import ConfirmDialog from "../components/ConfirmDialog";
 import LinkedNotes from "../components/LinkedNotes";
 import NoteBodyField from "../components/NoteBodyField";
 import ReminderForm, {
@@ -26,6 +27,7 @@ type InitiativeDetailDb = Pick<
   | "createNote"
   | "createTopic"
   | "listTopicsWithNotesForInitiative"
+  | "promoteTopicToInitiative"
   | "updateInitiative"
   | "updateNote"
   | "softDeleteNote"
@@ -56,6 +58,7 @@ type InitiativeDetailViewProps = {
   initiative: Initiative;
   onBack: () => void;
   onInitiativeUpdated?: (initiative: Initiative) => void;
+  onSelectInitiative?: (initiative: Initiative) => void;
   onToast?: (message: string) => void;
 };
 
@@ -72,6 +75,7 @@ export default function InitiativeDetailView({
   initiative,
   onBack,
   onInitiativeUpdated = ignore,
+  onSelectInitiative = ignore,
   onToast = ignore,
 }: InitiativeDetailViewProps) {
   const [topics, setTopics] = useState<TopicWithNotes[]>([]);
@@ -104,6 +108,16 @@ export default function InitiativeDetailView({
   const [dueAt, setDueAt] = useState("");
   const [period, setPeriod] = useState<ReminderPeriod>("once");
   const [savingReminder, setSavingReminder] = useState(false);
+  const [topicMenu, setTopicMenu] = useState<{
+    topicId: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [topicToPromote, setTopicToPromote] = useState<TopicWithNotes | null>(
+    null,
+  );
+  const [promoting, setPromoting] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setCurrent(initiative);
@@ -138,6 +152,23 @@ export default function InitiativeDetailView({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!topicMenu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      setTopicMenu(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTopicMenu(null);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [topicMenu]);
 
   const saveDetails = async () => {
     const trimmedName = name.trim();
@@ -351,6 +382,30 @@ export default function InitiativeDetailView({
       await load();
     } catch {
       onToast("Not arşivlenemedi");
+    }
+  };
+
+  const openTopicMenu = (event: MouseEvent, topicId: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setTopicMenu({ topicId, x: event.clientX, y: event.clientY });
+  };
+
+  const confirmPromote = async () => {
+    if (!topicToPromote || promoting) return;
+    setPromoting(true);
+    try {
+      const created = await db.promoteTopicToInitiative(
+        topicToPromote.id,
+        new Date().toISOString(),
+      );
+      setTopicToPromote(null);
+      onToast("İş oluşturuldu");
+      onSelectInitiative(created);
+    } catch (error) {
+      onToast(formatError(error, "İş oluşturulamadı"));
+    } finally {
+      setPromoting(false);
     }
   };
 
@@ -581,7 +636,10 @@ export default function InitiativeDetailView({
                     </div>
                   </form>
                 ) : (
-                  <div className="topic-card__header">
+                  <div
+                    className="topic-card__header"
+                    onContextMenu={(event) => openTopicMenu(event, topic.id)}
+                  >
                     <button
                       aria-expanded={expanded}
                       className="topic-card__toggle"
@@ -717,6 +775,38 @@ export default function InitiativeDetailView({
             }
           />
         </>
+      ) : null}
+      {topicMenu ? (
+        <div
+          className="person-label-menu"
+          ref={menuRef}
+          style={{ left: topicMenu.x, top: topicMenu.y }}
+        >
+          <button
+            onClick={() => {
+              const target =
+                topics.find((item) => item.id === topicMenu.topicId) ?? null;
+              setTopicMenu(null);
+              setTopicToPromote(target);
+            }}
+            type="button"
+          >
+            İşe çevir
+          </button>
+        </div>
+      ) : null}
+      {topicToPromote ? (
+        <ConfirmDialog
+          confirmDisabled={promoting}
+          confirmLabel="İşe çevir"
+          message={`“${topicToPromote.title}” yeni bir iş olacak. Konu burada kalır; iki yönlü taşıma notu eklenir.`}
+          onCancel={() => {
+            if (promoting) return;
+            setTopicToPromote(null);
+          }}
+          onConfirm={() => void confirmPromote()}
+          title="İşe çevir"
+        />
       ) : null}
     </section>
   );

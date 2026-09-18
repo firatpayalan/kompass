@@ -171,10 +171,12 @@ export default function App({ db, notify, now }: AppProps = {}) {
       case "is:":
         return selectedInitiative ? (
           <InitiativeDetailView
+            key={selectedInitiative.id}
             db={appDb}
             initiative={selectedInitiative}
             onBack={() => setActiveView("isler")}
             onInitiativeUpdated={setSelectedInitiative}
+            onSelectInitiative={openInitiative}
             onToast={showToast}
           />
         ) : (

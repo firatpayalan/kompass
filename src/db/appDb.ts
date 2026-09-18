@@ -105,6 +105,7 @@ import {
   createTopic,
   listTopicsWithNotesForPerson,
   listTopicsWithNotesForInitiative,
+  promoteTopicToInitiative,
   updateTopic,
   type CreateTopicInput,
   type TopicWithNotes,
@@ -172,6 +173,7 @@ export type AppDb = {
     topics: TopicWithNotes[];
     untopicNotes: Note[];
   }>;
+  promoteTopicToInitiative(topicId: number, nowIso: string): Promise<Initiative>;
   addTagToTopic(topicId: number, input: AddTopicTagInput): Promise<TopicTag>;
   linkTagToTopic(topicId: number, tagId: number): Promise<TopicTag>;
   listTopicTags(): Promise<TopicTag[]>;
@@ -284,6 +286,8 @@ export function createAppDb(db: AsyncDb): AppDb {
       listTopicsWithNotesForPerson(db, personId, options),
     listTopicsWithNotesForInitiative: (initiativeId, options) =>
       listTopicsWithNotesForInitiative(db, initiativeId, options),
+    promoteTopicToInitiative: (topicId, nowIso) =>
+      promoteTopicToInitiative(db, topicId, nowIso),
     addTagToTopic: (topicId, input) => addTagToTopic(db, topicId, input),
     linkTagToTopic: (topicId, tagId) => linkTagToTopic(db, topicId, tagId),
     listTopicTags: () => listTopicTags(db),

@@ -1,6 +1,8 @@
-import type { Note, Topic, TopicTag } from "../lib/types";
+import type { Initiative, Note, Topic, TopicTag } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
+import { createInitiative } from "./initiativesRepo";
 import {
+  createNote,
   listNotesForTopic,
   listUntopicNotesForInitiative,
   listUntopicNotesForPerson,
@@ -299,6 +301,45 @@ export async function listTopicsWithNotesForInitiative(
     noteOpts,
   );
   return { topics: topicsWithNotes, untopicNotes };
+}
+
+export async function promoteTopicToInitiative(
+  db: AsyncDb,
+  topicId: number,
+  nowIso: string,
+): Promise<Initiative> {
+  return db.withTransaction(async (tx) => {
+    const topic = await getTopic(tx, topicId);
+    if (!topic) {
+      throw new Error("Konu bulunamadı");
+    }
+    if (topic.initiativeId == null) {
+      throw new Error("Bu konu bir işe ait değil");
+    }
+
+    const created = await createInitiative(tx, {
+      name: topic.title,
+      status: "aktif",
+      nowIso,
+    });
+
+    const topicTrail = `Bu konu “${created.name}” işine taşınmıştır.`;
+    const initiativeTrail = `“${topic.title}” konusundan taşınmıştır.`;
+
+    await createNote(tx, {
+      body: topicTrail,
+      initiativeIds: [topic.initiativeId],
+      topicIds: [topic.id],
+      nowIso,
+    });
+    await createNote(tx, {
+      body: initiativeTrail,
+      initiativeIds: [created.id],
+      nowIso,
+    });
+
+    return created;
+  });
 }
 
 export { listNotesForTopic, listUntopicNotesForPerson, listUntopicNotesForInitiative };
