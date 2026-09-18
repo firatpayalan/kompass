@@ -19,6 +19,7 @@ import {
   type WeekDigest,
 } from "../lib/weeklyDigest";
 import type { Initiative, Note, Person } from "../lib/types";
+import MarkdownBody from "../components/MarkdownBody";
 import NoteBodyView from "../components/NoteBodyView";
 
 type HaftaDb = Pick<
@@ -170,7 +171,7 @@ export default function HaftaView({
               <p className="hafta-view__ozet-meta">
                 {summary.provider} · {summary.model}
               </p>
-              <pre>{summary.content}</pre>
+              <MarkdownBody className="hafta-view__ozet-md">{summary.content}</MarkdownBody>
             </section>
           ) : null}
 

@@ -1581,12 +1581,62 @@ button:disabled {
   color: #64748b;
 }
 
-.hafta-view__ozet pre {
-  white-space: pre-wrap;
+.hafta-view__ozet-md {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  padding: 0.75rem;
+  padding: 0.75rem 1rem;
   border-radius: 0.35rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.hafta-view__ozet-md > :first-child {
+  margin-top: 0;
+}
+
+.hafta-view__ozet-md > :last-child {
+  margin-bottom: 0;
+}
+
+.hafta-view__ozet-md h1,
+.hafta-view__ozet-md h2,
+.hafta-view__ozet-md h3 {
+  margin: 1rem 0 0.5rem;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.hafta-view__ozet-md ul,
+.hafta-view__ozet-md ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.hafta-view__ozet-md table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+  font-size: 0.95rem;
+}
+
+.hafta-view__ozet-md th,
+.hafta-view__ozet-md td {
+  border: 1px solid #e2e8f0;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+.hafta-view__ozet-md pre,
+.hafta-view__ozet-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.hafta-view__ozet-md pre {
+  background: #f1f5f9;
+  padding: 0.65rem;
+  border-radius: 0.35rem;
+  overflow-x: auto;
 }
 
 .hafta-view__ozet-meta {
