@@ -51,23 +51,54 @@ export default function App({ db, notify, now }: AppProps = {}) {
     setActiveView(view);
   }, []);
 
+  const showToast = useCallback((message: string) => setToast(message), []);
+
+  const flushQuickNoteDraft = useCallback(async () => {
+    const draft = draftStore.getDraft()?.trim();
+    if (!draft) {
+      draftStore.clearDraft();
+      return;
+    }
+    try {
+      await appDb.createNote({
+        body: draft,
+        personIds: [],
+        initiativeIds: [],
+      });
+      draftStore.clearDraft();
+      setNotesRefreshKey((key) => key + 1);
+      showToast("Gelen kutusuna kaydedildi");
+    } catch {
+      showToast("Kayıt başarısız; taslak korundu");
+    }
+  }, [appDb, draftStore, showToast]);
+
   const openQuickNote = useCallback(() => {
     setCommandPaletteOpen(false);
     setQuickNoteOpen(true);
   }, []);
   const openCommandPalette = useCallback(() => {
-    setQuickNoteOpen(false);
-    setCommandPaletteOpen(true);
-  }, []);
+    void (async () => {
+      if (quickNoteOpen) {
+        await flushQuickNoteDraft();
+      }
+      setQuickNoteOpen(false);
+      setCommandPaletteOpen(true);
+    })();
+  }, [flushQuickNoteDraft, quickNoteOpen]);
   const closeOverlays = useCallback(() => {
-    setCommandPaletteOpen(false);
-    setQuickNoteOpen(false);
-  }, []);
+    void (async () => {
+      if (quickNoteOpen) {
+        await flushQuickNoteDraft();
+      }
+      setCommandPaletteOpen(false);
+      setQuickNoteOpen(false);
+    })();
+  }, [flushQuickNoteDraft, quickNoteOpen]);
   const openSearch = useCallback(() => {
     setActiveView("arama");
     setSearchFocusRequestKey((key) => key + 1);
   }, []);
-  const showToast = useCallback((message: string) => setToast(message), []);
   useAppShortcuts({
     onClose: closeOverlays,
     onCommandPalette: openCommandPalette,

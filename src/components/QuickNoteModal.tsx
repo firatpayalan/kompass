@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import type { DraftStore } from "../lib/drafts";
 import type { ReminderPeriod } from "../lib/types";
@@ -30,23 +30,27 @@ export default function QuickNoteModal({
   const [dueAt, setDueAt] = useState("");
   const [period, setPeriod] = useState<ReminderPeriod>("once");
   const [saving, setSaving] = useState(false);
+  const discardedRef = useRef(false);
 
   useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
+    if (body.trim()) {
+      draftStore.saveDraft(body);
+    }
+  }, [body, draftStore]);
 
-  const save = async () => {
+  const discard = () => {
+    discardedRef.current = true;
+    draftStore.clearDraft();
+    onClose();
+  };
+
+  const save = async (options?: { requireReminderFields?: boolean }) => {
+    const requireReminderFields = options?.requireReminderFields ?? true;
     if (!body.trim()) {
       onToast("Not boş olamaz");
       return;
     }
-    if (reminderEnabled && !dueAt) {
+    if (requireReminderFields && reminderEnabled && !dueAt) {
       onToast("Hatırlatma zamanı gerekli");
       return;
     }
@@ -64,7 +68,7 @@ export default function QuickNoteModal({
     }
 
     let reminderFailed = false;
-    if (reminderEnabled) {
+    if (reminderEnabled && dueAt) {
       try {
         await db.createReminder({
           targetType: "note",
@@ -89,17 +93,56 @@ export default function QuickNoteModal({
     onClose();
   };
 
+  const dismissWithSave = async () => {
+    if (saving || discardedRef.current) return;
+    if (!body.trim()) {
+      draftStore.clearDraft();
+      onClose();
+      return;
+    }
+    await save({ requireReminderFields: false });
+  };
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      void dismissWithSave();
+    };
+    window.addEventListener("keydown", closeOnEscape, true);
+    return () => window.removeEventListener("keydown", closeOnEscape, true);
+    // dismissWithSave closes over latest body/saving
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body, saving, dueAt, reminderEnabled, period]);
+
   return (
-    <div aria-modal="true" className="modal-backdrop" role="dialog">
-      <section className="quick-note-modal">
+    <div
+      aria-modal="true"
+      className="modal-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          void dismissWithSave();
+        }
+      }}
+      role="dialog"
+    >
+      <section
+        className="quick-note-modal"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <header>
           <h2>Hızlı Not</h2>
-          <button aria-label="Kapat" onClick={onClose} type="button">
+          <button
+            aria-label="Kapat"
+            onClick={() => void dismissWithSave()}
+            type="button"
+          >
             ×
           </button>
         </header>
         <p className="quick-note-modal__hint">
           Doğrudan Gelen’e kaydedilir. Toplantıdan sonra kişi veya işe taşıyın.
+          Vazgeç dışındaki kapatmalar notu kaydeder.
         </p>
         <NoteBodyField
           autoFocus
@@ -132,10 +175,14 @@ export default function QuickNoteModal({
           period={period}
         />
         <footer>
-          <button onClick={onClose} type="button">
+          <button onClick={discard} type="button">
             Vazgeç
           </button>
-          <button disabled={saving} onClick={save} type="button">
+          <button
+            disabled={saving}
+            onClick={() => void save()}
+            type="button"
+          >
             {saving ? "Kaydediliyor…" : "Kaydet"}
           </button>
         </footer>
