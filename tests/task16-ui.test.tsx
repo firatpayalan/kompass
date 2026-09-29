@@ -47,6 +47,9 @@ function createDb(
     listDeletedNotes: vi.fn().mockResolvedValue([deletedNote]),
     listArchivedPeople: vi.fn().mockResolvedValue([]),
     listArchivedInitiatives: vi.fn().mockResolvedValue([]),
+    listArchivedTopics: vi.fn().mockResolvedValue([]),
+    restoreTopic: vi.fn(),
+    archiveTopic: vi.fn(),
     listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
       topics: [],
       untopicNotes: [],

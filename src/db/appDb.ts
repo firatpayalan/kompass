@@ -102,11 +102,15 @@ import {
 } from "./remindersRepo";
 import { searchNotes, type SearchNotesOptions } from "./searchRepo";
 import {
+  archiveTopic,
   createTopic,
+  listArchivedTopics,
   listTopicsWithNotesForPerson,
   listTopicsWithNotesForInitiative,
   promoteTopicToInitiative,
+  restoreTopic,
   updateTopic,
+  type ArchivedTopic,
   type CreateTopicInput,
   type TopicWithNotes,
 } from "./topicsRepo";
@@ -159,16 +163,25 @@ export type AppDb = {
 
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: number, title: string): Promise<Topic>;
+  archiveTopic(id: number, nowIso: string): Promise<void>;
+  restoreTopic(id: number): Promise<Topic>;
+  listArchivedTopics(): Promise<ArchivedTopic[]>;
   listTopicsWithNotesForPerson(
     personId: number,
-    options?: { includeDeletedNotes?: boolean },
+    options?: {
+      includeDeletedNotes?: boolean;
+      includeArchivedTopics?: boolean;
+    },
   ): Promise<{
     topics: TopicWithNotes[];
     untopicNotes: Note[];
   }>;
   listTopicsWithNotesForInitiative(
     initiativeId: number,
-    options?: { includeDeletedNotes?: boolean },
+    options?: {
+      includeDeletedNotes?: boolean;
+      includeArchivedTopics?: boolean;
+    },
   ): Promise<{
     topics: TopicWithNotes[];
     untopicNotes: Note[];
@@ -282,6 +295,9 @@ export function createAppDb(db: AsyncDb): AppDb {
 
     createTopic: (input) => createTopic(db, input),
     updateTopic: (id, title) => updateTopic(db, id, title),
+    archiveTopic: (id, nowIso) => archiveTopic(db, id, nowIso),
+    restoreTopic: (id) => restoreTopic(db, id),
+    listArchivedTopics: () => listArchivedTopics(db),
     listTopicsWithNotesForPerson: (personId, options) =>
       listTopicsWithNotesForPerson(db, personId, options),
     listTopicsWithNotesForInitiative: (initiativeId, options) =>

@@ -42,6 +42,8 @@ function detailDb(overrides: Partial<AppDb> = {}): AppDb {
     createReminder: vi.fn(),
     createNote: vi.fn(),
     createTopic: vi.fn(),
+          archiveTopic: vi.fn(),
+          promoteTopicToInitiative: vi.fn(),
     updateNote: vi.fn(),
     softDeleteNote: vi.fn(),
     updateTopic: vi.fn(),

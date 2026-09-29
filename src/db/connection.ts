@@ -7,7 +7,7 @@ import {
   ensurePersonLabels,
 } from "./personLabelsRepo";
 import { ensureInitiativesArchivedAt, ensureInitiativesSortOrder } from "./initiativesRepo";
-import { ensureTopicsInitiativeOwner } from "./topicsRepo";
+import { ensureTopicsArchivedAt, ensureTopicsInitiativeOwner } from "./topicsRepo";
 import { ensureNoteImagesTable } from "./noteImagesRepo";
 import { ensureNoteTagsColor } from "./noteTagsRepo";
 import { ensureInitiativeTagsSchema } from "./initiativeTagsRepo";
@@ -92,6 +92,7 @@ export async function connectAppDatabase(): Promise<AsyncDb> {
   // Must run before any topics query; schema IF NOT EXISTS leaves legacy tables
   // without initiative_id, and schema indexes on that column would fail if applied early.
   await ensureTopicsInitiativeOwner(db);
+  await ensureTopicsArchivedAt(db);
   await ensurePersonLabels(db);
   await ensurePeopleSortOrder(db);
   await ensurePeopleArchivedAt(db);

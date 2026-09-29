@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS topics (
   initiative_id INTEGER REFERENCES initiatives(id) ON DELETE CASCADE,
   title TEXT NOT NULL COLLATE NOCASE,
   created_at TEXT NOT NULL,
+  archived_at TEXT,
   CHECK (
     (person_id IS NOT NULL AND initiative_id IS NULL)
     OR (person_id IS NULL AND initiative_id IS NOT NULL)

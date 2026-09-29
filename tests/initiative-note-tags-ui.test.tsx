@@ -60,6 +60,8 @@ describe("InitiativeDetailView note tags", () => {
       createReminder: vi.fn(),
       createNote: vi.fn(),
       createTopic: vi.fn(),
+          archiveTopic: vi.fn(),
+          promoteTopicToInitiative: vi.fn(),
       listTopicsWithNotesForInitiative,
       updateInitiative: vi.fn(),
       updateNote: vi.fn(),

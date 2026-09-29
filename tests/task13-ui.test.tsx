@@ -72,6 +72,7 @@ const topicWithNotes = {
   initiativeId: null,
   title: "1:1",
   createdAt: "2026-09-05T09:30:00.000Z",
+  archivedAt: null,
   notes,
   tags: [],
 };
@@ -93,6 +94,8 @@ describe("Task 13 people and initiatives UI", () => {
         untopicNotes: [],
       }),
       createTopic: vi.fn(),
+          archiveTopic: vi.fn(),
+          promoteTopicToInitiative: vi.fn(),
           addTagToTopic: vi.fn(),
           linkTagToTopic: vi.fn(),
           listTopicTags: vi.fn().mockResolvedValue([]),
@@ -334,6 +337,8 @@ describe("Task 13 people and initiatives UI", () => {
         db={{
           createNote: vi.fn(),
           createTopic: vi.fn(),
+          archiveTopic: vi.fn(),
+          promoteTopicToInitiative: vi.fn(),
           addTagToTopic: vi.fn(),
           linkTagToTopic: vi.fn(),
           listTopicTags: vi.fn().mockResolvedValue([]),
@@ -554,6 +559,8 @@ describe("Task 13 people and initiatives UI", () => {
         db={{
           createNote: vi.fn(),
           createTopic: vi.fn(),
+          archiveTopic: vi.fn(),
+          promoteTopicToInitiative: vi.fn(),
           addTagToTopic: vi.fn(),
           linkTagToTopic: vi.fn(),
           listTopicTags: vi.fn().mockResolvedValue([]),
@@ -617,6 +624,7 @@ describe("Task 13 people and initiatives UI", () => {
       initiativeId: 2,
       title: "Lansman hazırlık",
       createdAt: "2026-09-05T09:30:00.000Z",
+      archivedAt: null,
       notes,
       tags: [],
     };
@@ -626,6 +634,8 @@ describe("Task 13 people and initiatives UI", () => {
           createReminder: vi.fn(),
           createNote: vi.fn(),
           createTopic: vi.fn(),
+          archiveTopic: vi.fn(),
+          promoteTopicToInitiative: vi.fn(),
           listTopicsWithNotesForInitiative: vi.fn().mockResolvedValue({
             topics: [initiativeTopic],
             untopicNotes: [],

@@ -7,16 +7,19 @@ import PersonLabelBadge from "../components/PersonLabelBadge";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
 import type { TopicWithNotes } from "../db/topicsRepo";
+import type { ArchivedTopic } from "../db/topicsRepo";
 import type { Initiative, InitiativeStatus, Note, Person } from "../lib/types";
 
 type ArchiveDb = Pick<
   AppDb,
   | "listArchivedPeople"
   | "listArchivedInitiatives"
+  | "listArchivedTopics"
   | "listTopicsWithNotesForPerson"
   | "listNotesForInitiative"
   | "restorePerson"
   | "restoreInitiative"
+  | "restoreTopic"
   | "listDeletedNotes"
   | "restoreNote"
   | "permanentlyDeleteNote"
@@ -42,6 +45,7 @@ export default function ArchiveView({
 }: ArchiveViewProps) {
   const [people, setPeople] = useState<Person[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [archivedTopics, setArchivedTopics] = useState<ArchivedTopic[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPersonId, setExpandedPersonId] = useState<number | null>(null);
@@ -58,18 +62,21 @@ export default function ArchiveView({
   const [restoringInitiativeId, setRestoringInitiativeId] = useState<
     number | null
   >(null);
+  const [restoringTopicId, setRestoringTopicId] = useState<number | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
 
   const loadArchive = useCallback(async () => {
     try {
-      const [archivedPeople, archivedInitiatives, deletedNotes] =
+      const [archivedPeople, archivedInitiatives, topicsArchive, deletedNotes] =
         await Promise.all([
           db.listArchivedPeople(),
           db.listArchivedInitiatives(),
+          db.listArchivedTopics(),
           db.listDeletedNotes(),
         ]);
       setPeople(archivedPeople);
       setInitiatives(archivedInitiatives);
+      setArchivedTopics(topicsArchive);
       setNotes(deletedNotes);
     } catch {
       onToast("Arşiv yüklenemedi");
@@ -88,6 +95,7 @@ export default function ArchiveView({
       try {
         const result = await db.listTopicsWithNotesForPerson(personId, {
           includeDeletedNotes: true,
+          includeArchivedTopics: true,
         });
         setTopics(result.topics);
         setUntopicNotes(result.untopicNotes);
@@ -182,6 +190,21 @@ export default function ArchiveView({
     }
   };
 
+  const restoreTopicItem = async (topic: ArchivedTopic) => {
+    setRestoringTopicId(topic.id);
+    try {
+      await db.restoreTopic(topic.id);
+      onToast("Konu geri yüklendi");
+      await loadArchive();
+    } catch (error) {
+      onToast(
+        error instanceof Error ? error.message : "Konu geri yüklenemedi",
+      );
+    } finally {
+      setRestoringTopicId(null);
+    }
+  };
+
   const permanentlyDelete = async () => {
     if (!noteToDelete) return;
     try {
@@ -195,14 +218,17 @@ export default function ArchiveView({
   };
 
   const empty =
-    people.length === 0 && initiatives.length === 0 && notes.length === 0;
+    people.length === 0 &&
+    initiatives.length === 0 &&
+    archivedTopics.length === 0 &&
+    notes.length === 0;
 
   return (
     <section className="entity-view">
       <header>
         <div>
           <h1>Arşiv</h1>
-          <p>Arşivlenmiş notlar, kişiler ve işler.</p>
+          <p>Arşivlenmiş notlar, konular, kişiler ve işler.</p>
         </div>
       </header>
       {loading ? (
@@ -243,6 +269,41 @@ export default function ArchiveView({
                           Kalıcı sil
                         </button>
                       </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+
+          {archivedTopics.length > 0 ? (
+            <>
+              <h2>Arşivlenmiş konular</h2>
+              <ul aria-label="Arşivlenmiş konular" className="archive-list">
+                {archivedTopics.map((topic) => (
+                  <li className="archive-list__item" key={topic.id}>
+                    <div className="archive-list__row">
+                      <div className="archive-list__name">
+                        <strong>{topic.title}</strong>
+                        <span>
+                          {topic.ownerKind === "initiative" ? "İş" : "Kişi"}:{" "}
+                          {topic.ownerName}
+                        </span>
+                        {topic.archivedAt ? (
+                          <time dateTime={topic.archivedAt}>
+                            {new Date(topic.archivedAt).toLocaleString("tr-TR")}
+                          </time>
+                        ) : null}
+                      </div>
+                      <button
+                        disabled={restoringTopicId === topic.id}
+                        onClick={() => void restoreTopicItem(topic)}
+                        type="button"
+                      >
+                        {restoringTopicId === topic.id
+                          ? "Yükleniyor…"
+                          : "Geri yükle"}
+                      </button>
                     </div>
                   </li>
                 ))}

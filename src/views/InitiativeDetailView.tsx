@@ -28,6 +28,7 @@ type InitiativeDetailDb = Pick<
   | "createTopic"
   | "listTopicsWithNotesForInitiative"
   | "promoteTopicToInitiative"
+  | "archiveTopic"
   | "updateInitiative"
   | "updateNote"
   | "softDeleteNote"
@@ -116,7 +117,11 @@ export default function InitiativeDetailView({
   const [topicToPromote, setTopicToPromote] = useState<TopicWithNotes | null>(
     null,
   );
+  const [topicToArchive, setTopicToArchive] = useState<TopicWithNotes | null>(
+    null,
+  );
   const [promoting, setPromoting] = useState(false);
+  const [archivingTopic, setArchivingTopic] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -406,6 +411,21 @@ export default function InitiativeDetailView({
       onToast(formatError(error, "İş oluşturulamadı"));
     } finally {
       setPromoting(false);
+    }
+  };
+
+  const confirmArchiveTopic = async () => {
+    if (!topicToArchive || archivingTopic) return;
+    setArchivingTopic(true);
+    try {
+      await db.archiveTopic(topicToArchive.id, new Date().toISOString());
+      setTopicToArchive(null);
+      onToast("Konu arşivlendi");
+      await load();
+    } catch {
+      onToast("Konu arşivlenemedi");
+    } finally {
+      setArchivingTopic(false);
     }
   };
 
@@ -793,6 +813,18 @@ export default function InitiativeDetailView({
           >
             İşe çevir
           </button>
+          <button
+            className="person-label-menu__danger"
+            onClick={() => {
+              const target =
+                topics.find((item) => item.id === topicMenu.topicId) ?? null;
+              setTopicMenu(null);
+              setTopicToArchive(target);
+            }}
+            type="button"
+          >
+            Arşivle
+          </button>
         </div>
       ) : null}
       {topicToPromote ? (
@@ -806,6 +838,19 @@ export default function InitiativeDetailView({
           }}
           onConfirm={() => void confirmPromote()}
           title="İşe çevir"
+        />
+      ) : null}
+      {topicToArchive ? (
+        <ConfirmDialog
+          confirmDisabled={archivingTopic}
+          confirmLabel="Arşivle"
+          message={`“${topicToArchive.title}” arşivlenecek ve Arşiv’de görünecek. Notları konuyla birlikte saklanır.`}
+          onCancel={() => {
+            if (archivingTopic) return;
+            setTopicToArchive(null);
+          }}
+          onConfirm={() => void confirmArchiveTopic()}
+          title="Konuyu arşivle"
         />
       ) : null}
     </section>

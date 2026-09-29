@@ -34,6 +34,7 @@ const topic: TopicWithNotes = {
   initiativeId: 2,
   title: "RFC",
   createdAt: "2026-09-06T09:00:00.000Z",
+  archivedAt: null,
   tags: [],
   notes: [],
 };
@@ -56,6 +57,8 @@ function baseDb(overrides: Partial<AppDb> = {}) {
     createReminder: vi.fn(),
     createNote: vi.fn(),
     createTopic: vi.fn(),
+          archiveTopic: vi.fn(),
+          promoteTopicToInitiative: vi.fn(),
     listTopicsWithNotesForInitiative: vi.fn().mockResolvedValue({
       topics: [],
       untopicNotes: [],

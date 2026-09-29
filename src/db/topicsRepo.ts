@@ -15,6 +15,7 @@ type TopicRow = {
   initiative_id: number | null;
   title: string;
   created_at: string;
+  archived_at: string | null;
 };
 
 type IdRow = { id: number };
@@ -25,7 +26,7 @@ export type CreateTopicInput = {
 } & ({ personId: number; initiativeId?: never } | { initiativeId: number; personId?: never });
 
 const TOPIC_COLUMNS =
-  "id, person_id, initiative_id, title, created_at";
+  "id, person_id, initiative_id, title, created_at, archived_at";
 
 function mapTopic(row: TopicRow): Topic {
   return {
@@ -34,6 +35,7 @@ function mapTopic(row: TopicRow): Topic {
     initiativeId: row.initiative_id,
     title: row.title,
     createdAt: row.created_at,
+    archivedAt: row.archived_at,
   };
 }
 
@@ -62,6 +64,7 @@ export async function ensureTopicsInitiativeOwner(db: AsyncDb): Promise<void> {
             initiative_id INTEGER REFERENCES initiatives(id) ON DELETE CASCADE,
             title TEXT NOT NULL COLLATE NOCASE,
             created_at TEXT NOT NULL,
+            archived_at TEXT,
             CHECK (
               (person_id IS NOT NULL AND initiative_id IS NULL)
               OR (person_id IS NULL AND initiative_id IS NOT NULL)
@@ -70,14 +73,24 @@ export async function ensureTopicsInitiativeOwner(db: AsyncDb): Promise<void> {
         `);
 
         if (hasInitiative) {
-          await tx.execute(`
-            INSERT INTO topics_new (id, person_id, initiative_id, title, created_at)
-            SELECT id, person_id, initiative_id, title, created_at FROM topics
-          `);
+          const hasArchived = columns.some(
+            (column) => column.name === "archived_at",
+          );
+          if (hasArchived) {
+            await tx.execute(`
+              INSERT INTO topics_new (id, person_id, initiative_id, title, created_at, archived_at)
+              SELECT id, person_id, initiative_id, title, created_at, archived_at FROM topics
+            `);
+          } else {
+            await tx.execute(`
+              INSERT INTO topics_new (id, person_id, initiative_id, title, created_at, archived_at)
+              SELECT id, person_id, initiative_id, title, created_at, NULL FROM topics
+            `);
+          }
         } else {
           await tx.execute(`
-            INSERT INTO topics_new (id, person_id, initiative_id, title, created_at)
-            SELECT id, person_id, NULL, title, created_at FROM topics
+            INSERT INTO topics_new (id, person_id, initiative_id, title, created_at, archived_at)
+            SELECT id, person_id, NULL, title, created_at, NULL FROM topics
           `);
         }
 
@@ -101,6 +114,31 @@ export async function ensureTopicsInitiativeOwner(db: AsyncDb): Promise<void> {
   `);
 }
 
+/** Adds archived_at and recreates title uniqueness to ignore archived topics. */
+export async function ensureTopicsArchivedAt(db: AsyncDb): Promise<void> {
+  const columns = await db.select<{ name: string }>("PRAGMA table_info(topics)");
+  if (columns.length === 0) {
+    return;
+  }
+
+  if (!columns.some((column) => column.name === "archived_at")) {
+    await db.execute("ALTER TABLE topics ADD COLUMN archived_at TEXT");
+  }
+
+  await db.execute("DROP INDEX IF EXISTS topics_person_title_unique");
+  await db.execute("DROP INDEX IF EXISTS topics_initiative_title_unique");
+  await db.execute(`
+    CREATE UNIQUE INDEX topics_person_title_unique
+      ON topics(person_id, title COLLATE NOCASE)
+      WHERE person_id IS NOT NULL AND archived_at IS NULL
+  `);
+  await db.execute(`
+    CREATE UNIQUE INDEX topics_initiative_title_unique
+      ON topics(initiative_id, title COLLATE NOCASE)
+      WHERE initiative_id IS NOT NULL AND archived_at IS NULL
+  `);
+}
+
 export async function findTopicByTitleForPerson(
   db: AsyncDb,
   personId: number,
@@ -109,7 +147,7 @@ export async function findTopicByTitleForPerson(
   const rows = await db.select<TopicRow>(
     `SELECT ${TOPIC_COLUMNS}
      FROM topics
-     WHERE person_id = ? AND title = ? COLLATE NOCASE`,
+     WHERE person_id = ? AND title = ? COLLATE NOCASE AND archived_at IS NULL`,
     [personId, title.trim()],
   );
   return rows[0] ? mapTopic(rows[0]) : null;
@@ -123,7 +161,7 @@ export async function findTopicByTitleForInitiative(
   const rows = await db.select<TopicRow>(
     `SELECT ${TOPIC_COLUMNS}
      FROM topics
-     WHERE initiative_id = ? AND title = ? COLLATE NOCASE`,
+     WHERE initiative_id = ? AND title = ? COLLATE NOCASE AND archived_at IS NULL`,
     [initiativeId, title.trim()],
   );
   return rows[0] ? mapTopic(rows[0]) : null;
@@ -165,8 +203,8 @@ export async function createTopic(
 
   const nowIso = input.nowIso ?? new Date().toISOString();
   const [inserted] = await db.select<IdRow>(
-    `INSERT INTO topics (person_id, initiative_id, title, created_at)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO topics (person_id, initiative_id, title, created_at, archived_at)
+     VALUES (?, ?, ?, ?, NULL)
      RETURNING id`,
     [personId, initiativeId, title, nowIso],
   );
@@ -177,6 +215,7 @@ export async function createTopic(
     initiativeId: initiativeId ?? null,
     title,
     createdAt: nowIso,
+    archivedAt: null,
   };
 }
 
@@ -229,11 +268,14 @@ export async function updateTopic(
 export async function listTopicsForPerson(
   db: AsyncDb,
   personId: number,
+  options: { includeArchived?: boolean } = {},
 ): Promise<Topic[]> {
+  const includeArchived = options.includeArchived === true;
   const rows = await db.select<TopicRow>(
     `SELECT ${TOPIC_COLUMNS}
      FROM topics
      WHERE person_id = ?
+       ${includeArchived ? "" : "AND archived_at IS NULL"}
      ORDER BY created_at DESC, id DESC`,
     [personId],
   );
@@ -243,11 +285,14 @@ export async function listTopicsForPerson(
 export async function listTopicsForInitiative(
   db: AsyncDb,
   initiativeId: number,
+  options: { includeArchived?: boolean } = {},
 ): Promise<Topic[]> {
+  const includeArchived = options.includeArchived === true;
   const rows = await db.select<TopicRow>(
     `SELECT ${TOPIC_COLUMNS}
      FROM topics
      WHERE initiative_id = ?
+       ${includeArchived ? "" : "AND archived_at IS NULL"}
      ORDER BY created_at DESC, id DESC`,
     [initiativeId],
   );
@@ -259,13 +304,24 @@ export type TopicWithNotes = Topic & {
   tags: TopicTag[];
 };
 
+export type ArchivedTopic = Topic & {
+  archivedAt: string;
+  ownerKind: "person" | "initiative";
+  ownerName: string;
+};
+
 export async function listTopicsWithNotesForPerson(
   db: AsyncDb,
   personId: number,
-  options: { includeDeletedNotes?: boolean } = {},
+  options: {
+    includeDeletedNotes?: boolean;
+    includeArchivedTopics?: boolean;
+  } = {},
 ): Promise<{ topics: TopicWithNotes[]; untopicNotes: Note[] }> {
   const noteOpts = { includeDeleted: options.includeDeletedNotes === true };
-  const topics = await listTopicsForPerson(db, personId);
+  const topics = await listTopicsForPerson(db, personId, {
+    includeArchived: options.includeArchivedTopics === true,
+  });
   const topicsWithNotes = await Promise.all(
     topics.map(async (topic) => ({
       ...topic,
@@ -284,10 +340,15 @@ export async function listTopicsWithNotesForPerson(
 export async function listTopicsWithNotesForInitiative(
   db: AsyncDb,
   initiativeId: number,
-  options: { includeDeletedNotes?: boolean } = {},
+  options: {
+    includeDeletedNotes?: boolean;
+    includeArchivedTopics?: boolean;
+  } = {},
 ): Promise<{ topics: TopicWithNotes[]; untopicNotes: Note[] }> {
   const noteOpts = { includeDeleted: options.includeDeletedNotes === true };
-  const topics = await listTopicsForInitiative(db, initiativeId);
+  const topics = await listTopicsForInitiative(db, initiativeId, {
+    includeArchived: options.includeArchivedTopics === true,
+  });
   const topicsWithNotes = await Promise.all(
     topics.map(async (topic) => ({
       ...topic,
@@ -303,6 +364,89 @@ export async function listTopicsWithNotesForInitiative(
   return { topics: topicsWithNotes, untopicNotes };
 }
 
+export async function listArchivedTopics(
+  db: AsyncDb,
+): Promise<ArchivedTopic[]> {
+  type ArchivedRow = TopicRow & {
+    owner_kind: "person" | "initiative";
+    owner_name: string;
+  };
+  const rows = await db.select<ArchivedRow>(
+    `SELECT
+       topics.id,
+       topics.person_id,
+       topics.initiative_id,
+       topics.title,
+       topics.created_at,
+       topics.archived_at,
+       CASE
+         WHEN topics.person_id IS NOT NULL THEN 'person'
+         ELSE 'initiative'
+       END AS owner_kind,
+       COALESCE(people.name, initiatives.name, '') AS owner_name
+     FROM topics
+     LEFT JOIN people ON people.id = topics.person_id
+     LEFT JOIN initiatives ON initiatives.id = topics.initiative_id
+     WHERE topics.archived_at IS NOT NULL
+     ORDER BY topics.archived_at DESC, topics.id DESC`,
+  );
+  return rows.map((row) => ({
+    ...mapTopic(row),
+    archivedAt: row.archived_at as string,
+    ownerKind: row.owner_kind,
+    ownerName: row.owner_name,
+  }));
+}
+
+export async function archiveTopic(
+  db: AsyncDb,
+  id: number,
+  nowIso: string,
+): Promise<void> {
+  const topic = await getTopic(db, id);
+  if (!topic) {
+    throw new Error("Konu bulunamadı");
+  }
+  if (topic.archivedAt) {
+    return;
+  }
+  await db.execute("UPDATE topics SET archived_at = ? WHERE id = ?", [
+    nowIso,
+    id,
+  ]);
+}
+
+export async function restoreTopic(db: AsyncDb, id: number): Promise<Topic> {
+  const topic = await getTopic(db, id);
+  if (!topic) {
+    throw new Error("Konu bulunamadı");
+  }
+  if (!topic.archivedAt) {
+    return topic;
+  }
+
+  const duplicate =
+    topic.personId != null
+      ? await findTopicByTitleForPerson(db, topic.personId, topic.title)
+      : topic.initiativeId != null
+        ? await findTopicByTitleForInitiative(
+            db,
+            topic.initiativeId,
+            topic.title,
+          )
+        : null;
+  if (duplicate) {
+    throw new Error("Bu isimde aktif bir konu var");
+  }
+
+  await db.execute("UPDATE topics SET archived_at = NULL WHERE id = ?", [id]);
+  const restored = await getTopic(db, id);
+  if (!restored) {
+    throw new Error("Konu bulunamadı");
+  }
+  return restored;
+}
+
 export async function promoteTopicToInitiative(
   db: AsyncDb,
   topicId: number,
@@ -312,6 +456,9 @@ export async function promoteTopicToInitiative(
     const topic = await getTopic(tx, topicId);
     if (!topic) {
       throw new Error("Konu bulunamadı");
+    }
+    if (topic.archivedAt) {
+      throw new Error("Arşivlenmiş konu işe çevrilemez");
     }
     if (topic.initiativeId == null) {
       throw new Error("Bu konu bir işe ait değil");

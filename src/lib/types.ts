@@ -57,6 +57,7 @@ export interface Topic {
   initiativeId: number | null;
   title: string;
   createdAt: string;
+  archivedAt: string | null;
 }
 
 export interface TopicTag {
