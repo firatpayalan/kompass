@@ -4,9 +4,10 @@ import { getDb } from "../db/appDb";
 import type { Initiative, Note, Person } from "../lib/types";
 import NoteArchiveShell from "../components/NoteArchiveShell";
 import NoteBodyField from "../components/NoteBodyField";
-import NoteBodyView from "../components/NoteBodyView";
+import NoteEditor from "../components/NoteEditor";
 import NoteTagBadges from "../components/NoteTagBadges";
 import NoteTimestamps from "../components/NoteTimestamps";
+import type { ReminderDraft } from "../components/ReminderForm";
 
 type InboxDb = Pick<
   AppDb,
@@ -17,6 +18,7 @@ type InboxDb = Pick<
   | "linkNoteToInitiatives"
   | "softDeleteNote"
   | "updateNote"
+  | "createReminder"
   | "saveNoteImage"
   | "getNoteImage"
 >;
@@ -38,6 +40,7 @@ export default function InboxView({
   const [people, setPeople] = useState<Person[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [organizingId, setOrganizingId] = useState<number | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [personIds, setPersonIds] = useState<number[]>([]);
   const [initiativeIds, setInitiativeIds] = useState<number[]>([]);
   const [body, setBody] = useState("");
@@ -66,10 +69,16 @@ export default function InboxView({
   }, [load, refreshKey]);
 
   const startOrganize = (note: Note) => {
+    setEditingNoteId(null);
     setOrganizingId(note.id);
     setBody(note.body);
     setPersonIds([]);
     setInitiativeIds([]);
+  };
+
+  const startEdit = (noteId: number) => {
+    setOrganizingId(null);
+    setEditingNoteId(noteId);
   };
 
   const toggleId = (
@@ -110,10 +119,54 @@ export default function InboxView({
     }
   };
 
+  const saveNote = async (
+    id: number,
+    nextBody: string,
+    reminder: ReminderDraft | null,
+  ) => {
+    if (!nextBody.trim()) {
+      onToast("Not boş olamaz");
+      return;
+    }
+    if (reminder && !reminder.dueAt) {
+      onToast("Hatırlatma zamanı gerekli");
+      return;
+    }
+
+    try {
+      await db.updateNote(id, nextBody);
+    } catch {
+      onToast("Not güncellenemedi");
+      return;
+    }
+
+    let reminderFailed = false;
+    if (reminder) {
+      try {
+        await db.createReminder({
+          targetType: "note",
+          targetId: id,
+          dueAt: new Date(reminder.dueAt).toISOString(),
+          period: reminder.period,
+          nowIso: new Date().toISOString(),
+        });
+      } catch {
+        reminderFailed = true;
+      }
+    }
+
+    setEditingNoteId(null);
+    await load();
+    if (reminderFailed) {
+      onToast("Not kaydedildi, hatırlatma eklenemedi");
+    }
+  };
+
   const deleteNote = async (id: number) => {
     try {
       await db.softDeleteNote(id, new Date().toISOString());
       if (organizingId === id) setOrganizingId(null);
+      if (editingNoteId === id) setEditingNoteId(null);
       onToast("Not arşivlendi");
       await load();
     } catch {
@@ -134,152 +187,170 @@ export default function InboxView({
       ) : (
         <NoteArchiveShell enabled onArchive={deleteNote}>
           {({ openArchiveMenu }) => (
-        <ul className="note-list">
-          {notes.map((note) => (
-            <li
-              className="note-list__item"
-              key={note.id}
-              onContextMenu={
-                organizingId === note.id
-                  ? undefined
-                  : (event) => openArchiveMenu(event, note)
-              }
-            >
-              {organizingId === note.id ? (
-                <div className="inbox-organize">
-                  <NoteBodyField
-                    autoFocus
-                    className="inbox-organize__field"
-                    label="Not metni"
-                    onChange={setBody}
-                    onKeyDown={(event) => {
-                      if (
-                        event.key === "Enter" &&
-                        !event.shiftKey &&
-                        !event.nativeEvent.isComposing
-                      ) {
-                        event.preventDefault();
-                        if (saving) return;
-                        void saveOrganize();
-                      }
-                    }}
-                    onToast={onToast}
-                    rows={4}
-                    saveNoteImage={(input) => db.saveNoteImage(input)}
-                    value={body}
-                  />
-                  <div className="inbox-organize__targets">
-                    <section
-                      aria-labelledby={`inbox-people-${note.id}`}
-                      className="inbox-organize__group"
-                    >
-                      <h3 id={`inbox-people-${note.id}`}>Kişiler</h3>
-                      {people.length === 0 ? (
-                        <p className="inbox-organize__empty">Kişi yok</p>
-                      ) : (
-                        <div className="inbox-organize__chips">
-                          {people.map((person) => (
-                            <label
-                              className={`inbox-organize__chip${
-                                personIds.includes(person.id)
-                                  ? " inbox-organize__chip--selected"
-                                  : ""
-                              }`}
-                              key={person.id}
-                            >
-                              <input
-                                checked={personIds.includes(person.id)}
-                                onChange={() =>
-                                  toggleId(person.id, personIds, setPersonIds)
-                                }
-                                type="checkbox"
-                              />
-                              {person.name}
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                    <section
-                      aria-labelledby={`inbox-initiatives-${note.id}`}
-                      className="inbox-organize__group"
-                    >
-                      <h3 id={`inbox-initiatives-${note.id}`}>İşler</h3>
-                      {initiatives.length === 0 ? (
-                        <p className="inbox-organize__empty">İş yok</p>
-                      ) : (
-                        <div className="inbox-organize__chips">
-                          {initiatives.map((initiative) => (
-                            <label
-                              className={`inbox-organize__chip${
-                                initiativeIds.includes(initiative.id)
-                                  ? " inbox-organize__chip--selected"
-                                  : ""
-                              }`}
-                              key={initiative.id}
-                            >
-                              <input
-                                checked={initiativeIds.includes(initiative.id)}
-                                onChange={() =>
-                                  toggleId(
-                                    initiative.id,
-                                    initiativeIds,
-                                    setInitiativeIds,
-                                  )
-                                }
-                                type="checkbox"
-                              />
-                              {initiative.name}
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  </div>
-                  <div className="inbox-organize__actions">
-                    <button
-                      onClick={() => setOrganizingId(null)}
-                      type="button"
-                    >
-                      Vazgeç
-                    </button>
-                    <button
-                      className="inbox-organize__primary"
-                      disabled={saving}
-                      onClick={saveOrganize}
-                      type="button"
-                    >
-                      {saving ? "Taşınıyor…" : "Taşı"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <NoteBodyView
-                    body={note.body}
-                    className="note-editor__preview"
-                    getNoteImage={(id) => db.getNoteImage(id)}
-                  />
-                  <NoteTagBadges tags={note.tags} />
-                  <div className="note-list__meta">
-                    <NoteTimestamps note={note} />
-                    <div className="note-list__actions">
-                      <button
-                        onClick={() => startOrganize(note)}
-                        type="button"
-                      >
-                        Taşı
-                      </button>
-                      <button onClick={() => deleteNote(note.id)} type="button">
-                        Sil
-                      </button>
+            <ul className="note-list">
+              {notes.map((note) => (
+                <li
+                  className="note-list__item"
+                  key={note.id}
+                  onContextMenu={
+                    organizingId === note.id || editingNoteId === note.id
+                      ? undefined
+                      : (event) => openArchiveMenu(event, note)
+                  }
+                >
+                  {organizingId === note.id ? (
+                    <div className="inbox-organize">
+                      <NoteBodyField
+                        autoFocus
+                        className="inbox-organize__field"
+                        label="Not metni"
+                        onChange={setBody}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "Enter" &&
+                            !event.shiftKey &&
+                            !event.nativeEvent.isComposing
+                          ) {
+                            event.preventDefault();
+                            if (saving) return;
+                            void saveOrganize();
+                          }
+                        }}
+                        onToast={onToast}
+                        rows={4}
+                        saveNoteImage={(input) => db.saveNoteImage(input)}
+                        value={body}
+                      />
+                      <div className="inbox-organize__targets">
+                        <section
+                          aria-labelledby={`inbox-people-${note.id}`}
+                          className="inbox-organize__group"
+                        >
+                          <h3 id={`inbox-people-${note.id}`}>Kişiler</h3>
+                          {people.length === 0 ? (
+                            <p className="inbox-organize__empty">Kişi yok</p>
+                          ) : (
+                            <div className="inbox-organize__chips">
+                              {people.map((person) => (
+                                <label
+                                  className={`inbox-organize__chip${
+                                    personIds.includes(person.id)
+                                      ? " inbox-organize__chip--selected"
+                                      : ""
+                                  }`}
+                                  key={person.id}
+                                >
+                                  <input
+                                    checked={personIds.includes(person.id)}
+                                    onChange={() =>
+                                      toggleId(
+                                        person.id,
+                                        personIds,
+                                        setPersonIds,
+                                      )
+                                    }
+                                    type="checkbox"
+                                  />
+                                  {person.name}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                        <section
+                          aria-labelledby={`inbox-initiatives-${note.id}`}
+                          className="inbox-organize__group"
+                        >
+                          <h3 id={`inbox-initiatives-${note.id}`}>İşler</h3>
+                          {initiatives.length === 0 ? (
+                            <p className="inbox-organize__empty">İş yok</p>
+                          ) : (
+                            <div className="inbox-organize__chips">
+                              {initiatives.map((initiative) => (
+                                <label
+                                  className={`inbox-organize__chip${
+                                    initiativeIds.includes(initiative.id)
+                                      ? " inbox-organize__chip--selected"
+                                      : ""
+                                  }`}
+                                  key={initiative.id}
+                                >
+                                  <input
+                                    checked={initiativeIds.includes(
+                                      initiative.id,
+                                    )}
+                                    onChange={() =>
+                                      toggleId(
+                                        initiative.id,
+                                        initiativeIds,
+                                        setInitiativeIds,
+                                      )
+                                    }
+                                    type="checkbox"
+                                  />
+                                  {initiative.name}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      </div>
+                      <div className="inbox-organize__actions">
+                        <button
+                          onClick={() => setOrganizingId(null)}
+                          type="button"
+                        >
+                          Vazgeç
+                        </button>
+                        <button
+                          className="inbox-organize__primary"
+                          disabled={saving}
+                          onClick={saveOrganize}
+                          type="button"
+                        >
+                          {saving ? "Taşınıyor…" : "Taşı"}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
+                  ) : (
+                    <>
+                      <NoteEditor
+                        editing={editingNoteId === note.id}
+                        getNoteImage={(id) => db.getNoteImage(id)}
+                        note={note}
+                        onCancel={() => setEditingNoteId(null)}
+                        onEdit={() => startEdit(note.id)}
+                        onSave={(nextBody, reminder) =>
+                          saveNote(note.id, nextBody, reminder)
+                        }
+                        onToast={onToast}
+                        saveNoteImage={(input) => db.saveNoteImage(input)}
+                      />
+                      <NoteTagBadges tags={note.tags} />
+                      {editingNoteId === note.id ? null : (
+                        <div className="note-list__meta">
+                          <NoteTimestamps note={note} />
+                          <div className="note-list__actions">
+                            <button
+                              onClick={() => startOrganize(note)}
+                              type="button"
+                            >
+                              Taşı
+                            </button>
+                            <button
+                              onClick={() => deleteNote(note.id)}
+                              type="button"
+                            >
+                              Sil
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </NoteArchiveShell>
       )}
