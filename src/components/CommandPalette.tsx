@@ -24,6 +24,7 @@ const viewCommands: Array<{ label: string; view: SidebarView }> = [
   { label: "Bugün", view: "bugun" },
   { label: "Gelen", view: "gelen" },
   { label: "Notlar", view: "notlar" },
+  { label: "Yapılacaklar", view: "yapilacaklar" },
   { label: "Kişiler", view: "kisiler" },
   { label: "İşler", view: "isler" },
   { label: "Hafta", view: "hafta" },

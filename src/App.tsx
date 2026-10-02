@@ -25,6 +25,7 @@ import NotesView from "./views/NotesView";
 import PeopleView from "./views/PeopleView";
 import PersonDetailView from "./views/PersonDetailView";
 import SearchView from "./views/SearchView";
+import TodosView from "./views/TodosView";
 
 type AppProps = {
   db?: AppDb;
@@ -117,6 +118,41 @@ export default function App({ db, notify, now }: AppProps = {}) {
     setActiveView("is:");
   };
 
+  const openNoteFromTodo = async (noteId: number) => {
+    try {
+      const note = await appDb.getNote(noteId);
+      if (!note || note.deletedAt) {
+        showToast("Kaynak not arşivde");
+        return;
+      }
+      if (note.initiativeIds[0] !== undefined) {
+        const initiative = (await appDb.listInitiatives()).find(
+          (item) => item.id === note.initiativeIds[0],
+        );
+        if (initiative) {
+          openInitiative(initiative);
+        } else {
+          showToast("İş bulunamadı");
+        }
+        return;
+      }
+      if (note.personIds[0] !== undefined) {
+        const person = (await appDb.listPeople()).find(
+          (item) => item.id === note.personIds[0],
+        );
+        if (person) {
+          openPerson(person);
+        } else {
+          showToast("Kişi bulunamadı");
+        }
+        return;
+      }
+      setActiveView("notlar");
+    } catch {
+      showToast("Not açılamadı");
+    }
+  };
+
   const renderView = () => {
     switch (activeView) {
       case "bugun":
@@ -143,6 +179,14 @@ export default function App({ db, notify, now }: AppProps = {}) {
             db={appDb}
             onToast={showToast}
             refreshKey={notesRefreshKey}
+          />
+        );
+      case "yapilacaklar":
+        return (
+          <TodosView
+            db={appDb}
+            onOpenNote={(noteId) => void openNoteFromTodo(noteId)}
+            onToast={showToast}
           />
         );
       case "kisiler":
