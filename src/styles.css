@@ -1880,6 +1880,16 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.todos-list__archived {
+  justify-self: start;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .todos-list__title--done {
   text-decoration: line-through;
   color: #64748b;

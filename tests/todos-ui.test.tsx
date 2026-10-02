@@ -226,6 +226,25 @@ describe("TodosView", () => {
     expect(onOpenNote).toHaveBeenCalledWith(9);
   });
 
+  it("shows an archived-source hint only for todos whose note is archived", async () => {
+    const db = makeDb({
+      listTodos: vi.fn().mockResolvedValue([
+        makeTodo({ id: 1, title: "RFC yaz", noteDeletedAt: null }),
+        makeTodo({
+          id: 2,
+          title: "Plan hazırla",
+          noteDeletedAt: "2026-10-01T10:00:00.000Z",
+        }),
+      ]),
+    });
+    render(<TodosView db={db} onOpenNote={vi.fn()} onToast={vi.fn()} />);
+    await screen.findByText("RFC yaz");
+
+    expect(screen.getAllByText("Kaynak not arşivde")).toHaveLength(1);
+    const archivedRow = screen.getByText("Plan hazırla").closest("li")!;
+    expect(within(archivedRow).getByText("Kaynak not arşivde")).toBeTruthy();
+  });
+
   it("adds and deletes custom statuses", async () => {
     const db = makeDb();
     const onToast = vi.fn();

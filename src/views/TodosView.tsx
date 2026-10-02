@@ -183,6 +183,11 @@ export default function TodosView({
                 <time dateTime={todo.updatedAt}>
                   {formatRelativeTr(todo.updatedAt)}
                 </time>
+                {todo.noteDeletedAt ? (
+                  <span className="todos-list__archived">
+                    Kaynak not arşivde
+                  </span>
+                ) : null}
               </div>
               <div className="todos-list__actions">
                 <select

@@ -347,6 +347,11 @@ export async function updateTodoStatus(
     }
 
     if (targetInitiativeId !== null) {
+      // NOTE: Not atomic. The completion note is written *before* the todo
+      // UPDATE on purpose: if the UPDATE fails we may end up with an extra
+      // note (retry-able, harmless), instead of a completed todo with no
+      // note. `withTransaction` here is only a serialization queue (no real
+      // BEGIN/COMMIT), so true atomicity is not available.
       await createNote(db, {
         body: `To-do tamamlandı: “${truncateTitle(todo.title)}”`,
         initiativeIds: [targetInitiativeId],
