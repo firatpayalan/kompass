@@ -82,10 +82,10 @@ When `updateTodoStatus` moves a todo from a non-complete status to a `counts_as_
 
 1. Set `completed_at` if it was null.
 2. Resolve target initiative(s) from the source note’s `note_initiatives`:
-   - **1 initiative:** `createNote` on that initiative (no topic unless we later choose otherwise): body like `To-do tamamlandı: “{todo.title}”` (truncate title if very long).
+   - **1 initiative:** `createNote` on that initiative (untopic / no topic link), body like `To-do tamamlandı: “{todo.title}”` (truncate title if very long).
    - **0 initiatives:** keep status change; toast **Bağlı iş yok; durum kaydedildi, işe not yazılmadı**.
-   - **2+ initiatives:** show picker dialog; on confirm write the note to the chosen initiative. Cancel picker → revert status change or leave pending (prefer: do not apply status until initiative chosen).
-3. Moving again between two complete statuses must **not** write a second completion note.
+   - **2+ initiatives:** UI must collect `initiativeId` before calling `updateTodoStatus` (status is not applied until the user picks). Cancel picker → no status change.
+3. Moving again between two complete statuses must **not** write a second completion note (detect via previous status already having `counts_as_complete`, or non-null `completed_at` before the transition).
 4. Moving from complete → non-complete clears `completed_at`; no automatic “reopened” note (YAGNI).
 5. Moving non-complete → non-complete: status only.
 
@@ -109,7 +109,7 @@ Expand topic / scroll-to-note is best-effort (reuse Bugün reminder navigation p
 - `listTodos(filter?: { completion?: "all" | "open" | "done" }): Promise<TodoListItem[]>`  
   (`TodoListItem` includes status fields + note deleted flag as needed for UI)
 - `updateTodoStatus(todoId, statusId, options?: { initiativeId?: number }): Promise<Todo>`  
-  — performs completion-note side effect when applicable
+  — performs completion-note side effect when applicable. If completing and the note has 2+ initiatives and `initiativeId` is missing, throw a typed/ recoverable error (e.g. message **İş seçimi gerekli**) so the UI can open the picker and retry.
 
 ## Out of scope
 
