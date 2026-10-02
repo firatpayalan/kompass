@@ -83,3 +83,32 @@ export interface Reminder {
   done: boolean;
   createdAt: string;
 }
+
+export interface TodoStatus {
+  id: number;
+  name: string;
+  color: string;
+  countsAsComplete: boolean;
+  sortOrder: number;
+  isBuiltin: boolean;
+  createdAt: string;
+}
+
+export interface Todo {
+  id: number;
+  title: string;
+  noteId: number;
+  statusId: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export type TodoListItem = Todo & {
+  statusName: string;
+  statusColor: string;
+  countsAsComplete: boolean;
+  noteDeletedAt: string | null;
+  initiativeIds: number[];
+  personIds: number[];
+};

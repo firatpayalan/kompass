@@ -13,6 +13,7 @@ import { ensureNoteTagsColor } from "./noteTagsRepo";
 import { ensureInitiativeTagsSchema } from "./initiativeTagsRepo";
 import { ensureTopicTagsSchema } from "./topicTagsRepo";
 import { ensureWeeklySummariesTable } from "./weeklySummariesRepo";
+import { ensureTodosSchema } from "./todosRepo";
 import schemaSql from "./schema.sql?raw";
 
 /** plugin-sql stores this file under `app_config_dir()` as `leadership.db`. */
@@ -104,5 +105,6 @@ export async function connectAppDatabase(): Promise<AsyncDb> {
   await ensureNoteTagsColor(db);
   await ensureNoteImagesTable(db);
   await ensureWeeklySummariesTable(db);
+  await ensureTodosSchema(db);
   return db;
 }
