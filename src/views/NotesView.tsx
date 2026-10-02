@@ -3,6 +3,7 @@ import NoteList from "../components/NoteList";
 import type { ReminderDraft } from "../components/ReminderForm";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import { formatError } from "../lib/formatError";
 import type { Initiative, Note, NoteTag, Person } from "../lib/types";
 
 type NotesDb = Pick<
@@ -20,6 +21,7 @@ type NotesDb = Pick<
   | "deleteNoteTag"
   | "saveNoteImage"
   | "getNoteImage"
+  | "createTodoFromNote"
 >;
 
 type NotesViewProps = {
@@ -116,6 +118,15 @@ export default function NotesView({
     }
   };
 
+  const createTodo = async (noteId: number) => {
+    try {
+      await db.createTodoFromNote(noteId);
+      onToast("Yapılacaklara eklendi");
+    } catch (error) {
+      onToast(formatError(error, "To-do eklenemedi"));
+    }
+  };
+
   const deleteNote = async (id: number) => {
     try {
       await db.softDeleteNote(id, new Date().toISOString());
@@ -144,6 +155,7 @@ export default function NotesView({
             await db.addTagToNote(noteId, { name, color });
             await loadNotes();
           }}
+          onCreateTodo={createTodo}
           onDelete={deleteNote}
           onDeleteTag={async (tagId) => {
             await db.deleteNoteTag(tagId);

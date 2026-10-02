@@ -13,6 +13,10 @@ import type { AppDb } from "../src/db/appDb";
 import Sidebar from "../src/components/Sidebar";
 import type { Initiative, TodoListItem, TodoStatus } from "../src/lib/types";
 import TodosView from "../src/views/TodosView";
+import PersonDetailView from "../src/views/PersonDetailView";
+import NotesView from "../src/views/NotesView";
+import InboxView from "../src/views/InboxView";
+import type { Note, Person } from "../src/lib/types";
 
 afterEach(() => cleanup());
 
@@ -296,5 +300,128 @@ describe("App Nota git routing", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Nota git" }));
 
     expect(await screen.findByText("Kaynak not arşivde")).toBeTruthy();
+  });
+});
+
+const noteForTodo: Note = {
+  id: 20,
+  body: "faruk ile RFC konus",
+  createdAt: "2026-10-02T10:00:00.000Z",
+  updatedAt: "2026-10-02T10:00:00.000Z",
+  deletedAt: null,
+  tags: [],
+  personIds: [1],
+  initiativeIds: [],
+  topicIds: [],
+  nextReminderDueAt: null,
+};
+
+const personForTodo: Person = {
+  id: 1,
+  name: "tayfun",
+  roleOrNotes: null,
+  createdAt: "2026-09-06T08:00:00.000Z",
+  sortOrder: 0,
+  label: null,
+  archivedAt: null,
+};
+
+describe("To-do yap on note surfaces", () => {
+  function personDb(overrides: Record<string, unknown> = {}) {
+    return {
+      listTopicsWithNotesForPerson: vi
+        .fn()
+        .mockResolvedValue({ topics: [], untopicNotes: [noteForTodo] }),
+      listPersonLabels: vi.fn().mockResolvedValue([]),
+      listTopicTags: vi.fn().mockResolvedValue([]),
+      listNoteTags: vi.fn().mockResolvedValue([]),
+      getNoteImage: vi.fn().mockResolvedValue(null),
+      saveNoteImage: vi.fn(),
+      ...overrides,
+    } as unknown as AppDb;
+  }
+
+  it("creates a todo from a linked note", async () => {
+    const createTodoFromNote = vi.fn().mockResolvedValue({ id: 1 });
+    const onToast = vi.fn();
+    render(
+      <PersonDetailView
+        db={personDb({ createTodoFromNote })}
+        onBack={vi.fn()}
+        onToast={onToast}
+        person={personForTodo}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "To-do yap" }));
+
+    await waitFor(() => {
+      expect(createTodoFromNote).toHaveBeenCalledWith(noteForTodo.id);
+      expect(onToast).toHaveBeenCalledWith("Yapılacaklara eklendi");
+    });
+  });
+
+  it("surfaces the duplicate error message", async () => {
+    const createTodoFromNote = vi
+      .fn()
+      .mockRejectedValue(new Error("Bu not zaten bir to-do"));
+    const onToast = vi.fn();
+    render(
+      <PersonDetailView
+        db={personDb({ createTodoFromNote })}
+        onBack={vi.fn()}
+        onToast={onToast}
+        person={personForTodo}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "To-do yap" }));
+
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith("Bu not zaten bir to-do"),
+    );
+  });
+
+  it("creates a todo from NotesView", async () => {
+    const createTodoFromNote = vi.fn().mockResolvedValue({ id: 1 });
+    const onToast = vi.fn();
+    const db = {
+      listActiveNotes: vi.fn().mockResolvedValue([noteForTodo]),
+      listNoteTags: vi.fn().mockResolvedValue([]),
+      listPeople: vi.fn().mockResolvedValue([personForTodo]),
+      listInitiatives: vi.fn().mockResolvedValue([]),
+      getNoteImage: vi.fn().mockResolvedValue(null),
+      saveNoteImage: vi.fn(),
+      createTodoFromNote,
+    } as unknown as AppDb;
+    render(<NotesView db={db} onToast={onToast} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "To-do yap" }));
+
+    await waitFor(() => {
+      expect(createTodoFromNote).toHaveBeenCalledWith(noteForTodo.id);
+      expect(onToast).toHaveBeenCalledWith("Yapılacaklara eklendi");
+    });
+  });
+
+  it("creates a todo from InboxView", async () => {
+    const createTodoFromNote = vi.fn().mockResolvedValue({ id: 1 });
+    const onToast = vi.fn();
+    const db = {
+      listInboxNotes: vi.fn().mockResolvedValue([noteForTodo]),
+      listPeople: vi.fn().mockResolvedValue([]),
+      listInitiatives: vi.fn().mockResolvedValue([]),
+      getNoteImage: vi.fn().mockResolvedValue(null),
+      saveNoteImage: vi.fn(),
+      createTodoFromNote,
+    } as unknown as AppDb;
+    render(<InboxView db={db} onToast={onToast} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "To-do yap" }));
+
+    await waitFor(() => {
+      expect(createTodoFromNote).toHaveBeenCalledWith(noteForTodo.id);
+      expect(onToast).toHaveBeenCalledWith("Yapılacaklara eklendi");
+    });
   });
 });

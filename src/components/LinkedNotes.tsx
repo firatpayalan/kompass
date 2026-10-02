@@ -23,6 +23,7 @@ type LinkedNotesProps = {
     reminder: ReminderDraft | null,
   ) => Promise<void>;
   onArchiveNote?: (noteId: number) => Promise<void>;
+  onCreateTodo?: (noteId: number) => Promise<void>;
   tagCatalog?: NoteTag[];
   onAddTag?: (
     noteId: number,
@@ -57,6 +58,7 @@ export default function LinkedNotes({
   emptyLabel = "Henüz bağlı not yok.",
   onUpdateNote,
   onArchiveNote,
+  onCreateTodo,
   tagCatalog,
   onAddTag,
   onLinkTag,
@@ -227,6 +229,14 @@ export default function LinkedNotes({
                         type="button"
                       >
                         Düzenle
+                      </button>
+                    ) : null}
+                    {onCreateTodo ? (
+                      <button
+                        onClick={() => void onCreateTodo(note.id)}
+                        type="button"
+                      >
+                        To-do yap
                       </button>
                     ) : null}
                   </div>

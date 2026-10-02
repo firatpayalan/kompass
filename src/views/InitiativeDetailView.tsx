@@ -53,6 +53,7 @@ type InitiativeDetailDb = Pick<
   | "linkNoteToTopics"
   | "saveNoteImage"
   | "getNoteImage"
+  | "createTodoFromNote"
 >;
 
 type InitiativeDetailViewProps = {
@@ -441,6 +442,15 @@ export default function InitiativeDetailView({
     }
   };
 
+  const createTodo = async (noteId: number) => {
+    try {
+      await db.createTodoFromNote(noteId);
+      onToast("Yapılacaklara eklendi");
+    } catch (error) {
+      onToast(formatError(error, "To-do eklenemedi"));
+    }
+  };
+
   const noteTagHandlers = {
     tagCatalog: noteTagCatalog,
     onAddTag: async (
@@ -467,6 +477,7 @@ export default function InitiativeDetailView({
       await load();
     },
     onToast,
+    onCreateTodo: createTodo,
   };
 
   return (

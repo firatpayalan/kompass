@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
+import { formatError } from "../lib/formatError";
 import type { Initiative, Note, Person } from "../lib/types";
 import NoteArchiveShell from "../components/NoteArchiveShell";
 import NoteBodyField from "../components/NoteBodyField";
@@ -21,6 +22,7 @@ type InboxDb = Pick<
   | "setReminderForTarget"
   | "saveNoteImage"
   | "getNoteImage"
+  | "createTodoFromNote"
 >;
 
 type InboxViewProps = {
@@ -159,6 +161,15 @@ export default function InboxView({
     await load();
     if (reminderFailed) {
       onToast("Not kaydedildi, hatırlatma eklenemedi");
+    }
+  };
+
+  const createTodo = async (noteId: number) => {
+    try {
+      await db.createTodoFromNote(noteId);
+      onToast("Yapılacaklara eklendi");
+    } catch (error) {
+      onToast(formatError(error, "To-do eklenemedi"));
     }
   };
 
@@ -336,6 +347,12 @@ export default function InboxView({
                               type="button"
                             >
                               Taşı
+                            </button>
+                            <button
+                              onClick={() => void createTodo(note.id)}
+                              type="button"
+                            >
+                              To-do yap
                             </button>
                             <button
                               onClick={() => deleteNote(note.id)}

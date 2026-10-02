@@ -10,6 +10,7 @@ import { getDb } from "../db/appDb";
 import type { TopicWithNotes } from "../db/topicsRepo";
 import type { Note, NoteTag, Person, PersonLabel, TopicTag } from "../lib/types";
 import type { PersonLabelColor } from "../lib/personLabels";
+import { formatError } from "../lib/formatError";
 
 type PersonDetailDb = Pick<
   AppDb,
@@ -38,6 +39,7 @@ type PersonDetailDb = Pick<
   | "linkNoteToTopics"
   | "saveNoteImage"
   | "getNoteImage"
+  | "createTodoFromNote"
 >;
 
 type PersonDetailViewProps = {
@@ -264,6 +266,15 @@ export default function PersonDetailView({
     }
   };
 
+  const createTodo = async (noteId: number) => {
+    try {
+      await db.createTodoFromNote(noteId);
+      onToast("Yapılacaklara eklendi");
+    } catch (error) {
+      onToast(formatError(error, "To-do eklenemedi"));
+    }
+  };
+
   const moveNoteToTopic = async (noteId: number, topicId: number) => {
     try {
       await db.linkNoteToTopics(noteId, [topicId]);
@@ -301,6 +312,7 @@ export default function PersonDetailView({
       await load();
     },
     onToast,
+    onCreateTodo: createTodo,
   };
 
   return (

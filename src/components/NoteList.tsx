@@ -19,6 +19,7 @@ type NoteListProps = {
     reminder: ReminderDraft | null,
   ) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onCreateTodo?: (noteId: number) => Promise<void>;
   tagCatalog?: NoteTag[];
   onAddTag?: (
     noteId: number,
@@ -51,6 +52,7 @@ export default function NoteList({
   onEdit,
   onSave,
   onDelete,
+  onCreateTodo,
   tagCatalog,
   onAddTag,
   onLinkTag,
@@ -117,6 +119,14 @@ export default function NoteList({
               ) : null}
               <div className="note-list__meta">
                 <NoteTimestamps note={note} />
+                {onCreateTodo && editingNoteId !== note.id ? (
+                  <button
+                    onClick={() => void onCreateTodo(note.id)}
+                    type="button"
+                  >
+                    To-do yap
+                  </button>
+                ) : null}
                 <button onClick={() => onDelete(note.id)} type="button">
                   Sil
                 </button>
