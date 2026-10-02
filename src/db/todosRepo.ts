@@ -101,18 +101,22 @@ export async function createTodoStatus(
   const sortOrder = maxRow?.nextOrder ?? 0;
   const nowIso = input.nowIso ?? new Date().toISOString();
 
-  try {
-    const [row] = await db.select<TodoStatusRow>(
-      `INSERT INTO todo_statuses
-         (name, color, counts_as_complete, sort_order, is_builtin, created_at)
-       VALUES (?, ?, ?, ?, 0, ?)
-       RETURNING id, name, color, counts_as_complete, sort_order, is_builtin, created_at`,
-      [name, input.color, input.countsAsComplete ? 1 : 0, sortOrder, nowIso],
-    );
-    return mapTodoStatus(row);
-  } catch {
+  const [existing] = await db.select<{ id: number }>(
+    `SELECT id FROM todo_statuses WHERE name = ? COLLATE NOCASE`,
+    [name],
+  );
+  if (existing) {
     throw new Error("Bu isimde durum var");
   }
+
+  const [row] = await db.select<TodoStatusRow>(
+    `INSERT INTO todo_statuses
+       (name, color, counts_as_complete, sort_order, is_builtin, created_at)
+     VALUES (?, ?, ?, ?, 0, ?)
+     RETURNING id, name, color, counts_as_complete, sort_order, is_builtin, created_at`,
+    [name, input.color, input.countsAsComplete ? 1 : 0, sortOrder, nowIso],
+  );
+  return mapTodoStatus(row);
 }
 
 export async function deleteTodoStatus(db: AsyncDb, id: number): Promise<void> {
