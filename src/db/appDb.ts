@@ -7,6 +7,9 @@ import type {
   PersonLabel,
   Reminder,
   Topic,
+  Todo,
+  TodoListItem,
+  TodoStatus,
   TopicTag,
 } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
@@ -102,6 +105,14 @@ import {
   type CreateReminderInput,
 } from "./remindersRepo";
 import { searchNotes, type SearchNotesOptions } from "./searchRepo";
+import {
+  createTodoFromNote,
+  createTodoStatus,
+  deleteTodoStatus,
+  listTodoStatuses,
+  listTodos,
+  updateTodoStatus,
+} from "./todosRepo";
 import {
   archiveTopic,
   createTopic,
@@ -255,6 +266,23 @@ export type AppDb = {
   getNoteImage(
     id: string,
   ): Promise<{ mime: string; bytesBase64: string } | null>;
+
+  listTodoStatuses(): Promise<TodoStatus[]>;
+  createTodoStatus(input: {
+    name: string;
+    color: string;
+    countsAsComplete: boolean;
+  }): Promise<TodoStatus>;
+  deleteTodoStatus(id: number): Promise<void>;
+  createTodoFromNote(noteId: number): Promise<Todo>;
+  listTodos(filter?: {
+    completion?: "all" | "open" | "done";
+  }): Promise<TodoListItem[]>;
+  updateTodoStatus(
+    todoId: number,
+    statusId: number,
+    options?: { initiativeId?: number },
+  ): Promise<Todo>;
 };
 
 export function createAppDb(db: AsyncDb): AppDb {
@@ -352,6 +380,14 @@ export function createAppDb(db: AsyncDb): AppDb {
 
     saveNoteImage: (input) => saveNoteImage(db, input),
     getNoteImage: (id) => getNoteImage(db, id),
+
+    listTodoStatuses: () => listTodoStatuses(db),
+    createTodoStatus: (input) => createTodoStatus(db, input),
+    deleteTodoStatus: (id) => deleteTodoStatus(db, id),
+    createTodoFromNote: (noteId) => createTodoFromNote(db, noteId),
+    listTodos: (filter) => listTodos(db, filter),
+    updateTodoStatus: (todoId, statusId, options) =>
+      updateTodoStatus(db, todoId, statusId, options),
   };
 }
 

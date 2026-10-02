@@ -1,7 +1,8 @@
 import { BUILTIN_TODO_STATUSES } from "../lib/todoStatuses";
 import { isPersonLabelColor } from "../lib/personLabels";
-import type { TodoStatus } from "../lib/types";
+import type { Todo, TodoListItem, TodoStatus } from "../lib/types";
 import type { AsyncDb } from "./asyncDb";
+import { createNote, getNote } from "./notesRepo";
 
 type TodoStatusRow = {
   id: number;
@@ -140,4 +141,236 @@ export async function deleteTodoStatus(db: AsyncDb, id: number): Promise<void> {
   }
 
   await db.execute("DELETE FROM todo_statuses WHERE id = ?", [id]);
+}
+
+type TodoRow = {
+  id: number;
+  title: string;
+  note_id: number;
+  status_id: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+type TodoListRow = TodoRow & {
+  status_name: string;
+  status_color: string;
+  counts_as_complete: number;
+  note_deleted_at: string | null;
+};
+
+type LinkRow = { note_id: number; linked_id: number };
+
+const TODO_SELECT = `SELECT id, title, note_id, status_id, created_at, updated_at, completed_at`;
+
+const COMPLETION_TITLE_MAX = 120;
+
+function mapTodo(row: TodoRow): Todo {
+  return {
+    id: row.id,
+    title: row.title,
+    noteId: row.note_id,
+    statusId: row.status_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    completedAt: row.completed_at,
+  };
+}
+
+function truncateTitle(title: string): string {
+  const chars = [...title];
+  return chars.length > COMPLETION_TITLE_MAX
+    ? `${chars.slice(0, COMPLETION_TITLE_MAX).join("").trimEnd()}…`
+    : title;
+}
+
+async function getTodoRow(db: AsyncDb, id: number): Promise<TodoRow> {
+  const [row] = await db.select<TodoRow>(
+    `${TODO_SELECT} FROM todos WHERE id = ?`,
+    [id],
+  );
+  if (!row) {
+    throw new Error("To-do bulunamadı");
+  }
+  return row;
+}
+
+async function getTodoStatus(db: AsyncDb, id: number): Promise<TodoStatus> {
+  const [row] = await db.select<TodoStatusRow>(
+    `${TODO_STATUS_SELECT} FROM todo_statuses WHERE id = ?`,
+    [id],
+  );
+  if (!row) {
+    throw new Error("Durum bulunamadı");
+  }
+  return mapTodoStatus(row);
+}
+
+export async function createTodoFromNote(
+  db: AsyncDb,
+  noteId: number,
+  nowIso: string = new Date().toISOString(),
+): Promise<Todo> {
+  const note = await getNote(db, noteId);
+  if (!note) {
+    throw new Error("Not bulunamadı");
+  }
+  const title = note.body.trim();
+  if (!title) {
+    throw new Error("Not boş olamaz");
+  }
+
+  const [existing] = await db.select<{ id: number }>(
+    `SELECT id FROM todos WHERE note_id = ?`,
+    [noteId],
+  );
+  if (existing) {
+    throw new Error("Bu not zaten bir to-do");
+  }
+
+  const [open] = await db.select<{ id: number }>(
+    `SELECT id FROM todo_statuses WHERE name = 'açık' AND is_builtin = 1`,
+  );
+  if (!open) {
+    throw new Error("Durum bulunamadı");
+  }
+
+  const [row] = await db.select<TodoRow>(
+    `INSERT INTO todos (title, note_id, status_id, created_at, updated_at, completed_at)
+     VALUES (?, ?, ?, ?, ?, NULL)
+     RETURNING id, title, note_id, status_id, created_at, updated_at, completed_at`,
+    [title, noteId, open.id, nowIso, nowIso],
+  );
+  return mapTodo(row);
+}
+
+async function linkedIdsByNote(
+  db: AsyncDb,
+  table: "note_people" | "note_initiatives",
+  idColumn: "person_id" | "initiative_id",
+  noteIds: number[],
+): Promise<Map<number, number[]>> {
+  const grouped = new Map<number, number[]>();
+  if (noteIds.length === 0) {
+    return grouped;
+  }
+  const rows = await db.select<LinkRow>(
+    `SELECT note_id, ${idColumn} AS linked_id
+     FROM ${table}
+     WHERE note_id IN (${noteIds.map(() => "?").join(", ")})
+     ORDER BY rowid`,
+    noteIds,
+  );
+  for (const row of rows) {
+    const list = grouped.get(row.note_id);
+    if (list) {
+      list.push(row.linked_id);
+    } else {
+      grouped.set(row.note_id, [row.linked_id]);
+    }
+  }
+  return grouped;
+}
+
+export async function listTodos(
+  db: AsyncDb,
+  filter: { completion?: "all" | "open" | "done" } = {},
+): Promise<TodoListItem[]> {
+  const completion = filter.completion ?? "all";
+  const where =
+    completion === "open"
+      ? "WHERE todo_statuses.counts_as_complete = 0"
+      : completion === "done"
+        ? "WHERE todo_statuses.counts_as_complete != 0"
+        : "";
+
+  const rows = await db.select<TodoListRow>(
+    `SELECT todos.id, todos.title, todos.note_id, todos.status_id,
+            todos.created_at, todos.updated_at, todos.completed_at,
+            todo_statuses.name AS status_name,
+            todo_statuses.color AS status_color,
+            todo_statuses.counts_as_complete AS counts_as_complete,
+            notes.deleted_at AS note_deleted_at
+     FROM todos
+     JOIN todo_statuses ON todo_statuses.id = todos.status_id
+     JOIN notes ON notes.id = todos.note_id
+     ${where}
+     ORDER BY todos.updated_at DESC, todos.id DESC`,
+  );
+
+  const noteIds = rows.map((row) => row.note_id);
+  const [initiatives, people] = await Promise.all([
+    linkedIdsByNote(db, "note_initiatives", "initiative_id", noteIds),
+    linkedIdsByNote(db, "note_people", "person_id", noteIds),
+  ]);
+
+  return rows.map((row) => ({
+    ...mapTodo(row),
+    statusName: row.status_name,
+    statusColor: row.status_color,
+    countsAsComplete: row.counts_as_complete !== 0,
+    noteDeletedAt: row.note_deleted_at,
+    initiativeIds: initiatives.get(row.note_id) ?? [],
+    personIds: people.get(row.note_id) ?? [],
+  }));
+}
+
+export async function updateTodoStatus(
+  db: AsyncDb,
+  todoId: number,
+  statusId: number,
+  options: { initiativeId?: number; nowIso?: string } = {},
+): Promise<Todo> {
+  const nowIso = options.nowIso ?? new Date().toISOString();
+  const todo = await getTodoRow(db, todoId);
+  const oldStatus = await getTodoStatus(db, todo.status_id);
+  const newStatus = await getTodoStatus(db, statusId);
+  const wasComplete = oldStatus.countsAsComplete;
+  const willComplete = newStatus.countsAsComplete;
+
+  if (willComplete && !wasComplete) {
+    // Resolve target initiative before mutating anything.
+    const note = await getNote(db, todo.note_id);
+    const initiativeIds = note?.initiativeIds ?? [];
+    let targetInitiativeId: number | null = null;
+    if (initiativeIds.length === 1) {
+      targetInitiativeId = initiativeIds[0];
+    } else if (initiativeIds.length >= 2) {
+      if (
+        options.initiativeId === undefined ||
+        !initiativeIds.includes(options.initiativeId)
+      ) {
+        throw new Error("İş seçimi gerekli");
+      }
+      targetInitiativeId = options.initiativeId;
+    }
+
+    if (targetInitiativeId !== null) {
+      await createNote(db, {
+        body: `To-do tamamlandı: “${truncateTitle(todo.title)}”`,
+        initiativeIds: [targetInitiativeId],
+        personIds: [],
+        nowIso,
+      });
+    }
+    await db.execute(
+      `UPDATE todos
+       SET status_id = ?, updated_at = ?, completed_at = COALESCE(completed_at, ?)
+       WHERE id = ?`,
+      [statusId, nowIso, nowIso, todoId],
+    );
+  } else if (!willComplete && wasComplete) {
+    await db.execute(
+      `UPDATE todos SET status_id = ?, updated_at = ?, completed_at = NULL WHERE id = ?`,
+      [statusId, nowIso, todoId],
+    );
+  } else {
+    await db.execute(
+      `UPDATE todos SET status_id = ?, updated_at = ? WHERE id = ?`,
+      [statusId, nowIso, todoId],
+    );
+  }
+
+  return mapTodo(await getTodoRow(db, todoId));
 }
