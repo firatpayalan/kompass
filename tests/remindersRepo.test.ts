@@ -9,6 +9,7 @@ import {
   listOverdueReminders,
   listUpcomingReminders,
   markReminderDone,
+  setReminderForTarget,
 } from "../src/db/remindersRepo";
 import { openTestAsyncDb } from "../src/db/testDb";
 
@@ -292,6 +293,39 @@ describe("remindersRepo", () => {
         reminder.id,
       ]),
     ).toEqual([{ due_at: "2026-09-15T10:00:00.000Z", done: 0 }]);
+    db.close();
+  });
+
+  it("replaces active reminders when setting a new due date for a target", async () => {
+    const db = openTestAsyncDb();
+    const note = await createNote(db, {
+      body: "Hatırlatma notu",
+      nowIso: "2026-09-05T08:00:00.000Z",
+    });
+    const oldReminder = await createReminder(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: "2026-09-06T09:00:00.000Z",
+      period: "once",
+      nowIso: "2026-09-05T08:00:00.000Z",
+    });
+
+    const next = await setReminderForTarget(db, {
+      targetType: "note",
+      targetId: note.id,
+      dueAt: "2026-09-10T09:00:00.000Z",
+      period: "weekly",
+      nowIso: "2026-09-05T09:00:00.000Z",
+    });
+
+    const rows = await db.select<{ id: number; due_at: string; done: number }>(
+      "SELECT id, due_at, done FROM reminders WHERE target_id = ? ORDER BY id",
+      [note.id],
+    );
+    expect(rows).toEqual([
+      { id: oldReminder.id, due_at: "2026-09-06T09:00:00.000Z", done: 1 },
+      { id: next.id, due_at: "2026-09-10T09:00:00.000Z", done: 0 },
+    ]);
     db.close();
   });
 });

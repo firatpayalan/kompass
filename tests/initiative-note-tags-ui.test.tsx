@@ -58,6 +58,7 @@ describe("InitiativeDetailView note tags", () => {
 
     const db = {
       createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
       createNote: vi.fn(),
       createTopic: vi.fn(),
           archiveTopic: vi.fn(),

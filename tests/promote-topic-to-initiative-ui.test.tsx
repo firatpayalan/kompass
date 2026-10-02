@@ -76,6 +76,7 @@ const personTopic: TopicWithNotes = {
 function baseDb(overrides: Partial<AppDb> = {}) {
   return {
     createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
     createNote: vi.fn(),
     createTopic: vi.fn(),
     listTopicsWithNotesForInitiative: vi.fn().mockResolvedValue({
@@ -216,6 +217,7 @@ describe("promote topic to initiative UI", () => {
             createNote: vi.fn(),
             createTopic: vi.fn(),
             createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
             listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
               topics: [personTopic],
               untopicNotes: [],

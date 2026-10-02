@@ -98,6 +98,7 @@ import {
   listOverdueReminders,
   listUpcomingReminders,
   markReminderDone,
+  setReminderForTarget,
   type CreateReminderInput,
 } from "./remindersRepo";
 import { searchNotes, type SearchNotesOptions } from "./searchRepo";
@@ -235,6 +236,7 @@ export type AppDb = {
   ): Promise<Note[]>;
 
   createReminder(input: CreateReminderInput): Promise<Reminder>;
+  setReminderForTarget(input: CreateReminderInput): Promise<Reminder>;
   listDueRemindersForBugun(
     now: Date,
   ): Promise<Array<Reminder & { title: string }>>;
@@ -338,6 +340,7 @@ export function createAppDb(db: AsyncDb): AppDb {
       listNotesForInitiative(db, initiativeId, options),
 
     createReminder: (input) => createReminder(db, input),
+    setReminderForTarget: (input) => setReminderForTarget(db, input),
     listDueRemindersForBugun: (now) => listDueRemindersForBugun(db, now),
     listOverdueReminders: (now) => listOverdueReminders(db, now),
     listUpcomingReminders: (now) => listUpcomingReminders(db, now),

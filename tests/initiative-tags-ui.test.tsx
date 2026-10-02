@@ -40,6 +40,7 @@ function detailDb(overrides: Partial<AppDb> = {}): AppDb {
     removeTagFromInitiative: vi.fn(),
     updateInitiative: vi.fn(async () => baseInitiative),
     createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
     createNote: vi.fn(),
     createTopic: vi.fn(),
           archiveTopic: vi.fn(),

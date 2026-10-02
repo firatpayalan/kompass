@@ -41,6 +41,7 @@ describe("Task 12 notes UI", () => {
         db={{
           createNote,
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
         }}
         draftStore={createDraftStore()}
         onClose={vi.fn()}
@@ -74,6 +75,7 @@ describe("Task 12 notes UI", () => {
         db={{
           createNote,
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
         }}
         draftStore={createDraftStore()}
         onClose={vi.fn()}
@@ -105,6 +107,7 @@ describe("Task 12 notes UI", () => {
         db={{
           createNote: vi.fn().mockRejectedValue(new Error("disk")),
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
         }}
         draftStore={draftStore}
         onClose={vi.fn()}
@@ -134,6 +137,7 @@ describe("Task 12 notes UI", () => {
         db={{
           createNote,
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
         }}
         draftStore={createDraftStore()}
         onClose={vi.fn()}

@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppDb } from "../src/db/appDb";
 import type { Note, Person } from "../src/lib/types";
+import { toDatetimeLocalValue } from "../src/lib/reminders";
 import PersonDetailView from "../src/views/PersonDetailView";
 
 afterEach(cleanup);
@@ -42,7 +43,8 @@ function baseDb(overrides: Partial<AppDb> = {}) {
   return {
     createNote: vi.fn(),
     createTopic: vi.fn(),
-    createReminder: vi.fn().mockResolvedValue({ id: 1 }),
+    createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
     listTopicsWithNotesForPerson: vi.fn().mockResolvedValue({
       topics: [],
       untopicNotes: [note],
@@ -77,14 +79,14 @@ function baseDb(overrides: Partial<AppDb> = {}) {
 }
 
 describe("linked note edit reminders", () => {
-  it("creates a note reminder when saving with due time", async () => {
-    const createReminder = vi.fn().mockResolvedValue({ id: 9 });
+  it("sets a note reminder when saving with due time", async () => {
+    const setReminderForTarget = vi.fn().mockResolvedValue({ id: 9 });
     const updateNote = vi.fn().mockResolvedValue(note);
     const onToast = vi.fn();
 
     render(
       <PersonDetailView
-        db={baseDb({ createReminder, updateNote })}
+        db={baseDb({ setReminderForTarget, updateNote })}
         onBack={vi.fn()}
         onToast={onToast}
         person={person}
@@ -93,7 +95,7 @@ describe("linked note edit reminders", () => {
 
     const list = await screen.findByRole("list", { name: "Konusuz notlar" });
     fireEvent.click(within(list).getByRole("button", { name: "Düzenle" }));
-    fireEvent.click(screen.getByLabelText("Hatırlatma ekle"));
+    fireEvent.click(screen.getByLabelText("Hatırlatma"));
     fireEvent.change(screen.getByLabelText("Hatırlatma zamanı"), {
       target: { value: "2026-09-08T09:00" },
     });
@@ -101,7 +103,7 @@ describe("linked note edit reminders", () => {
 
     await waitFor(() => {
       expect(updateNote).toHaveBeenCalledWith(note.id, note.body);
-      expect(createReminder).toHaveBeenCalledWith({
+      expect(setReminderForTarget).toHaveBeenCalledWith({
         targetType: "note",
         targetId: note.id,
         dueAt: expect.any(String),
@@ -109,19 +111,78 @@ describe("linked note edit reminders", () => {
         nowIso: expect.any(String),
       });
     });
-    expect(new Date(createReminder.mock.calls[0][0].dueAt).toISOString()).toBe(
-      new Date("2026-09-08T09:00").toISOString(),
+    expect(
+      new Date(setReminderForTarget.mock.calls[0][0].dueAt).toISOString(),
+    ).toBe(new Date("2026-09-08T09:00").toISOString());
+  });
+
+  it("prefills and replaces an existing reminder due date", async () => {
+    const existingDue = "2026-09-07T06:00:00.000Z";
+    const noteWithReminder: Note = {
+      ...note,
+      nextReminderDueAt: existingDue,
+    };
+    const setReminderForTarget = vi.fn().mockResolvedValue({ id: 10 });
+    const updateNote = vi.fn().mockResolvedValue(noteWithReminder);
+    const listTopicsWithNotesForPerson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        topics: [],
+        untopicNotes: [noteWithReminder],
+      })
+      .mockResolvedValue({
+        topics: [],
+        untopicNotes: [
+          {
+            ...noteWithReminder,
+            nextReminderDueAt: new Date("2026-09-10T09:00").toISOString(),
+          },
+        ],
+      });
+
+    render(
+      <PersonDetailView
+        db={baseDb({
+          setReminderForTarget,
+          updateNote,
+          listTopicsWithNotesForPerson,
+        })}
+        onBack={vi.fn()}
+        onToast={vi.fn()}
+        person={person}
+      />,
     );
+
+    const list = await screen.findByRole("list", { name: "Konusuz notlar" });
+    fireEvent.click(within(list).getByRole("button", { name: "Düzenle" }));
+
+    const dueInput = screen.getByLabelText(
+      "Hatırlatma zamanı",
+    ) as HTMLInputElement;
+    expect(dueInput.value).toBe(toDatetimeLocalValue(existingDue));
+
+    fireEvent.change(dueInput, { target: { value: "2026-09-10T09:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+
+    await waitFor(() => {
+      expect(setReminderForTarget).toHaveBeenCalledWith({
+        targetType: "note",
+        targetId: note.id,
+        dueAt: new Date("2026-09-10T09:00").toISOString(),
+        period: "once",
+        nowIso: expect.any(String),
+      });
+    });
   });
 
   it("blocks save when reminder is enabled without due time", async () => {
-    const createReminder = vi.fn();
+    const setReminderForTarget = vi.fn();
     const updateNote = vi.fn();
     const onToast = vi.fn();
 
     render(
       <PersonDetailView
-        db={baseDb({ createReminder, updateNote })}
+        db={baseDb({ setReminderForTarget, updateNote })}
         onBack={vi.fn()}
         onToast={onToast}
         person={person}
@@ -130,23 +191,23 @@ describe("linked note edit reminders", () => {
 
     const list = await screen.findByRole("list", { name: "Konusuz notlar" });
     fireEvent.click(within(list).getByRole("button", { name: "Düzenle" }));
-    fireEvent.click(screen.getByLabelText("Hatırlatma ekle"));
+    fireEvent.click(screen.getByLabelText("Hatırlatma"));
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
 
     await waitFor(() => {
       expect(onToast).toHaveBeenCalledWith("Hatırlatma zamanı gerekli");
     });
     expect(updateNote).not.toHaveBeenCalled();
-    expect(createReminder).not.toHaveBeenCalled();
+    expect(setReminderForTarget).not.toHaveBeenCalled();
   });
 
   it("updates the note only when reminder is off", async () => {
-    const createReminder = vi.fn();
+    const setReminderForTarget = vi.fn();
     const updateNote = vi.fn().mockResolvedValue(note);
 
     render(
       <PersonDetailView
-        db={baseDb({ createReminder, updateNote })}
+        db={baseDb({ setReminderForTarget, updateNote })}
         onBack={vi.fn()}
         onToast={vi.fn()}
         person={person}
@@ -163,6 +224,6 @@ describe("linked note edit reminders", () => {
     await waitFor(() => {
       expect(updateNote).toHaveBeenCalledWith(note.id, "Guncellenmis not");
     });
-    expect(createReminder).not.toHaveBeenCalled();
+    expect(setReminderForTarget).not.toHaveBeenCalled();
   });
 });

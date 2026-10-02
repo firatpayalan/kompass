@@ -30,7 +30,7 @@ export default function ReminderForm({
           onChange={(event) => onEnabledChange(event.target.checked)}
           type="checkbox"
         />
-        Hatırlatma ekle
+        Hatırlatma
       </label>
       {enabled ? (
         <div className="reminder-form__fields">

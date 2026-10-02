@@ -33,6 +33,7 @@ function renderModal(
       db={{
         createNote,
         createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
         saveNoteImage: vi.fn(),
       }}
       draftStore={draftStore}

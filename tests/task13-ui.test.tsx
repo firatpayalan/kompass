@@ -632,6 +632,7 @@ describe("Task 13 people and initiatives UI", () => {
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
           createNote: vi.fn(),
           createTopic: vi.fn(),
           archiveTopic: vi.fn(),

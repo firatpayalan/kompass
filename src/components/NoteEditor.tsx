@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Note, ReminderPeriod } from "../lib/types";
+import { toDatetimeLocalValue } from "../lib/reminders";
 import NoteBodyField from "./NoteBodyField";
 import NoteBodyView from "./NoteBodyView";
 import ReminderForm, { type ReminderDraft } from "./ReminderForm";
@@ -38,7 +39,18 @@ export default function NoteEditor({
   const [dueAt, setDueAt] = useState("");
   const [period, setPeriod] = useState<ReminderPeriod>("once");
 
-  useEffect(() => setBody(note.body), [note.body]);
+  useEffect(() => {
+    if (!editing) return;
+    setBody(note.body);
+    if (note.nextReminderDueAt) {
+      setReminderEnabled(true);
+      setDueAt(toDatetimeLocalValue(note.nextReminderDueAt));
+    } else {
+      setReminderEnabled(false);
+      setDueAt("");
+    }
+    setPeriod("once");
+  }, [editing, note.body, note.id, note.nextReminderDueAt]);
 
   if (!editing) {
     return (

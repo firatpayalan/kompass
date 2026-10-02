@@ -51,6 +51,7 @@ describe("NotesView links", () => {
       listInitiatives: vi.fn().mockResolvedValue([initiative]),
       listNoteTags: vi.fn().mockResolvedValue([]),
       createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
       softDeleteNote: vi.fn(),
       updateNote: vi.fn(),
       addTagToNote: vi.fn(),

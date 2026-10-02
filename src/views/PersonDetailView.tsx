@@ -15,7 +15,7 @@ type PersonDetailDb = Pick<
   AppDb,
   | "createNote"
   | "createTopic"
-  | "createReminder"
+  | "setReminderForTarget"
   | "listTopicsWithNotesForPerson"
   | "updateNote"
   | "softDeleteNote"
@@ -234,7 +234,7 @@ export default function PersonDetailView({
     let reminderFailed = false;
     if (reminder) {
       try {
-        await db.createReminder({
+        await db.setReminderForTarget({
           targetType: "note",
           targetId: noteId,
           dueAt: new Date(reminder.dueAt).toISOString(),

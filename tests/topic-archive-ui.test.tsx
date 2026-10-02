@@ -43,6 +43,7 @@ const topic: TopicWithNotes = {
 function detailDb(overrides: Partial<AppDb> = {}) {
   return {
     createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
     createNote: vi.fn(),
     createTopic: vi.fn(),
     listTopicsWithNotesForInitiative: vi.fn().mockResolvedValue({

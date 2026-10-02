@@ -7,7 +7,7 @@ import type { Initiative, Note, NoteTag, Person } from "../lib/types";
 
 type NotesDb = Pick<
   AppDb,
-  | "createReminder"
+  | "setReminderForTarget"
   | "listActiveNotes"
   | "listPeople"
   | "listInitiatives"
@@ -97,7 +97,7 @@ export default function NotesView({
     let reminderFailed = false;
     if (reminder) {
       try {
-        await db.createReminder({
+        await db.setReminderForTarget({
           targetType: "note",
           targetId: id,
           dueAt: new Date(reminder.dueAt).toISOString(),

@@ -61,6 +61,33 @@ export async function createReminder(
   return mapReminder(row);
 }
 
+/** Marks unfinished reminders for a target as done so a new due date can replace them. */
+export async function cancelActiveRemindersForTarget(
+  db: AsyncDb,
+  targetType: ReminderTargetType,
+  targetId: number,
+): Promise<void> {
+  await db.execute(
+    `UPDATE reminders
+     SET done = 1
+     WHERE done = 0
+       AND target_type = ?
+       AND target_id = ?`,
+    [targetType, targetId],
+  );
+}
+
+/** Replaces any active reminders on the target with a single new reminder. */
+export async function setReminderForTarget(
+  db: AsyncDb,
+  input: CreateReminderInput,
+): Promise<Reminder> {
+  return db.withTransaction(async (tx) => {
+    await cancelActiveRemindersForTarget(tx, input.targetType, input.targetId);
+    return createReminder(tx, input);
+  });
+}
+
 function startOfLocalDay(now: Date): Date {
   return new Date(
     now.getFullYear(),

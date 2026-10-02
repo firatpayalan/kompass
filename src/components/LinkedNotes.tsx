@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Note, NoteTag } from "../lib/types";
 import type { PersonLabelColor } from "../lib/personLabels";
+import { toDatetimeLocalValue } from "../lib/reminders";
 import NoteArchiveShell from "./NoteArchiveShell";
 import NoteBodyField from "./NoteBodyField";
 import NoteBodyView from "./NoteBodyView";
@@ -94,8 +95,13 @@ export default function LinkedNotes({
   const startEdit = (note: Note) => {
     setEditingId(note.id);
     setDraft(note.body);
-    setReminderEnabled(false);
-    setDueAt("");
+    if (note.nextReminderDueAt) {
+      setReminderEnabled(true);
+      setDueAt(toDatetimeLocalValue(note.nextReminderDueAt));
+    } else {
+      setReminderEnabled(false);
+      setDueAt("");
+    }
     setPeriod("once");
   };
 

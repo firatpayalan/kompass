@@ -59,6 +59,7 @@ type InboxTestDb = Pick<
   | "softDeleteNote"
   | "updateNote"
   | "createReminder"
+  | "setReminderForTarget"
   | "saveNoteImage"
   | "getNoteImage"
 >;
@@ -73,6 +74,7 @@ function createDb(overrides: Partial<InboxTestDb> = {}): InboxTestDb {
     softDeleteNote: vi.fn(),
     updateNote: vi.fn().mockResolvedValue(inboxNote),
     createReminder: vi.fn().mockResolvedValue(undefined),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
     saveNoteImage: vi.fn(),
     getNoteImage: vi.fn().mockResolvedValue(null),
     ...overrides,

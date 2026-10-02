@@ -33,6 +33,7 @@ type InitiativeDetailDb = Pick<
   | "updateNote"
   | "softDeleteNote"
   | "updateTopic"
+  | "setReminderForTarget"
   | "addTagToTopic"
   | "linkTagToTopic"
   | "listTopicTags"
@@ -360,7 +361,7 @@ export default function InitiativeDetailView({
     let reminderFailed = false;
     if (reminder) {
       try {
-        await db.createReminder({
+        await db.setReminderForTarget({
           targetType: "note",
           targetId: noteId,
           dueAt: new Date(reminder.dueAt).toISOString(),

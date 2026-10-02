@@ -63,6 +63,7 @@ function createDb(overrides: Partial<AppDb> = {}): AppDb {
     createNote: vi.fn(),
     createPerson: vi.fn(),
     createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
     createTopic: vi.fn(),
     promoteTopicToInitiative: vi.fn(),
           addTagToTopic: vi.fn(),
@@ -199,6 +200,7 @@ describe("initiative detail editing", () => {
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
           createNote,
           createTopic: vi.fn(),
           archiveTopic: vi.fn(),
@@ -273,6 +275,7 @@ describe("initiative detail editing", () => {
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
           createNote: vi.fn(),
           createTopic: vi.fn(),
           archiveTopic: vi.fn(),
@@ -372,7 +375,7 @@ describe("initiative detail editing", () => {
       />,
     );
 
-    fireEvent.click(screen.getByLabelText("Hatırlatma ekle"));
+    fireEvent.click(screen.getByLabelText("Hatırlatma"));
     fireEvent.change(screen.getByLabelText("Hatırlatma zamanı"), {
       target: { value: "2026-09-06T09:30" },
     });
@@ -437,6 +440,7 @@ describe("initiative detail editing", () => {
       <InitiativeDetailView
         db={{
           createReminder: vi.fn(),
+    setReminderForTarget: vi.fn().mockResolvedValue({ id: 1 }),
           createNote,
           createTopic: vi.fn(),
           archiveTopic: vi.fn(),
@@ -493,12 +497,13 @@ describe("initiative detail editing", () => {
 
 describe("reminders on existing notes", () => {
   it("creates a reminder for the note being edited", async () => {
-    const createReminder = vi.fn().mockResolvedValue({});
+    const setReminderForTarget = vi.fn().mockResolvedValue({});
     const updateNote = vi.fn().mockResolvedValue(note);
     render(
       <NotesView
         db={{
-          createReminder,
+          createReminder: vi.fn(),
+          setReminderForTarget,
           listActiveNotes: vi.fn().mockResolvedValue([note]),
           listPeople: vi.fn().mockResolvedValue([]),
           listInitiatives: vi.fn().mockResolvedValue([]),
@@ -515,7 +520,7 @@ describe("reminders on existing notes", () => {
     );
 
     fireEvent.click(await screen.findByRole("button", { name: "Takip notu" }));
-    fireEvent.click(screen.getByLabelText("Hatırlatma ekle"));
+    fireEvent.click(screen.getByLabelText("Hatırlatma"));
     fireEvent.change(screen.getByLabelText("Hatırlatma zamanı"), {
       target: { value: "2026-09-06T09:30" },
     });
@@ -524,7 +529,7 @@ describe("reminders on existing notes", () => {
     );
 
     await waitFor(() =>
-      expect(createReminder).toHaveBeenCalledWith(
+      expect(setReminderForTarget).toHaveBeenCalledWith(
         expect.objectContaining({
           targetType: "note",
           targetId: 9,
@@ -540,7 +545,8 @@ describe("reminders on existing notes", () => {
     render(
       <NotesView
         db={{
-          createReminder: vi.fn().mockRejectedValue(new Error("disk")),
+          createReminder: vi.fn(),
+          setReminderForTarget: vi.fn().mockRejectedValue(new Error("disk")),
           listActiveNotes: vi.fn().mockResolvedValue([note]),
           listPeople: vi.fn().mockResolvedValue([]),
           listInitiatives: vi.fn().mockResolvedValue([]),
@@ -557,7 +563,7 @@ describe("reminders on existing notes", () => {
     );
 
     fireEvent.click(await screen.findByRole("button", { name: "Takip notu" }));
-    fireEvent.click(screen.getByLabelText("Hatırlatma ekle"));
+    fireEvent.click(screen.getByLabelText("Hatırlatma"));
     fireEvent.change(screen.getByLabelText("Hatırlatma zamanı"), {
       target: { value: "2026-09-06T09:30" },
     });
@@ -595,7 +601,7 @@ describe("quick note reminder failure", () => {
     fireEvent.change(screen.getByLabelText("Not"), {
       target: { value: "Kaydedilmiş not" },
     });
-    fireEvent.click(screen.getByLabelText("Hatırlatma ekle"));
+    fireEvent.click(screen.getByLabelText("Hatırlatma"));
     fireEvent.change(screen.getByLabelText("Hatırlatma zamanı"), {
       target: { value: "2026-09-06T09:30" },
     });

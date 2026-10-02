@@ -18,7 +18,7 @@ type InboxDb = Pick<
   | "linkNoteToInitiatives"
   | "softDeleteNote"
   | "updateNote"
-  | "createReminder"
+  | "setReminderForTarget"
   | "saveNoteImage"
   | "getNoteImage"
 >;
@@ -143,7 +143,7 @@ export default function InboxView({
     let reminderFailed = false;
     if (reminder) {
       try {
-        await db.createReminder({
+        await db.setReminderForTarget({
           targetType: "note",
           targetId: id,
           dueAt: new Date(reminder.dueAt).toISOString(),
