@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import QuickNoteModal from "../src/components/QuickNoteModal";
 import { createDraftStore } from "../src/lib/drafts";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); delete window.kompass; });
 
 function renderModal(
   overrides: {
@@ -46,6 +46,51 @@ function renderModal(
 }
 
 describe("QuickNote dismiss saves", () => {
+  it("waits for the native-close save before acknowledging the window close", async () => {
+    let onNativeClose: (() => void) | undefined;
+    const closeReady = vi.fn();
+    window.kompass = {
+      on: vi.fn((event, callback) => { if (event === "before-close") onNativeClose = callback; return () => {}; }),
+      closeReady, request: vi.fn(),
+    } as never;
+    let finish!: (value: { id: number }) => void;
+    const createNote = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+    renderModal({ createNote });
+    fireEvent.change(screen.getByLabelText("Not"), { target: { value: "Pencere kapanırken kaydet" } });
+    onNativeClose!();
+    expect(closeReady).not.toHaveBeenCalled();
+    finish({ id: 1 });
+    await waitFor(() => expect(closeReady).toHaveBeenCalledWith(true));
+    expect(createNote).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the native window open and the draft intact when saving fails", async () => {
+    let onNativeClose: (() => void) | undefined;
+    const closeReady = vi.fn();
+    window.kompass = {
+      on: vi.fn((event, callback) => { if (event === "before-close") onNativeClose = callback; return () => {}; }),
+      closeReady, request: vi.fn(),
+    } as never;
+    const { draftStore, onClose } = renderModal({ createNote: vi.fn().mockRejectedValue(new Error("Disk dolu")) });
+    fireEvent.change(screen.getByLabelText("Not"), { target: { value: "Kaybolmasın" } });
+    onNativeClose!();
+    await waitFor(() => expect(closeReady).toHaveBeenCalledWith(false));
+    expect(draftStore.getDraft()).toBe("Kaybolmasın");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("saves only once when focus is lost during an in-flight save", async () => {
+    let finish!: (value: { id: number }) => void;
+    const createNote = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+    const { onSaved } = renderModal({ createNote });
+    fireEvent.change(screen.getByLabelText("Not"), { target: { value: "Tek kayıt" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    fireEvent.blur(window);
+    finish({ id: 1 });
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(createNote).toHaveBeenCalledOnce();
+  });
+
   it("saves on Escape when the body is non-empty", async () => {
     const { createNote, onSaved, onClose } = renderModal();
     fireEvent.change(screen.getByLabelText("Not"), {

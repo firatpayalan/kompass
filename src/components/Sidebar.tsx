@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Icon, { type IconName } from "./Icon";
 
 import {
   formatVersionLabel,
@@ -28,17 +29,17 @@ interface SidebarProps {
   version?: string;
 }
 
-const navigationItems: Array<{ view: SidebarView; label: string }> = [
-  { view: "bugun", label: "Bugün" },
-  { view: "gelen", label: "Gelen" },
-  { view: "notlar", label: "Notlar" },
-  { view: "yapilacaklar", label: "Yapılacaklar" },
-  { view: "kisiler", label: "Kişiler" },
-  { view: "isler", label: "İşler" },
-  { view: "hafta", label: "Hafta" },
-  { view: "ayarlar", label: "Ayarlar" },
-  { view: "arama", label: "Arama" },
-  { view: "arsiv", label: "Arşiv" },
+const navigationItems: Array<{ view: SidebarView; label: string; icon: IconName; group: string }> = [
+  { view: "bugun", label: "Bugün", icon: "today", group: "Çalışma alanı" },
+  { view: "gelen", label: "Gelen", icon: "inbox", group: "Çalışma alanı" },
+  { view: "notlar", label: "Notlar", icon: "note", group: "Çalışma alanı" },
+  { view: "yapilacaklar", label: "Yapılacaklar", icon: "todo", group: "Çalışma alanı" },
+  { view: "kisiler", label: "Kişiler", icon: "people", group: "Takım ve işler" },
+  { view: "isler", label: "İşler", icon: "briefcase", group: "Takım ve işler" },
+  { view: "hafta", label: "Hafta", icon: "calendar", group: "Takım ve işler" },
+  { view: "arama", label: "Arama", icon: "search", group: "Diğer" },
+  { view: "arsiv", label: "Arşiv", icon: "archive", group: "Diğer" },
+  { view: "ayarlar", label: "Ayarlar", icon: "settings", group: "Diğer" },
 ];
 
 export default function Sidebar({
@@ -69,26 +70,28 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <div className="sidebar__title">Kompass</div>
-        {label ? (
-          <p aria-label="Uygulama sürümü" className="sidebar__version">
-            {label}
-          </p>
-        ) : null}
+        <span className="sidebar__mark"><Icon name="compass" size={27} /></span>
+        <div>
+          <div className="sidebar__title">Kompass</div>
+          {label ? <p aria-label="Uygulama sürümü" className="sidebar__version">{label}</p> : null}
+        </div>
       </div>
       <nav aria-label="Ana menü">
-        {navigationItems.map(({ view, label: itemLabel }) => (
-          <button
-            aria-current={activeView === view ? "page" : undefined}
-            className="sidebar__item"
-            key={view}
-            onClick={() => onViewChange(view)}
-            type="button"
-          >
-            {itemLabel}
-          </button>
+        {["Çalışma alanı", "Takım ve işler", "Diğer"].map((group) => (
+          <div className={`sidebar__group${group === "Diğer" ? " sidebar__group--secondary" : ""}`} key={group}>
+            <p className="sidebar__group-label">{group}</p>
+            {navigationItems.filter((item) => item.group === group).map(({ view, label: itemLabel, icon }) => {
+              const selected = activeView === view || (activeView === "kisi:" && view === "kisiler") || (activeView === "is:" && view === "isler");
+              return <button aria-current={selected ? "page" : undefined} className="sidebar__item" data-view={view}
+                key={view} onClick={() => onViewChange(view)} type="button">
+                <Icon name={icon} /><span>{itemLabel}</span>
+                {selected ? <span className="sidebar__active-dot" aria-hidden="true" /> : null}
+              </button>;
+            })}
+          </div>
         ))}
       </nav>
+      <div className="sidebar__footer"><Icon name="compass" size={17} /><div><strong>Kendi rotanızda.</strong><span>Yerel çalışma alanınız</span></div></div>
     </aside>
   );
 }

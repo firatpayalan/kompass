@@ -1,3 +1,4 @@
+import EntityWorkspace from "../components/EntityWorkspace";
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import ConfirmDialog from "../components/ConfirmDialog";
 import PersonForm from "../components/PersonForm";
@@ -274,6 +275,9 @@ export default function PeopleView({
           <h1>Kişiler</h1>
           <p>Kişileri ve onlarla bağlantılı notları takip edin.</p>
         </div>
+
+      </header>
+      <EntityWorkspace title="Yeni kişi" form={
         <PersonForm
           createPerson={db.createPerson}
           createPersonLabel={db.createPersonLabel}
@@ -284,7 +288,7 @@ export default function PeopleView({
           onDuplicate={useExisting}
           onToast={onToast}
         />
-      </header>
+      }>
       {loadError ? (
         <p className="form-error" role="alert">
           {loadError}
@@ -371,6 +375,7 @@ export default function PeopleView({
           ))}
         </ul>
       )}
+      </EntityWorkspace>
       {menu ? (
         <div
           className="person-label-menu"

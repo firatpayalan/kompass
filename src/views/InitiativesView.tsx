@@ -1,3 +1,4 @@
+import EntityWorkspace from "../components/EntityWorkspace";
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import ConfirmDialog from "../components/ConfirmDialog";
 import InitiativeForm from "../components/InitiativeForm";
@@ -253,6 +254,9 @@ export default function InitiativesView({
           <h1>İşler</h1>
           <p>İşlerin durumunu ve engellerini tek yerde izleyin.</p>
         </div>
+
+      </header>
+      <EntityWorkspace title="Yeni iş" form={
         <InitiativeForm
           createInitiative={db.createInitiative}
           createNote={db.createNote}
@@ -260,7 +264,7 @@ export default function InitiativesView({
           onDuplicate={useExisting}
           onToast={onToast}
         />
-      </header>
+      }>
       {loadError ? (
         <p className="form-error" role="alert">
           {loadError}
@@ -385,6 +389,7 @@ export default function InitiativesView({
           ))}
         </ul>
       )}
+      </EntityWorkspace>
       {menu ? (
         <div
           className="person-label-menu"

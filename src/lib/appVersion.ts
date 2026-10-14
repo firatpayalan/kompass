@@ -1,18 +1,18 @@
-import { getVersion } from "@tauri-apps/api/app";
+import { desktopRequest } from "./desktop";
 
 import packageJson from "../../package.json";
 
-/** Resolve display version: Tauri bundle version, else package.json. */
+/** Resolve display version: Electron bundle version, else package.json. */
 export async function resolveAppVersion(
-  getTauriVersion: () => Promise<string> = getVersion,
+  getDesktopVersion: () => Promise<string> = () => desktopRequest("app.version"),
 ): Promise<string> {
   try {
-    const version = (await getTauriVersion()).trim();
+    const version = (await getDesktopVersion()).trim();
     if (version) {
       return version;
     }
   } catch {
-    // Non-Tauri (Vite / tests) or invoke failure → fallback
+    // Non-desktop (Vite / tests) or invoke failure → fallback
   }
   return packageJson.version;
 }

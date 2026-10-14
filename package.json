@@ -1,37 +1,81 @@
 {
-  "name": "daily-leadership-tool",
+  "name": "kompass",
   "private": true,
-  "version": "0.3.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "node scripts/dev.mjs",
+    "dev:renderer": "vite",
+    "build": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && vite build && node scripts/build-electron.mjs",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:dir": "npm run build && electron-builder --dir",
     "preview": "vite preview",
-    "tauri": "tauri",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:desktop": "npm run build && node scripts/smoke-desktop.mjs && node scripts/smoke-desktop.mjs --dev"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-dialog": "^2.7.3",
-    "@tauri-apps/plugin-notification": "^2.4.0",
-    "@tauri-apps/plugin-sql": "^2.4.1",
+    "@noble/hashes": "^2.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
     "@testing-library/react": "^16.3.3",
-    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.10.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
-    "better-sqlite3": "^13.0.3",
+    "electron": "44.7.2",
+    "electron-builder": "26.15.3",
+    "esbuild": "^0.28.2",
     "jsdom": "^30.0.1",
     "typescript": "~6.0.3",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"
+  },
+  "description": "Local-first leadership workspace powered by Node.js and Electron",
+  "main": "dist-electron/main.cjs",
+  "engines": {
+    "node": ">=24.7.0"
+  },
+  "build": {
+    "appId": "com.dailyleadership.tool",
+    "productName": "Kompass",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    }
   }
 }

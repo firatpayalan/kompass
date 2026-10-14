@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { initAppDb } from "./db/appDb";
 import "./styles.css";
+import "./design.css";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,

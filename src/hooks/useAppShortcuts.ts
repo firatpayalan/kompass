@@ -21,7 +21,7 @@ export function useAppShortcuts({
         onClose();
         return;
       }
-      if (!event.metaKey || event.altKey || event.ctrlKey) {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) {
         return;
       }
 

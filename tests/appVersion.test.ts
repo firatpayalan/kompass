@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   formatVersionLabel,
@@ -12,16 +12,16 @@ describe("appVersion", () => {
     expect(formatVersionLabel("v0.1.2")).toBe("v0.1.2");
   });
 
-  it("prefers the Tauri version when available", async () => {
+  it("prefers the desktop version when available", async () => {
     expect(
       await resolveAppVersion(async () => "9.9.9"),
     ).toBe("9.9.9");
   });
 
-  it("falls back to package.json when Tauri fails", async () => {
+  it("falls back to package.json when desktop fails", async () => {
     expect(
       await resolveAppVersion(async () => {
-        throw new Error("not in tauri");
+        throw new Error("not in desktop");
       }),
     ).toBe(packageJson.version);
   });

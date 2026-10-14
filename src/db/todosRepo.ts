@@ -316,7 +316,7 @@ export async function listTodos(
   }));
 }
 
-export async function updateTodoStatus(
+async function updateTodoStatusInTransaction(
   db: AsyncDb,
   todoId: number,
   statusId: number,
@@ -347,11 +347,7 @@ export async function updateTodoStatus(
     }
 
     if (targetInitiativeId !== null) {
-      // NOTE: Not atomic. The completion note is written *before* the todo
-      // UPDATE on purpose: if the UPDATE fails we may end up with an extra
-      // note (retry-able, harmless), instead of a completed todo with no
-      // note. `withTransaction` here is only a serialization queue (no real
-      // BEGIN/COMMIT), so true atomicity is not available.
+      // The status change and generated completion note commit together.
       await createNote(db, {
         body: `To-do tamamlandı: “${truncateTitle(todo.title)}”`,
         initiativeIds: [targetInitiativeId],
@@ -378,4 +374,13 @@ export async function updateTodoStatus(
   }
 
   return mapTodo(await getTodoRow(db, todoId));
+}
+
+export function updateTodoStatus(
+  db: AsyncDb,
+  todoId: number,
+  statusId: number,
+  options: { initiativeId?: number; nowIso?: string } = {},
+): Promise<Todo> {
+  return db.withTransaction((tx) => updateTodoStatusInTransaction(tx, todoId, statusId, options));
 }

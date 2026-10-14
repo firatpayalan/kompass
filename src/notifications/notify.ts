@@ -1,25 +1,9 @@
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from "@tauri-apps/plugin-notification";
+import { desktopRequest } from "../lib/desktop";
 
-export async function ensureNotifyPermission(): Promise<boolean> {
-  let granted = await isPermissionGranted();
-  if (!granted) {
-    granted = (await requestPermission()) === "granted";
-  }
-  return granted;
+export function ensureNotifyPermission(): Promise<boolean> {
+  return desktopRequest("notification.supported");
 }
 
-export async function notifyReminder(
-  title: string,
-  body: string,
-): Promise<boolean> {
-  if (!(await ensureNotifyPermission())) {
-    return false;
-  }
-
-  sendNotification({ title, body });
-  return true;
+export function notifyReminder(title: string, body: string): Promise<boolean> {
+  return desktopRequest("notification.show", { title, body });
 }

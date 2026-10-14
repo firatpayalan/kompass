@@ -1,3 +1,5 @@
+import Icon from "../components/Icon";
+import NoteTagBadges from "../components/NoteTagBadges";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { AppDb } from "../db/appDb";
 import { getDb } from "../db/appDb";
@@ -23,6 +25,7 @@ type BugunDb = Pick<
 
 type BugunViewProps = {
   db?: BugunDb;
+  refreshKey?: number;
   ticker: ReminderTicker;
   onToast?: (message: string) => void;
   onOpenPerson?: (person: Person) => void;
@@ -58,14 +61,17 @@ function ReminderSection({
   title,
 }: ReminderSectionProps) {
   return (
-    <section aria-labelledby={headingId}>
-      <h2 id={headingId}>{title}</h2>
+    <section aria-labelledby={headingId} className={`reminder-panel reminder-panel--${headingId.startsWith("overdue") ? "overdue" : headingId.startsWith("upcoming") ? "upcoming" : "today"}`}>
+      <header className="panel-heading">
+        <h2 id={headingId}><Icon name={headingId.startsWith("overdue") ? "alert" : "clock"} size={17} />{title}</h2>
+        <span className="panel-count">{loading ? "—" : items.length}</span>
+      </header>
       {loading ? (
         <p>Hatırlatmalar yükleniyor…</p>
       ) : loadFailed ? (
         <p>Hatırlatmalar yüklenemedi.</p>
       ) : items.length === 0 ? (
-        <p>{empty}</p>
+        <p className="panel-empty"><Icon name="check" size={16} />{empty}</p>
       ) : (
         <ul className="reminder-list">
           {items.map((reminder) => (
@@ -88,7 +94,7 @@ function ReminderSection({
                 }}
                 type="button"
               >
-                Tamamla
+                <Icon name="check" size={14} /><span>Tamamla</span>
               </button>
             </li>
           ))}
@@ -120,6 +126,7 @@ function targetsFromNote(
 
 export default function BugunView({
   db = getDb(),
+  refreshKey = 0,
   ticker,
   onToast = ignoreToast,
   onOpenPerson = ignoreOpen,
@@ -192,7 +199,7 @@ export default function BugunView({
     return () => {
       active = false;
     };
-  }, [db]);
+  }, [db, refreshKey]);
 
   useEffect(() => {
     if (!linkMenu) return;
@@ -272,7 +279,20 @@ export default function BugunView({
 
   return (
     <section className="bugun-view">
-      <h1>Bugün</h1>
+      <header className="page-heading bugun-view__heading">
+        <div><p className="eyebrow">GÜNLÜK BAKIŞ</p><h1>Bugün</h1><p className="view-subtitle">Notlarınız, hatırlatmalarınız ve sıradaki adımlar.</p></div>
+        <span className="page-date"><Icon name="calendar" size={16} />{new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}</span>
+      </header>
+      <dl className="summary-grid" aria-label="Hatırlatma özeti">
+        {[
+          { label: "Bugün", description: "Günün hatırlatmaları", count: reminders.length, icon: "today", tone: "green" },
+          { label: "Yaklaşan", description: "Önümüzdeki 7 gün", count: upcomingReminders.length, icon: "clock", tone: "neutral" },
+          { label: "Geciken", description: "İlginizi bekleyenler", count: overdueReminders.length, icon: "alert", tone: "rose" },
+        ].map((item) => <div className={`summary-card summary-card--${item.tone}`} key={item.label}>
+          <div className="summary-card__label"><dt>{item.label}</dt><span><Icon name={item.icon as "today" | "clock" | "alert"} size={18} /></span></div>
+          <dd>{remindersLoading ? "—" : item.count}<span>{item.description}</span></dd>
+        </div>)}
+      </dl>
 
       {permissionDenied ? (
         <p className="inline-banner" role="status">
@@ -280,6 +300,56 @@ export default function BugunView({
         </p>
       ) : null}
 
+      <div className="bugun-view__grid">
+        <div className="bugun-view__notes">
+      <section aria-labelledby="recent-notes-heading" className="recent-notes-panel">
+        <header className="panel-heading"><h2 id="recent-notes-heading"><Icon name="note" size={18} />Son notlar</h2><span className="panel-count">{notesLoading ? "—" : recentNotes.length}</span></header>
+        {notesLoading ? (
+          <p>Notlar yükleniyor…</p>
+        ) : recentNotes.length === 0 ? (
+          <p>Henüz not yok.</p>
+        ) : (
+          <NoteArchiveShell enabled onArchive={archiveNote}>
+            {({ openArchiveMenu }) => (
+              <ul aria-label="Son notlar" className="recent-note-list">
+                {recentNotes.map((note) => {
+                  const navigable = isNavigable(note);
+                  return (
+                    <li
+                      className={
+                        navigable
+                          ? "recent-note-list__item--navigable"
+                          : undefined
+                      }
+                      key={note.id}
+                      onClick={
+                        navigable
+                          ? (event) => openNoteLinkMenu(event, note)
+                          : undefined
+                      }
+                      onContextMenu={(event) => openArchiveMenu(event, note)}
+                    >
+                      <div className="recent-note-list__context"><Icon name={note.initiativeIds.length ? "briefcase" : note.personIds.length ? "people" : "inbox"} size={14} /><span>{[
+                        ...note.initiativeIds.map((id) => initiativesById.get(id)?.name),
+                        ...note.personIds.map((id) => peopleById.get(id)?.name),
+                      ].filter(Boolean).join(" · ") || "Hızlı not"}</span>{navigable ? <Icon name="arrow" size={14} /> : null}</div>
+                      <NoteBodyView
+                        body={note.body}
+                        getNoteImage={(id) => db.getNoteImage(id)}
+                      />
+                      <NoteTagBadges tags={note.tags} />
+                      <NoteTimestamps note={note} />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </NoteArchiveShell>
+        )}
+      </section>
+
+        </div>
+        <aside className="bugun-view__reminders" aria-label="Hatırlatma listeleri">
       <ReminderSection
         empty="Geciken hatırlatma yok."
         headingId="overdue-reminders-heading"
@@ -317,46 +387,8 @@ export default function BugunView({
         title="Yaklaşanlar"
       />
 
-      <section aria-labelledby="recent-notes-heading">
-        <h2 id="recent-notes-heading">Son notlar</h2>
-        {notesLoading ? (
-          <p>Notlar yükleniyor…</p>
-        ) : recentNotes.length === 0 ? (
-          <p>Henüz not yok.</p>
-        ) : (
-          <NoteArchiveShell enabled onArchive={archiveNote}>
-            {({ openArchiveMenu }) => (
-              <ul aria-label="Son notlar" className="recent-note-list">
-                {recentNotes.map((note) => {
-                  const navigable = isNavigable(note);
-                  return (
-                    <li
-                      className={
-                        navigable
-                          ? "recent-note-list__item--navigable"
-                          : undefined
-                      }
-                      key={note.id}
-                      onClick={
-                        navigable
-                          ? (event) => openNoteLinkMenu(event, note)
-                          : undefined
-                      }
-                      onContextMenu={(event) => openArchiveMenu(event, note)}
-                    >
-                      <NoteBodyView
-                        body={note.body}
-                        getNoteImage={(id) => db.getNoteImage(id)}
-                      />
-                      <NoteTimestamps note={note} />
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </NoteArchiveShell>
-        )}
-      </section>
+        </aside>
+      </div>
 
       {linkMenu && linkMenu.targets.length > 0 ? (
         <div

@@ -1,4 +1,4 @@
-/** Normalize unknown thrown values (Error, string, Tauri payloads) for UI. */
+/** Normalize unknown thrown values (Error, string, IPC payloads) for UI. */
 export function formatError(error: unknown, fallback: string): string {
   if (typeof error === "string" && error.trim()) {
     return error.trim();

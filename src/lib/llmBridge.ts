@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { desktopRequest } from "./desktop";
 import type { LlmProvider } from "./llmModels";
 import type { LlmNotePayloadItem } from "./weeklyDigest";
 
@@ -15,44 +15,44 @@ export type SummarizeWeekResult = {
 };
 
 export async function hasClaudeApiKey(): Promise<boolean> {
-  return invoke<boolean>("has_claude_api_key");
+  return desktopRequest("llm.hasKey", { provider: "claude" });
 }
 
 export async function saveClaudeApiKey(key: string): Promise<void> {
-  await invoke("save_claude_api_key", { key });
+  await desktopRequest("llm.saveKey", { provider: "claude", key });
 }
 
 export async function clearClaudeApiKey(): Promise<void> {
-  await invoke("clear_claude_api_key");
+  await desktopRequest("llm.clearKey", { provider: "claude" });
 }
 
 export async function hasOpenaiApiKey(): Promise<boolean> {
-  return invoke<boolean>("has_openai_api_key");
+  return desktopRequest("llm.hasKey", { provider: "openai" });
 }
 
 export async function saveOpenaiApiKey(key: string): Promise<void> {
-  await invoke("save_openai_api_key", { key });
+  await desktopRequest("llm.saveKey", { provider: "openai", key });
 }
 
 export async function clearOpenaiApiKey(): Promise<void> {
-  await invoke("clear_openai_api_key");
+  await desktopRequest("llm.clearKey", { provider: "openai" });
 }
 
 export async function getLlmSettings(): Promise<LlmSettings> {
-  return invoke<LlmSettings>("get_llm_settings");
+  return desktopRequest("llm.getSettings");
 }
 
 export async function setLlmSettings(settings: LlmSettings): Promise<void> {
-  await invoke("set_llm_settings", { settings });
+  await desktopRequest("llm.setSettings", settings);
 }
 
 export async function summarizeWeek(input: {
   weekStart: string;
   notes: LlmNotePayloadItem[];
 }): Promise<SummarizeWeekResult> {
-  return invoke<SummarizeWeekResult>("summarize_week", {
+  return desktopRequest("llm.summarize", {
     weekStart: input.weekStart,
-    notesJson: JSON.stringify(input.notes),
+    notes: input.notes,
   });
 }
 

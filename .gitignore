@@ -3,10 +3,12 @@
 # JavaScript
 node_modules/
 dist/
+dist-electron/
+release/
 *.log
 *.local
 
-# Rust / Tauri
+# Legacy build artifacts (not part of the Node runtime)
 src-tauri/target/
 src-tauri/gen/schemas/
 

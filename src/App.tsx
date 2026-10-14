@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Sidebar, {
   type SidebarView,
   type View,
 } from "./components/Sidebar";
 import CommandPalette from "./components/CommandPalette";
+import AppToolbar from "./components/AppToolbar";
 import QuickNoteModal from "./components/QuickNoteModal";
 import Toast from "./components/Toast";
 import { getDb, type AppDb } from "./db/appDb";
@@ -78,6 +79,16 @@ export default function App({ db, notify, now }: AppProps = {}) {
     setCommandPaletteOpen(false);
     setQuickNoteOpen(true);
   }, []);
+  useEffect(() => {
+    const desktop = window.kompass;
+    if (!desktop) return;
+    const stopQuickNote = desktop.on("quick-note", openQuickNote);
+    const stopClose = desktop.on("before-close", () => {
+      // The modal saves both its note and optional reminder before acknowledging.
+      if (!quickNoteOpen) desktop.closeReady(true);
+    });
+    return () => { stopQuickNote(); stopClose(); };
+  }, [openQuickNote, quickNoteOpen]);
   const openCommandPalette = useCallback(() => {
     void (async () => {
       if (quickNoteOpen) {
@@ -159,6 +170,7 @@ export default function App({ db, notify, now }: AppProps = {}) {
         return (
           <BugunView
             db={appDb}
+            refreshKey={notesRefreshKey}
             onOpenInitiative={openInitiative}
             onOpenPerson={openPerson}
             onToast={showToast}
@@ -267,7 +279,15 @@ export default function App({ db, notify, now }: AppProps = {}) {
   return (
     <div className="app-shell">
       <Sidebar activeView={activeView} onViewChange={changeView} />
-      <main className="content">{renderView()}</main>
+      <div className="app-workspace">
+        <AppToolbar
+          activeView={activeView}
+          detail={activeView === "kisi:" ? selectedPerson?.name : activeView === "is:" ? selectedInitiative?.name : undefined}
+          onSearch={openCommandPalette}
+          onQuickNote={openQuickNote}
+        />
+        <main className="content">{renderView()}</main>
+      </div>
       {quickNoteOpen ? (
         <QuickNoteModal
           db={appDb}

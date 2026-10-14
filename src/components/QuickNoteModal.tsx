@@ -31,6 +31,7 @@ export default function QuickNoteModal({
   const [period, setPeriod] = useState<ReminderPeriod>("once");
   const [saving, setSaving] = useState(false);
   const discardedRef = useRef(false);
+  const savingRef = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
     if (body.trim()) {
@@ -44,15 +45,15 @@ export default function QuickNoteModal({
     onClose();
   };
 
-  const save = async (options?: { requireReminderFields?: boolean }) => {
+  const performSave = async (options?: { requireReminderFields?: boolean }): Promise<boolean> => {
     const requireReminderFields = options?.requireReminderFields ?? true;
     if (!body.trim()) {
       onToast("Not boş olamaz");
-      return;
+      return false;
     }
     if (requireReminderFields && reminderEnabled && !dueAt) {
       onToast("Hatırlatma zamanı gerekli");
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -64,7 +65,7 @@ export default function QuickNoteModal({
       draftStore.saveDraft(body);
       onToast("Kayıt başarısız; taslak korundu");
       setSaving(false);
-      return;
+      return false;
     }
 
     let reminderFailed = false;
@@ -91,17 +92,39 @@ export default function QuickNoteModal({
     }
     onSaved();
     onClose();
+    return true;
+  };
+
+  const save = (options?: { requireReminderFields?: boolean }): Promise<boolean> => {
+    if (savingRef.current) return savingRef.current;
+    savingRef.current = performSave(options).finally(() => { savingRef.current = null; });
+    return savingRef.current;
   };
 
   const dismissWithSave = async () => {
-    if (saving || discardedRef.current) return;
+    if (savingRef.current) return savingRef.current;
+    if (discardedRef.current) return true;
     if (!body.trim()) {
       draftStore.clearDraft();
       onClose();
-      return;
+      return true;
     }
-    await save({ requireReminderFields: false });
+    return save({ requireReminderFields: false });
   };
+
+  useEffect(() => {
+    const desktop = window.kompass;
+    if (!desktop) return;
+    return desktop.on("before-close", () => {
+      void dismissWithSave().then((saved) => desktop.closeReady(saved));
+    });
+  }, [body, saving, dueAt, reminderEnabled, period]);
+
+  useEffect(() => {
+    const saveOnBlur = () => { void dismissWithSave(); };
+    window.addEventListener("blur", saveOnBlur);
+    return () => window.removeEventListener("blur", saveOnBlur);
+  }, [body, saving, dueAt, reminderEnabled, period]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -175,7 +198,7 @@ export default function QuickNoteModal({
           period={period}
         />
         <footer>
-          <button onClick={discard} type="button">
+          <button disabled={saving} onClick={discard} type="button">
             Vazgeç
           </button>
           <button
